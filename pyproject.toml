@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wasserstein-ica"
+version = "0.1.0"
+description = "Independent Component Analysis via Wasserstein Distance Maximization"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+  { name = "Your Name", email = "your.email@example.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy",
+    "torch>=1.10.0",
+    "scipy",
+    "matplotlib",  # Optional, but useful if you include plotting utils later
+    "pot"          # Python Optimal Transport (if you use it for verification)
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/OT_IN_LINEAR_ICA"
+"Bug Tracker" = "https://github.com/yourusername/OT_IN_LINEAR_ICA/issues"
