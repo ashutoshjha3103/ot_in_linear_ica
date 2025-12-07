@@ -107,84 +107,97 @@ class WassersteinICA:
 
     def optimize_wasserstein2(self, prev_components=None, grid_points=100, continuous=True, max_iter=200, lr=0.1):
         """
-        Find one maximizer of Wasserstein-2 distance over unit sphere,
-        optionally orthogonal to previous components.
+        Find one maximizer of Wasserstein-2 distance over unit sphere using Autograd.
         
         Parameters:
         -----------
-        prev_components: None or torch tensor of shape (num_prev_components, num_signals)
+        prev_components: None or torch tensor
             Previously extracted components to enforce orthogonality
         grid_points: int
-            Number of discretization points on the sphere (for discrete mode)
+            Number of discretization points (for discrete mode)
         continuous: bool
-            If True, uses SGD-based optimization; if False, uses grid search
+            If True, uses Autograd SGD; if False, uses grid search
         max_iter: int
-            Maximum number of iterations for SGD (continuous mode only)
+            Maximum number of iterations for SGD
         lr: float
-            Learning rate for SGD (continuous mode only)
+            Learning rate for SGD
 
         Returns:
         --------
-        w_best: torch tensor of shape (num_signals,), unit norm
+        w_best: torch tensor
             Optimal direction maximizing Wasserstein-2 distance
         dist_best: float
             Corresponding maximal Wasserstein-2 distance
         """
         if continuous:
-            # SGD-based optimization on unit sphere
+            # --- Initialization ---
+            # Initialize w randomly
+            w = torch.randn(self.X.shape[0], device=self.X.device)
             
-            # Initialize w randomly, orthogonal to prev_components if given
-            if prev_components is None or prev_components.shape[0] == 0:
-                w = torch.randn(self.X.shape[0], device=self.X.device)
-            else:
-                w = torch.randn(self.X.shape[0], device=self.X.device)
-                # Orthogonalize w w.r.t. prev_components using Gram-Schmidt
+            # Orthogonalize w w.r.t. prev_components
+            if prev_components is not None and prev_components.shape[0] > 0:
                 for pc in prev_components:
-                    w -= torch.dot(w, pc) * pc
+                    w = w - torch.dot(w, pc) * pc
+            
+            # Normalize and enable gradient tracking
             w = w / torch.norm(w)
+            w.requires_grad_(True)
 
-            # Gradient ascent on the unit sphere
+            # --- Gradient Ascent ---
             for i in range(max_iter):
-                # Compute gradient approximation using finite differences
-                grad = self._wasserstein2_gradient_approx(w)
+                # 1. Forward Pass: Compute distance
+                # Note: We minimize negative distance to maximize distance
+                dist = self.wasserstein2_distance(w)
                 
+                # 2. Backward Pass: Compute exact gradients
+                if w.grad is not None:
+                    w.grad.zero_()
+                dist.backward()
+                
+                # 3. Get Gradient (detached from graph)
+                grad = w.grad.data
+                
+                # 4. Enforce Orthogonality constraints on the Gradient
                 if prev_components is not None and prev_components.shape[0] > 0:
-                    # Orthogonalize gradient to stay in feasible subspace
                     for pc in prev_components:
-                        grad -= torch.dot(grad, pc) * pc
+                        grad = grad - torch.dot(grad, pc) * pc
                 
+                # 5. Project gradient onto the tangent space of the sphere
+                # Remove the component of the gradient that points parallel to w
+                # This ensures only the tangential component remains
+                # Which makes sure the updates stay on the unit sphere.
+                grad = grad - torch.dot(grad, w.data) * w.data
+
                 # Normalize gradient for stable updates
-                grad = grad / (torch.norm(grad) + 1e-10)
+                grad_norm = torch.norm(grad)
+                if grad_norm > 1e-10:
+                    grad = grad / grad_norm
 
-                # Update step
-                w = w + lr * grad
-
-                # Re-normalize to unit norm
-                w = w / torch.norm(w)
-
-            dist = self.wasserstein2_distance(w)
-            return w, dist.item()
+                # 6. Update Step (Projected Gradient Ascent)
+                with torch.no_grad():
+                    w.data = w.data + lr * grad
+                    w.data = w.data / torch.norm(w.data)
+            
+            # Final Return
+            return w.detach(), self.wasserstein2_distance(w).item()
         
         else:
+            # --- Discrete Grid Search (Unchanged) ---
             # Grid search method for discrete case (only works in 2D)
             angles = torch.linspace(0, 2 * np.pi, steps=grid_points, device=self.X.device)
             candidates = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1)
 
             if prev_components is not None and prev_components.shape[0] > 0:
-                # Orthogonalize candidates w.r.t. previous components
-                # using Gram-Schmidt process
                 proj = torch.matmul(candidates, prev_components.t())
                 candidates = candidates - torch.matmul(proj, prev_components)
                 norms = torch.norm(candidates, dim=1, keepdim=True)
                 
-                # Filter out near-zero norm candidates (numerical stability)
                 mask = norms.squeeze() > 1e-6
                 candidates = candidates[mask]
                 if candidates.shape[0] == 0:
                     raise ValueError("No valid candidates after orthogonalization.")
                 candidates = candidates / norms[mask]
             
-            # Evaluate all candidates and find the best
             dist_best = -np.inf
             w_best = None
             for w in candidates:
