@@ -169,9 +169,11 @@ class WassersteinICA:
                 grad = grad - torch.dot(grad, w.data) * w.data
 
                 # Normalize gradient for stable updates
+                #############################FIX ###########################33
+                #############################################################
                 grad_norm = torch.norm(grad)
-                if grad_norm > 1e-10:
-                    grad = grad / grad_norm
+                if grad_norm > 1e-10: # larger threshold otherwise normalization will happen even if I am at minima
+                    grad = grad / grad_norm # issue Michel: probably not necessary, explore (already on unit aphere)
 
                 # 6. Update Step (Projected Gradient Ascent)
                 with torch.no_grad():
