@@ -1,0 +1,43 @@
+\begin{thebibliography}{HKO01}
+
+\bibitem[Car22]{cardoso2022}
+Jean-Fran{}ois Cardoso.
+\newblock Independent component analysis in the light of information geometry.
+\newblock {\em Entropy}, 24(3):377, 2022.
+
+\bibitem[HKO01]{hyvarinen2001independent}
+Aapo Hyv\"arinen, Juha Karhunen, and Erkki Oja.
+\newblock {\em Independent Component Analysis}.
+\newblock John Wiley \& Sons, Inc., New York, 2001.
+\newblock Final version of 7 March 2001, Chapter 1.
+
+\bibitem[JH85]{JuttenHerault1985}
+Christian Jutten and Jean Herault.
+\newblock Blind separation of sources, part i: An adaptive algorithm based on
+  neuromimetic architecture.
+\newblock {\em Signal Processing}, 24(1):1--10, 1985.
+
+\bibitem[Kan42]{kantorovich1942}
+Leonid~V. Kantorovich.
+\newblock On the translocation of masses.
+\newblock {\em C. R. Doklady Acad. Sci. URSS (N.S.)}, 37:199--201, 1942.
+\newblock Relaxed formulation via transport plans.
+
+\bibitem[Mon81]{monge1781}
+Gaspard Monge.
+\newblock Mémoire sur la théorie des déblais et des remblais.
+\newblock {\em Histoire de l’Académie royale des sciences}, 1781.
+
+\bibitem[Vil03]{villani2003}
+Cédric Villani.
+\newblock {\em Topics in Optimal Transportation}, volume~58 of {\em Graduate
+  Studies in Mathematics}.
+\newblock American Mathematical Society, 2003.
+
+\bibitem[Vil06]{villani2006}
+Cédric Villani.
+\newblock {\em Optimal Transport: Old and New}, volume 338 of {\em Grundlehren
+  der mathematischen Wissenschaften}.
+\newblock Springer-Verlag, 2006.
+
+\end{thebibliography}
