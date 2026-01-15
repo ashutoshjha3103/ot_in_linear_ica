@@ -171,9 +171,19 @@ class WassersteinICA:
                 # Normalize gradient for stable updates
                 #############################FIX ###########################33
                 #############################################################
+                #grad_norm = torch.norm(grad)
+                #if grad_norm > 1e-10: # larger threshold otherwise normalization will happen even if I am at minima
+                #    grad = grad / grad_norm # issue Michel: probably not necessary, explore (already on unit aphere)
+
+                # We instead use gradient clipping below
+
+                # OPTIONAL: Gradient Clipping (Safety mechanism)
+                # Only scale down if the gradient is huge (to prevent instability),
+                # but allow it to be tiny (to allow convergence).
                 grad_norm = torch.norm(grad)
-                if grad_norm > 1e-10: # larger threshold otherwise normalization will happen even if I am at minima
-                    grad = grad / grad_norm # issue Michel: probably not necessary, explore (already on unit aphere)
+                max_grad_norm = 1.0  # Threshold
+                if grad_norm > max_grad_norm:
+                    grad = grad * (max_grad_norm / grad_norm)
 
                 # 6. Update Step (Projected Gradient Ascent)
                 with torch.no_grad():

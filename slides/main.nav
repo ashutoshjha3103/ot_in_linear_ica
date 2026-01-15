@@ -89,33 +89,42 @@
 \headcommand {\beamer@framepages {34}{34}}
 \headcommand {\beamer@sectionpages {30}{34}}
 \headcommand {\beamer@subsectionpages {30}{34}}
-\headcommand {\sectionentry {8}{Empirical Comparison: W1 vs W2}{35}{Empirical Comparison: W1 vs W2}{0}}
+\headcommand {\sectionentry {8}{Proof of Strict Inequality}{35}{Proof of Strict Inequality}{0}}
 \headcommand {\slideentry {8}{0}{1}{35/35}{}{0}}
 \headcommand {\beamer@framepages {35}{35}}
 \headcommand {\slideentry {8}{0}{2}{36/36}{}{0}}
 \headcommand {\beamer@framepages {36}{36}}
 \headcommand {\slideentry {8}{0}{3}{37/37}{}{0}}
 \headcommand {\beamer@framepages {37}{37}}
-\headcommand {\slideentry {8}{0}{4}{38/38}{}{0}}
+\headcommand {\beamer@sectionpages {35}{37}}
+\headcommand {\beamer@subsectionpages {35}{37}}
+\headcommand {\sectionentry {9}{Empirical Comparison: W1 vs W2}{38}{Empirical Comparison: W1 vs W2}{0}}
+\headcommand {\slideentry {9}{0}{1}{38/38}{}{0}}
 \headcommand {\beamer@framepages {38}{38}}
-\headcommand {\beamer@sectionpages {35}{38}}
-\headcommand {\beamer@subsectionpages {35}{38}}
-\headcommand {\sectionentry {9}{Core Idea}{39}{Core Idea}{0}}
-\headcommand {\slideentry {9}{0}{1}{39/39}{}{0}}
+\headcommand {\slideentry {9}{0}{2}{39/39}{}{0}}
 \headcommand {\beamer@framepages {39}{39}}
-\headcommand {\slideentry {9}{0}{2}{40/40}{}{0}}
+\headcommand {\slideentry {9}{0}{3}{40/40}{}{0}}
 \headcommand {\beamer@framepages {40}{40}}
-\headcommand {\beamer@sectionpages {39}{40}}
-\headcommand {\beamer@subsectionpages {39}{40}}
-\headcommand {\sectionentry {10}{Bibliography}{41}{Bibliography}{0}}
-\headcommand {\slideentry {10}{0}{1}{41/41}{}{0}}
+\headcommand {\slideentry {9}{0}{4}{41/41}{}{0}}
 \headcommand {\beamer@framepages {41}{41}}
-\headcommand {\slideentry {10}{0}{1}{41/42}{}{0}}
-\headcommand {\beamer@framepages {41}{42}}
-\headcommand {\slideentry {10}{0}{1}{41/43}{}{0}}
-\headcommand {\beamer@framepages {41}{43}}
-\headcommand {\beamer@partpages {1}{43}}
-\headcommand {\beamer@subsectionpages {41}{43}}
-\headcommand {\beamer@sectionpages {41}{43}}
-\headcommand {\beamer@documentpages {43}}
-\headcommand {\gdef \inserttotalframenumber {43}}
+\headcommand {\beamer@sectionpages {38}{41}}
+\headcommand {\beamer@subsectionpages {38}{41}}
+\headcommand {\sectionentry {10}{Core Idea}{42}{Core Idea}{0}}
+\headcommand {\slideentry {10}{0}{1}{42/42}{}{0}}
+\headcommand {\beamer@framepages {42}{42}}
+\headcommand {\slideentry {10}{0}{2}{43/43}{}{0}}
+\headcommand {\beamer@framepages {43}{43}}
+\headcommand {\beamer@sectionpages {42}{43}}
+\headcommand {\beamer@subsectionpages {42}{43}}
+\headcommand {\sectionentry {11}{Bibliography}{44}{Bibliography}{0}}
+\headcommand {\slideentry {11}{0}{1}{44/44}{}{0}}
+\headcommand {\beamer@framepages {44}{44}}
+\headcommand {\slideentry {11}{0}{1}{44/45}{}{0}}
+\headcommand {\beamer@framepages {44}{45}}
+\headcommand {\slideentry {11}{0}{1}{44/46}{}{0}}
+\headcommand {\beamer@framepages {44}{46}}
+\headcommand {\beamer@partpages {1}{46}}
+\headcommand {\beamer@subsectionpages {44}{46}}
+\headcommand {\beamer@sectionpages {44}{46}}
+\headcommand {\beamer@documentpages {46}}
+\headcommand {\gdef \inserttotalframenumber {46}}

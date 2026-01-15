@@ -496,7 +496,55 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
       \[
         W_2^2(w \cdot Z, \mathcal{N}) \le \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N})
       \]
-      This convexity adjacent (traingle inequality?) property confirms that mixtures reduce the Wasserstein distance to Gaussianity.
+      This convexity adjacent property confirms that mixtures reduce the Wasserstein distance to Gaussianity.
+  \end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------
+% Rigorous Proof of Equality vs Strict Inequality
+% ----------------------------------------------------------------------
+
+\section{Proof of Strict Inequality}
+
+\begin{frame}{The Condition for Equality}
+  \textbf{Brenier's Theorem (1D Monotonicity Condition):}
+  \begin{itemize}
+    \item The Wasserstein-2 distance between two 1D variables $X$ and $Y$ is equal to $\mathbb{E}[|X-Y|^2]$ \textbf{if and only if} $X$ and $Y$ are \textbf{comonotonic}.
+    \item This means there exists a monotonically increasing function $f$ such that $Y = f(X)$ (or vice versa).
+    \item \textbf{Implication:}
+      \[ W_2^2 < \mathbb{E}[|X-Y|^2] \]
+      strictly holds whenever the relationship between our constructed $X$ and $Y$ is \textbf{not} perfectly monotonic.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Case A: Gaussian Sources (Equality)}
+  Let the sources $Z_i$ be Standard Normal distributions.
+  \begin{itemize}
+    \item The Optimal Transport map $T_i$ transporting $\mathcal{N}(0,1)$ (our noise $N_i$) to $Z_i$ is simply the \textbf{Identity function}:
+      \[ T_i(x) = x \]
+    \item Substitute this into our constructed mixture variable $X$:
+      \[ X = \sum w_i T_i(N_i) = \sum w_i N_i \]
+    \item Compare this to our target variable $Y$:
+      \[ Y = \sum w_i N_i \]
+    \item \textbf{Result:} $X = Y$. The relationship is the Identity map (strictly monotonic).
+    \item Therefore, the coupling is optimal, and \textbf{Equality holds}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Case B: Non-Gaussian Sources (Strict Inequality)}
+  Let the sources $Z_i$ be non-Gaussian.
+  \begin{itemize}
+    \item The Transport map $T_i$ is now \textbf{non-linear} (curved).
+      \begin{itemize}
+        \item e.g., if $Z_i$ is heavy-tailed, $T_i(x)$ grows faster than $x$.
+      \end{itemize}
+    \item We define the vector $\mathbf{N} = (N_1, \dots, N_d)$.
+      \[ X(\mathbf{N}) = \sum w_i T_i(N_i) \quad \text{vs} \quad Y(\mathbf{N}) = \sum w_i N_i \]
+    \item \textbf{The Conflict:} Because $T_i$ are non-linear, the ranking of values in $X$ does not match the ranking in $Y$.
+      \item There exist vectors $\mathbf{N}_a, \mathbf{N}_b$ such that $Y(\mathbf{N}_a) < Y(\mathbf{N}_b)$ but $X(\mathbf{N}_a) > X(\mathbf{N}_b)$.
+    \item \textbf{Result:} $X$ and $Y$ are \textbf{not comonotonic}. The coupling is sub-optimal.
+    \item Therefore, \textbf{Strict Inequality holds:}
+      \[ W_2^2(w \cdot Z, \mathcal{N}) < \sum w_i^2 W_2^2(Z_i, \mathcal{N}) \]
   \end{itemize}
 \end{frame}
 
