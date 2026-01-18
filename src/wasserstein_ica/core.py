@@ -220,3 +220,89 @@ class WassersteinICA:
                     w_best = w
             
             return w_best, dist_best
+    
+    # ========================================================
+    # NEW METHODS: Symmetric Optimization
+    # ========================================================
+
+    def _symmetric_decorrelation(self, W):
+        """
+        Orthogonalize the rows of W simultaneously using (WW^T)^(-1/2).
+        This forces the rows to be orthogonal to each other while minimally changing their directions.
+        Formula: W_new = (WW^T)^(-1/2) * W
+        """
+        # 1. Compute Correlation Matrix: M = W * W^T
+        M = torch.mm(W, W.t())
+        
+        # 2. Eigen Decomposition of M (Symmetric Positive Definite)
+        evals, evecs = torch.linalg.eigh(M)
+        
+        # 3. Inverse Square Root: M^(-1/2) = E * D^(-1/2) * E^T
+        # Add epsilon for numerical stability
+        d_inv_sqrt = torch.diag(1.0 / torch.sqrt(evals + 1e-5))
+        inv_sqrt_M = torch.mm(torch.mm(evecs, d_inv_sqrt), evecs.t())
+        
+        # 4. Apply to W
+        return torch.mm(inv_sqrt_M, W)
+
+    def optimize_symmetric(self, n_components=None, max_iter=300, lr=0.1):
+        """
+        Finds ALL components simultaneously using Symmetric Orthogonalization.
+        
+        Parameters:
+        -----------
+        n_components: int (optional)
+            Number of components to extract. Defaults to input dimension.
+        max_iter: int
+            Maximum number of iterations.
+        lr: float
+            Learning rate.
+
+        Returns:
+        --------
+        W_sphere: torch tensor (n_components x n_features)
+            The learned unmixing matrix on the sphere (orthogonal rows).
+        """
+        if n_components is None:
+            n_components = self.X.shape[0]
+
+        # 1. Initialize random matrix (rows are vectors)
+        W = torch.randn(n_components, self.X.shape[0], device=self.X.device)
+        # Force initial orthogonality
+        W = self._symmetric_decorrelation(W)
+        W.requires_grad_(True)
+        
+        for i in range(max_iter):
+            if W.grad is not None: W.grad.zero_()
+            
+            # 2. Compute Total Loss (Sum of W2 distances for all rows)
+            total_dist = 0
+            for k in range(n_components):
+                # We want to maximize W2 distance, so minimize negative
+                total_dist += self.wasserstein2_distance(W[k])
+            
+            loss = -total_dist
+            loss.backward()
+            
+            with torch.no_grad():
+                grad = W.grad
+                
+                # 3. Gradient Ascent Step
+                # We do NOT project onto tangent space individually here.
+                # We move in the gradient direction, then fix orthogonality globally.
+                
+                # Gradient Clipping
+                grad_norm = torch.norm(grad)
+                if grad_norm > 1.0:
+                    grad = grad / grad_norm
+                
+                W += lr * grad
+                
+                # 4. SYMMETRIC ORTHOGONALIZATION STEP
+                # Pulls all vectors back to the manifold and ensures mutual orthogonality
+                W = self._symmetric_decorrelation(W)
+                
+                # Re-enable gradients for next pass
+                W.requires_grad_(True)
+                
+        return W.detach()
