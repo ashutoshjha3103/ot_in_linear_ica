@@ -24,8 +24,8 @@ class WassersteinICA:
         D, E = torch.linalg.eigh(cov)
         # Whitening matrix with numerical stability
         D_inv_sqrt = torch.diag(1.0 / torch.sqrt(D + 1e-5))
-        W = torch.matmul(D_inv_sqrt, E.T)
-        self.X_white = torch.matmul(W, X_centered)
+        self.W_white = torch.matmul(D_inv_sqrt, E.T)  # Store as class attribute
+        self.X_white = torch.matmul(self.W_white, X_centered)
         self.whitened = True
     
     def _normal_quantile(self, q):
@@ -105,97 +105,89 @@ class WassersteinICA:
             grad[i] = (val - base_val) / delta
         return grad
 
-    def optimize_wasserstein2(self, prev_components=None, grid_points=100, continuous=True, max_iter=200, lr=0.1):
+    def optimize_wasserstein2(self, prev_components=None, grid_points=100, continuous=True, max_iter=200, lr=0.1, n_restarts=3, decay_rate=0.5, decay_step=50):
         """
-        Find one maximizer of Wasserstein-2 distance over unit sphere using Autograd.
+        Find ONE maximizer of Wasserstein-2 distance using Autograd.
         
-        Parameters:
-        -----------
-        prev_components: None or torch tensor
-            Previously extracted components to enforce orthogonality
-        grid_points: int
-            Number of discretization points (for discrete mode)
-        continuous: bool
-            If True, uses Autograd SGD; if False, uses grid search
-        max_iter: int
-            Maximum number of iterations for SGD
-        lr: float
-            Learning rate for SGD
-
-        Returns:
-        --------
-        w_best: torch tensor
-            Optimal direction maximizing Wasserstein-2 distance
-        dist_best: float
-            Corresponding maximal Wasserstein-2 distance
+        Includes stability fixes for high dimensions:
+        1. Random Restarts: Avoids local optima.
+        2. LR Scheduler: Decays LR to pinpoint exact peak.
+        3. Hard Re-orthogonalization: Prevents numerical drift.
         """
         if continuous:
-            # --- Initialization ---
-            # Initialize w randomly
-            w = torch.randn(self.X.shape[0], device=self.X.device)
-            
-            # Orthogonalize w w.r.t. prev_components
-            if prev_components is not None and prev_components.shape[0] > 0:
-                for pc in prev_components:
-                    w = w - torch.dot(w, pc) * pc
-            
-            # Normalize and enable gradient tracking
-            w = w / torch.norm(w)
-            w.requires_grad_(True)
+            # ==========================================================
+            # CONTINUOUS MODE: Robust Gradient Ascent
+            # (Includes Restarts, Annealing, Hard Re-orthogonalization)
+            # ==========================================================
+            best_w = None
+            best_dist = -float('inf')
 
-            # --- Gradient Ascent ---
-            for i in range(max_iter):
-                # 1. Forward Pass: Compute distance
-                # Note: We minimize negative distance to maximize distance
-                dist = self.wasserstein2_distance(w)
+            for attempt in range(n_restarts):
                 
-                # 2. Backward Pass: Compute exact gradients
-                if w.grad is not None:
-                    w.grad.zero_()
-                dist.backward()
+                # 1. Initialize w randomly
+                w = torch.randn(self.X.shape[0], device=self.X.device)
                 
-                # 3. Get Gradient (detached from graph)
-                grad = w.grad.data
-                
-                # 4. Enforce Orthogonality constraints on the Gradient
+                # Initial Orthogonalization
                 if prev_components is not None and prev_components.shape[0] > 0:
                     for pc in prev_components:
-                        grad = grad - torch.dot(grad, pc) * pc
+                        w = w - torch.dot(w, pc) * pc
                 
-                # 5. Project gradient onto the tangent space of the sphere
-                # Remove the component of the gradient that points parallel to w
-                # This ensures only the tangential component remains
-                # Which makes sure the updates stay on the unit sphere.
-                grad = grad - torch.dot(grad, w.data) * w.data
+                w = w / torch.norm(w)
+                w.requires_grad_(True)
+                
+                current_lr = lr
+                
+                # Optimization Loop
+                for i in range(max_iter):
+                    
+                    # LR Decay
+                    if (i + 1) % decay_step == 0:
+                        current_lr *= decay_rate
+                    
+                    # Forward
+                    dist = self.wasserstein2_distance(w)
+                    if w.grad is not None: w.grad.zero_()
+                    dist.backward()
+                    
+                    grad = w.grad.data
+                    
+                    # Orthogonalize Gradient
+                    if prev_components is not None and prev_components.shape[0] > 0:
+                        for pc in prev_components:
+                            grad = grad - torch.dot(grad, pc) * pc
+                    
+                    # Tangent Projection
+                    grad = grad - torch.dot(grad, w.data) * w.data
 
-                # Normalize gradient for stable updates
-                #############################FIX ###########################33
-                #############################################################
-                #grad_norm = torch.norm(grad)
-                #if grad_norm > 1e-10: # larger threshold otherwise normalization will happen even if I am at minima
-                #    grad = grad / grad_norm # issue Michel: probably not necessary, explore (already on unit aphere)
+                    # Gradient Clipping
+                    grad_norm = torch.norm(grad)
+                    if grad_norm > 1.0:
+                        grad = grad / grad_norm
 
-                # We instead use gradient clipping below
-
-                # OPTIONAL: Gradient Clipping (Safety mechanism)
-                # Only scale down if the gradient is huge (to prevent instability),
-                # but allow it to be tiny (to allow convergence).
-                grad_norm = torch.norm(grad)
-                max_grad_norm = 1.0  # Threshold
-                if grad_norm > max_grad_norm:
-                    grad = grad * (max_grad_norm / grad_norm)
-
-                # 6. Update Step (Projected Gradient Ascent)
-                with torch.no_grad():
-                    w.data = w.data + lr * grad
-                    w.data = w.data / torch.norm(w.data)
+                    # Update
+                    with torch.no_grad():
+                        w.data = w.data + current_lr * grad
+                        
+                        # Hard Re-Orthogonalization
+                        if prev_components is not None and prev_components.shape[0] > 0:
+                            for pc in prev_components:
+                                w.data = w.data - torch.dot(w.data, pc) * pc
+                        
+                        # Renormalize
+                        w.data = w.data / torch.norm(w.data)
+                
+                # Keep Best Restart
+                final_dist = self.wasserstein2_distance(w).item()
+                if final_dist > best_dist:
+                    best_dist = final_dist
+                    best_w = w.detach().clone()
             
-            # Final Return
-            return w.detach(), self.wasserstein2_distance(w).item()
+            return best_w, best_dist
         
         else:
-            # --- Discrete Grid Search (Unchanged) ---
-            # Grid search method for discrete case (only works in 2D)
+            # ==========================================================
+            # DISCRETE MODE: Grid Search (Restored)
+            # ==========================================================
             angles = torch.linspace(0, 2 * np.pi, steps=grid_points, device=self.X.device)
             candidates = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1)
 
@@ -245,9 +237,10 @@ class WassersteinICA:
         # 4. Apply to W
         return torch.mm(inv_sqrt_M, W)
 
-    def optimize_symmetric(self, n_components=None, max_iter=300, lr=0.1):
+    def optimize_symmetric(self, n_components=None, max_iter=300, lr=0.1, init_w=None):
         """
         Finds ALL components simultaneously using Symmetric Orthogonalization.
+        Can accept an initialization matrix (init_w) to refine existing solutions.
         
         Parameters:
         -----------
@@ -266,19 +259,29 @@ class WassersteinICA:
         if n_components is None:
             n_components = self.X.shape[0]
 
-        # 1. Initialize random matrix (rows are vectors)
-        W = torch.randn(n_components, self.X.shape[0], device=self.X.device)
+        # 1. Initialize
+        if init_w is not None:
+            # Clone to ensure we don't modify the input tensor directly
+            W = init_w.clone().to(self.X.device)
+            # Ensure it fits the shape
+            if W.shape[0] != n_components:
+                # Handle case where init_w has different count than requested
+                # (Optional safety check, usually not needed if logic is correct)
+                pass 
+        else:
+            W = torch.randn(n_components, self.X.shape[0], device=self.X.device)
+            
         # Force initial orthogonality
         W = self._symmetric_decorrelation(W)
         W.requires_grad_(True)
         
+        # --- Gradient Ascent Loop ---
         for i in range(max_iter):
             if W.grad is not None: W.grad.zero_()
             
-            # 2. Compute Total Loss (Sum of W2 distances for all rows)
+            # 2. Compute Total Loss
             total_dist = 0
             for k in range(n_components):
-                # We want to maximize W2 distance, so minimize negative
                 total_dist += self.wasserstein2_distance(W[k])
             
             loss = -total_dist
@@ -287,10 +290,6 @@ class WassersteinICA:
             with torch.no_grad():
                 grad = W.grad
                 
-                # 3. Gradient Ascent Step
-                # We do NOT project onto tangent space individually here.
-                # We move in the gradient direction, then fix orthogonality globally.
-                
                 # Gradient Clipping
                 grad_norm = torch.norm(grad)
                 if grad_norm > 1.0:
@@ -298,11 +297,10 @@ class WassersteinICA:
                 
                 W += lr * grad
                 
-                # 4. SYMMETRIC ORTHOGONALIZATION STEP
-                # Pulls all vectors back to the manifold and ensures mutual orthogonality
+                # 3. SYMMETRIC ORTHOGONALIZATION
+                # This is the "Magic" step that corrects global alignment
                 W = self._symmetric_decorrelation(W)
                 
-                # Re-enable gradients for next pass
                 W.requires_grad_(True)
                 
         return W.detach()
