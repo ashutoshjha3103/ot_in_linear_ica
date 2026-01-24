@@ -501,50 +501,89 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 \end{frame}
 
 % ----------------------------------------------------------------------
-% Rigorous Proof of Equality vs Strict Inequality
+%  Proof of Equality vs Strict Inequality
 % ----------------------------------------------------------------------
 
 \section{Proof of Strict Inequality}
 
-\begin{frame}{The Condition for Equality}
-  \textbf{Brenier's Theorem (1D Monotonicity Condition):}
+\begin{frame}{Condition for Equality (1D Case)}
+  \textbf{Brenier's Theorem and Comonotonicity:}
   \begin{itemize}
-    \item The Wasserstein-2 distance between two 1D variables $X$ and $Y$ is equal to $\mathbb{E}[|X-Y|^2]$ \textbf{if and only if} $X$ and $Y$ are \textbf{comonotonic}.
-    \item This means there exists a monotonically increasing function $f$ such that $Y = f(X)$ (or vice versa).
-    \item \textbf{Implication:}
-      \[ W_2^2 < \mathbb{E}[|X-Y|^2] \]
-      strictly holds whenever the relationship between our constructed $X$ and $Y$ is \textbf{not} perfectly monotonic.
+    \item We are comparing two scalar variables, $X$ and $Y$, constructed from the random vector $\mathbf{N} \in \mathbb{R}^d$.
+    \item In the 1D case, $W_2^2(X, Y) = \mathbb{E}[|X-Y|^2]$ holds \textbf{if and only if} $X$ and $Y$ are \textbf{comonotonic}.
+    \item \textbf{Requirement:} This requires that $X$ and $Y$ share the same level sets (contours).
+    \item \textbf{Geometric Consequence:} For the level sets to match, the gradients of $X$ and $Y$ with respect to the noise vector $\mathbf{N}$ must be parallel everywhere:
+    \[ \nabla X(\mathbf{N}) = \lambda \nabla Y(\mathbf{N}) \]
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Case A: Gaussian Sources (Equality)}
-  Let the sources $Z_i$ be Standard Normal distributions.
+\begin{frame}{Definitions and Gradient of Y}
+  Let us explicitly define our variables and compute the gradient of the Gaussian target $Y$.
+  
+  \textbf{Definitions:}
   \begin{itemize}
-    \item The Optimal Transport map $T_i$ transporting $\mathcal{N}(0,1)$ (our noise $N_i$) to $Z_i$ is simply the \textbf{Identity function}:
-      \[ T_i(x) = x \]
-    \item Substitute this into our constructed mixture variable $X$:
-      \[ X = \sum w_i T_i(N_i) = \sum w_i N_i \]
-    \item Compare this to our target variable $Y$:
-      \[ Y = \sum w_i N_i \]
-    \item \textbf{Result:} $X = Y$. The relationship is the Identity map (strictly monotonic).
-    \item Therefore, the coupling is optimal, and \textbf{Equality holds}.
+    \item $\mathbf{N} = [N_1, N_2, \dots, N_d]^\top$ (Noise Vector)
+    \item $\mathbf{w} = [w_1, w_2, \dots, w_d]^\top$ (Projection Vector)
   \end{itemize}
+  
+  \vspace{0.3cm}
+  \textbf{1. The Gaussian Target ($Y$):}
+  \[ Y(\mathbf{N}) = \sum_{i=1}^d w_i N_i \]
+  
+  \textbf{The Gradient of $Y$:}
+  Since $Y$ is linear, the partial derivative w.r.t $N_k$ is just $w_k$:
+  \[ \frac{\partial Y}{\partial N_k} = w_k \]
+  \[ \implies \nabla Y = [w_1, w_2, \dots, w_d]^\top = \mathbf{w} \]
 \end{frame}
 
-\begin{frame}{Case B: Non-Gaussian Sources (Strict Inequality)}
-  Let the sources $Z_i$ be non-Gaussian.
+\begin{frame}{Gradient of the Mixture X}
+  Now, let us compute the gradient for the mixture $X$ involving the transport maps.
+
+  \textbf{2. The Source Mixture ($X$):}
+  \[ X(\mathbf{N}) = \sum_{i=1}^d w_i T_i(N_i) \]
+  
+  \textbf{The Gradient of $X$:}
+  We apply the chain rule. The term $T_i(N_i)$ depends only on $N_i$.
+  \[ \frac{\partial X}{\partial N_k} = \frac{\partial}{\partial N_k} (w_k T_k(N_k)) = w_k T'_k(N_k) \]
+  
+  Writing this as a vector:
+  \[ \nabla X = \begin{bmatrix} w_1 T'_1(N_1) \\ w_2 T'_2(N_2) \\ \vdots \\ w_d T'_d(N_d) \end{bmatrix} \]
+\end{frame}
+
+\begin{frame}{The Necessary Condition for Equality}
+  For equality to hold, the gradients must be parallel: $\nabla X = \lambda \nabla Y$.
+  
+  Matching the components element-wise:
+  \[
+    \begin{bmatrix} w_1 T'_1(N_1) \\ \vdots \\ w_d T'_d(N_d) \end{bmatrix} 
+    = \lambda 
+    \begin{bmatrix} w_1 \\ \vdots \\ w_d \end{bmatrix}
+  \]
+  
+  This implies that for every dimension $i$:
+  \[ w_i T'_i(N_i) = \lambda w_i \implies T'_i(N_i) = \lambda \]
+  
+  \textbf{Conclusion:}
+  The derivative of the transport map $T'_i$ must be constant ($\lambda$) for all values of $N_i$. A function with a constant derivative is a \textbf{Linear Function}.
+\end{frame}
+
+\begin{frame}{Implication: Gaussian vs. Non-Gaussian}
+  We proved that equality requires linear transport maps ($T_i(x) = \lambda x$).
+  
+  \vspace{0.3cm}
+  \textbf{Case 1: Gaussian Sources (Equality)}
   \begin{itemize}
-    \item The Transport map $T_i$ is now \textbf{non-linear} (curved).
-      \begin{itemize}
-        \item e.g., if $Z_i$ is heavy-tailed, $T_i(x)$ grows faster than $x$.
-      \end{itemize}
-    \item We define the vector $\mathbf{N} = (N_1, \dots, N_d)$.
-      \[ X(\mathbf{N}) = \sum w_i T_i(N_i) \quad \text{vs} \quad Y(\mathbf{N}) = \sum w_i N_i \]
-    \item \textbf{The Conflict:} Because $T_i$ are non-linear, the ranking of values in $X$ does not match the ranking in $Y$.
-      \item There exist vectors $\mathbf{N}_a, \mathbf{N}_b$ such that $Y(\mathbf{N}_a) < Y(\mathbf{N}_b)$ but $X(\mathbf{N}_a) > X(\mathbf{N}_b)$.
-    \item \textbf{Result:} $X$ and $Y$ are \textbf{not comonotonic}. The coupling is sub-optimal.
-    \item Therefore, \textbf{Strict Inequality holds:}
-      \[ W_2^2(w \cdot Z, \mathcal{N}) < \sum w_i^2 W_2^2(Z_i, \mathcal{N}) \]
+    \item If $Z_i \sim \mathcal{N}(0,1)$, the optimal map from $N_i$ to $Z_i$ is the \textbf{Identity}: $T_i(x) = x$.
+    \item The derivative $T'_i(x) = 1$ is constant.
+    \item The condition holds $\implies$ \textbf{Equality}.
+  \end{itemize}
+
+  \vspace{0.3cm}
+  \textbf{Case 2: Non-Gaussian Sources (Strict Inequality)}
+  \begin{itemize}
+    \item If $Z_i$ is non-Gaussian, $T_i(x)$ must be \textbf{non-linear} (curved) to reshape the distribution.
+    \item The derivative $T'_i(x)$ is \textbf{not constant}.
+    \item The gradients are not parallel $\implies$ \textbf{Strict Inequality}.
   \end{itemize}
 \end{frame}
 

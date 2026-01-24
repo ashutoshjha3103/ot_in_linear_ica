@@ -237,7 +237,7 @@ class WassersteinICA:
         # 4. Apply to W
         return torch.mm(inv_sqrt_M, W)
 
-    def optimize_symmetric(self, n_components=None, max_iter=300, lr=0.1, init_w=None):
+    def optimize_symmetric(self, n_components=None, max_iter=300, lr=0.1, init_w=None, optimizer='sgd', penalty_weight=10.0):
         """
         Finds ALL components simultaneously using Symmetric Orthogonalization.
         Can accept an initialization matrix (init_w) to refine existing solutions.
@@ -249,7 +249,17 @@ class WassersteinICA:
         max_iter: int
             Maximum number of iterations.
         lr: float
-            Learning rate.
+            Learning rate. (Note: L-BFGS often works best with lr=1.0).
+        init_w : torch.tensor (optional)
+            Initial guess for the unmixing matrix. Useful for refining a deflationary solution.
+        optimizer : str
+            'sgd'   : (Default) Projected Gradient Ascent. Stable, enforces hard orthogonality 
+                      at every step.
+            'lbfgs' : Quasi-Newton method. Faster convergence and higher precision, 
+                      but uses a 'Soft Penalty' approach for constraints during steps.
+        penalty_weight : float
+            Used only for 'lbfgs'. Controls how strongly to enforce orthogonality 
+            during the optimization loop.
 
         Returns:
         --------
@@ -261,46 +271,75 @@ class WassersteinICA:
 
         # 1. Initialize
         if init_w is not None:
-            # Clone to ensure we don't modify the input tensor directly
             W = init_w.clone().to(self.X.device)
-            # Ensure it fits the shape
-            if W.shape[0] != n_components:
-                # Handle case where init_w has different count than requested
-                # (Optional safety check, usually not needed if logic is correct)
-                pass 
         else:
             W = torch.randn(n_components, self.X.shape[0], device=self.X.device)
-            
-        # Force initial orthogonality
-        W = self._symmetric_decorrelation(W)
+            W = self._symmetric_decorrelation(W)
+        
         W.requires_grad_(True)
         
-        # --- Gradient Ascent Loop ---
-        for i in range(max_iter):
-            if W.grad is not None: W.grad.zero_()
+        # ==========================================
+        # OPTION A: SGD (Original, Manifold-Projection)
+        # ==========================================
+        if optimizer == 'sgd':
+            for i in range(max_iter):
+                if W.grad is not None: W.grad.zero_()
+                
+                # Loss = Sum of Wasserstein Distances
+                total_dist = 0
+                for k in range(n_components):
+                    total_dist += self.wasserstein2_distance(W[k])
+                
+                loss = -total_dist
+                loss.backward()
+                
+                with torch.no_grad():
+                    grad = W.grad
+                    # Gradient Clipping
+                    grad_norm = torch.norm(grad)
+                    if grad_norm > 1.0: grad = grad / grad_norm
+                    
+                    W += lr * grad
+                    
+                    # Hard Constraint: Project back to Manifold every step
+                    W.data = self._symmetric_decorrelation(W)
+                    W.requires_grad_(True)
+
+        # ==========================================
+        # OPTION B: L-BFGS (Soft Penalty)
+        # ==========================================
+        elif optimizer == 'lbfgs':
+            # L-BFGS requires a closure (function that re-evaluates loss)
+            # We use 'strong_wolfe' line search for better precision
+            optim = torch.optim.LBFGS([W], lr=lr, max_iter=max_iter, 
+                                      history_size=10, line_search_fn='strong_wolfe',
+                                      tolerance_grad=1e-5, tolerance_change=1e-5)
             
-            # 2. Compute Total Loss
-            total_dist = 0
-            for k in range(n_components):
-                total_dist += self.wasserstein2_distance(W[k])
+            def closure():
+                if W.grad is not None: W.grad.zero_()
+                
+                # 1. Main Objective: Maximize Wasserstein (Minimize Negative)
+                total_dist = 0
+                for k in range(n_components):
+                    total_dist += self.wasserstein2_distance(W[k])
+                
+                # 2. Constraint: Soft Orthogonality Penalty
+                # L-BFGS hates hard projections, so we guide it with a loss term
+                # Penalty = || W*W^T - I ||^2
+                gram = torch.mm(W, W.t())
+                identity = torch.eye(n_components, device=self.X.device)
+                ortho_loss = torch.norm(gram - identity) ** 2
+                
+                # Total Loss
+                loss = -total_dist + (penalty_weight * ortho_loss)
+                loss.backward()
+                return loss
             
-            loss = -total_dist
-            loss.backward()
+            # Run Optimization (L-BFGS performs multiple internal steps)
+            optim.step(closure)
             
+            # Final Hard Polish: Ensure perfect orthogonality at the very end
             with torch.no_grad():
-                grad = W.grad
-                
-                # Gradient Clipping
-                grad_norm = torch.norm(grad)
-                if grad_norm > 1.0:
-                    grad = grad / grad_norm
-                
-                W += lr * grad
-                
-                # 3. SYMMETRIC ORTHOGONALIZATION
-                # This is the "Magic" step that corrects global alignment
-                W = self._symmetric_decorrelation(W)
-                
-                W.requires_grad_(True)
+                W.data = self._symmetric_decorrelation(W)
                 
         return W.detach()
