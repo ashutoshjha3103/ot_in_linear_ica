@@ -509,81 +509,77 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 \begin{frame}{Condition for Equality (1D Case)}
   \textbf{Brenier's Theorem and Comonotonicity:}
   \begin{itemize}
-    \item We are comparing two scalar variables, $X$ and $Y$, constructed from the random vector $\mathbf{N} \in \mathbb{R}^d$.
-    \item In the 1D case, $W_2^2(X, Y) = \mathbb{E}[|X-Y|^2]$ holds \textbf{if and only if} $X$ and $Y$ are \textbf{comonotonic}.
-    \item \textbf{Requirement:} This requires that $X$ and $Y$ share the same level sets (contours).
-    \item \textbf{Geometric Consequence:} For the level sets to match, the gradients of $X$ and $Y$ with respect to the noise vector $\mathbf{N}$ must be parallel everywhere:
-    \[ \nabla X(\mathbf{N}) = \lambda \nabla Y(\mathbf{N}) \]
+    \item We compare two scalar variables, $X$ and $Y$, constructed from the random vector $\mathbf{N} \in \mathbb{R}^d$.
+    \item In the 1D case, the Wasserstein-2 distance satisfies $W_2^2(X, Y) = \mathbb{E}[|X-Y|^2]$ \textbf{if and only if} $X$ and $Y$ are \textbf{comonotonic}.
+    \item This means there exists a strictly increasing function $f$ such that $X = f(Y)$.
+    \item \textbf{Implication:} For this to hold, the gradients of $X$ and $Y$ with respect to the source noise $\mathbf{N}$ must be parallel at every point $\mathbf{N}$:
+    \[ \nabla X(\mathbf{N}) = \lambda(\mathbf{N}) \nabla Y(\mathbf{N}) \]
+    \textit{Note: The scaling factor $\lambda(\mathbf{N})$ is a scalar function of $\mathbf{N}$, not necessarily a constant.}
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Definitions and Gradient of Y}
-  Let us explicitly define our variables and compute the gradient of the Gaussian target $Y$.
-  
+\begin{frame}{Definitions and Regularity}
+  \textbf{Assumption (Regularity):}
+  We assume the source distributions possess smooth, strictly positive densities. This guarantees that the optimal transport maps $T_i$ are \textbf{differentiable} functions (Luis Caffarelli regularity).
+
+  \vspace{0.2cm}
   \textbf{Definitions:}
   \begin{itemize}
-    \item $\mathbf{N} = [N_1, N_2, \dots, N_d]^\top$ (Noise Vector)
-    \item $\mathbf{w} = [w_1, w_2, \dots, w_d]^\top$ (Projection Vector)
+    \item Noise Vector: $\mathbf{N} = [N_1, N_2, \dots, N_d]^\top$
+    \item Projection Vector: $\mathbf{w} = [w_1, w_2, \dots, w_d]^\top$
   \end{itemize}
   
-  \vspace{0.3cm}
-  \textbf{1. The Gaussian Target ($Y$):}
-  \[ Y(\mathbf{N}) = \sum_{i=1}^d w_i N_i \]
-  
-  \textbf{The Gradient of $Y$:}
-  Since $Y$ is linear, the partial derivative w.r.t $N_k$ is just $w_k$:
-  \[ \frac{\partial Y}{\partial N_k} = w_k \]
-  \[ \implies \nabla Y = [w_1, w_2, \dots, w_d]^\top = \mathbf{w} \]
+  \textbf{1. The Gaussian Target Gradient:}
+  \[ Y(\mathbf{N}) = \sum w_i N_i \implies \frac{\partial Y}{\partial N_k} = w_k \]
+  \[ \implies \nabla Y = \mathbf{w} \]
 \end{frame}
 
-\begin{frame}{Gradient of the Mixture X}
-  Now, let us compute the gradient for the mixture $X$ involving the transport maps.
-
-  \textbf{2. The Source Mixture ($X$):}
+\begin{frame}{Computing the Mixture Gradient}
+  \textbf{2. The Source Mixture Gradient:}
   \[ X(\mathbf{N}) = \sum_{i=1}^d w_i T_i(N_i) \]
   
-  \textbf{The Gradient of $X$:}
-  We apply the chain rule. The term $T_i(N_i)$ depends only on $N_i$.
+  Applying the chain rule element-wise:
   \[ \frac{\partial X}{\partial N_k} = \frac{\partial}{\partial N_k} (w_k T_k(N_k)) = w_k T'_k(N_k) \]
   
-  Writing this as a vector:
+  Writing as a vector:
   \[ \nabla X = \begin{bmatrix} w_1 T'_1(N_1) \\ w_2 T'_2(N_2) \\ \vdots \\ w_d T'_d(N_d) \end{bmatrix} \]
+  
+  \textbf{The Equality Condition:}
+  We require $\nabla X = \lambda(\mathbf{N}) \mathbf{w}$.
 \end{frame}
 
-\begin{frame}{The Necessary Condition for Equality}
-  For equality to hold, the gradients must be parallel: $\nabla X = \lambda \nabla Y$.
+\begin{frame}{Applying the Product Rule}
+  To test if $\nabla X = \lambda(\mathbf{N}) \mathbf{w}$ can hold for non-linear maps, we differentiate both sides with respect to $\mathbf{N}$ (computing the Hessian).
   
-  Matching the components element-wise:
-  \[
-    \begin{bmatrix} w_1 T'_1(N_1) \\ \vdots \\ w_d T'_d(N_d) \end{bmatrix} 
-    = \lambda 
-    \begin{bmatrix} w_1 \\ \vdots \\ w_d \end{bmatrix}
-  \]
-  
-  This implies that for every dimension $i$:
-  \[ w_i T'_i(N_i) = \lambda w_i \implies T'_i(N_i) = \lambda \]
-  
-  \textbf{Conclusion:}
-  The derivative of the transport map $T'_i$ must be constant ($\lambda$) for all values of $N_i$. A function with a constant derivative is a \textbf{Linear Function}.
-\end{frame}
-
-\begin{frame}{Implication: Gaussian vs. Non-Gaussian}
-  We proved that equality requires linear transport maps ($T_i(x) = \lambda x$).
-  
-  \vspace{0.3cm}
-  \textbf{Case 1: Gaussian Sources (Equality)}
   \begin{itemize}
-    \item If $Z_i \sim \mathcal{N}(0,1)$, the optimal map from $N_i$ to $Z_i$ is the \textbf{Identity}: $T_i(x) = x$.
-    \item The derivative $T'_i(x) = 1$ is constant.
-    \item The condition holds $\implies$ \textbf{Equality}.
+    \item \textbf{LHS (Hessian of $X$):}
+      Since $X$ is a sum of independent terms $w_i T_i(N_i)$, cross-derivatives are zero. The Hessian is \textbf{Diagonal}.
+      \[ \mathbf{H}_X = \text{diag}\left( w_1 T''_1(N_1), \dots, w_d T''_d(N_d) \right) \]
+
+    \item \textbf{RHS (Product Rule):}
+      We differentiate the product of scalar $\lambda(\mathbf{N})$ and constant vector $\mathbf{w}$.
+      \[ \frac{\partial}{\partial \mathbf{N}} \left( \lambda(\mathbf{N}) \mathbf{w} \right) = \mathbf{w} (\nabla \lambda)^\top \]
+      This results in a \textbf{Rank-1 Matrix} (outer product) where entry $(i,j)$ is $w_i \frac{\partial \lambda}{\partial N_j}$.
   \end{itemize}
+\end{frame}
 
-  \vspace{0.3cm}
-  \textbf{Case 2: Non-Gaussian Sources (Strict Inequality)}
+\begin{frame}{The Contradiction and Conclusion}
+  We equate the LHS (Diagonal) and RHS (Rank-1):
+  \[ \text{Diagonal Matrix} = \mathbf{w} (\nabla \lambda)^\top \]
+  
+  \textbf{Analysis:}
   \begin{itemize}
-    \item If $Z_i$ is non-Gaussian, $T_i(x)$ must be \textbf{non-linear} (curved) to reshape the distribution.
-    \item The derivative $T'_i(x)$ is \textbf{not constant}.
-    \item The gradients are not parallel $\implies$ \textbf{Strict Inequality}.
+    \item The off-diagonal entries ($i \neq j$) of the LHS are exactly 0.
+    \item Thus, the RHS off-diagonals must be 0: $w_i \frac{\partial \lambda}{\partial N_j} = 0$.
+    \item Since weights $w_i \neq 0$ (for a mixture), we must have $\frac{\partial \lambda}{\partial N_j} = 0$ for all $j$.
+    \item This implies $\nabla \lambda = \mathbf{0}$, so $\lambda$ is a \textbf{constant}.
+  \end{itemize}
+  
+  \textbf{Final Result:}
+  If $\lambda$ is constant, then $T'_i(N_i) = \lambda$ implies $T_i$ must be linear.
+  \begin{itemize}
+    \item Linear maps only exist for Gaussian sources.
+    \item For non-Gaussian sources, this contradiction proves \textbf{Strict Inequality}.
   \end{itemize}
 \end{frame}
 
