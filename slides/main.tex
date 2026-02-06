@@ -514,7 +514,7 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
     \item This means there exists a strictly increasing function $f$ such that $X = f(Y)$.
     \item \textbf{Implication:} For this to hold, the gradients of $X$ and $Y$ with respect to the source noise $\mathbf{N}$ must be parallel at every point $\mathbf{N}$:
     \[ \nabla X(\mathbf{N}) = \lambda(\mathbf{N}) \nabla Y(\mathbf{N}) \]
-    \textit{Note: The scaling factor $\lambda(\mathbf{N})$ is a scalar function of $\mathbf{N}$, not necessarily a constant.}
+    \textit{Note: The scaling factor $\lambda(\mathbf{N})$ is a scalar function of $\mathbf{N}$.}
   \end{itemize}
 \end{frame}
 
@@ -530,57 +530,96 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
   \end{itemize}
   
   \textbf{1. The Gaussian Target Gradient:}
-  \[ Y(\mathbf{N}) = \sum w_i N_i \implies \frac{\partial Y}{\partial N_k} = w_k \]
-  \[ \implies \nabla Y = \mathbf{w} \]
-\end{frame}
-
-\begin{frame}{Computing the Mixture Gradient}
+  \[ Y(\mathbf{N}) = \sum w_i N_i \implies \nabla Y = \mathbf{w} \]
+  
   \textbf{2. The Source Mixture Gradient:}
-  \[ X(\mathbf{N}) = \sum_{i=1}^d w_i T_i(N_i) \]
-  
-  Applying the chain rule element-wise:
-  \[ \frac{\partial X}{\partial N_k} = \frac{\partial}{\partial N_k} (w_k T_k(N_k)) = w_k T'_k(N_k) \]
-  
-  Writing as a vector:
-  \[ \nabla X = \begin{bmatrix} w_1 T'_1(N_1) \\ w_2 T'_2(N_2) \\ \vdots \\ w_d T'_d(N_d) \end{bmatrix} \]
-  
-  \textbf{The Equality Condition:}
-  We require $\nabla X = \lambda(\mathbf{N}) \mathbf{w}$.
+  \[ X(\mathbf{N}) = \sum w_i T_i(N_i) \implies \nabla X = [w_1 T'_1(N_1), \dots, w_d T'_d(N_d)]^\top \]
 \end{frame}
 
 \begin{frame}{Applying the Product Rule}
-  To test if $\nabla X = \lambda(\mathbf{N}) \mathbf{w}$ can hold for non-linear maps, we differentiate both sides with respect to $\mathbf{N}$ (computing the Hessian).
+  \textbf{The Equality Condition:}
+  We require $\nabla X = \lambda(\mathbf{N}) \nabla Y(\mathbf{N}) = \lambda(\mathbf{N}) \mathbf{w}$.
+  
+  To test if this holds, we differentiate both sides with respect to $\mathbf{N}$ to compute the Hessian matrices.
   
   \begin{itemize}
     \item \textbf{LHS (Hessian of $X$):}
-      Since $X$ is a sum of independent terms $w_i T_i(N_i)$, cross-derivatives are zero. The Hessian is \textbf{Diagonal}.
-      \[ \mathbf{H}_X = \text{diag}\left( w_1 T''_1(N_1), \dots, w_d T''_d(N_d) \right) \]
+      Since $X$ separates into independent terms $w_i T_i(N_i)$, the cross-derivatives $\frac{\partial^2 X}{\partial N_i \partial N_j}$ are zero. This yields a \textbf{Diagonal Matrix}.
 
     \item \textbf{RHS (Product Rule):}
-      We differentiate the product of scalar $\lambda(\mathbf{N})$ and constant vector $\mathbf{w}$.
+      We differentiate the product $\lambda(\mathbf{N}) \mathbf{w}$. Since $\mathbf{w}$ is constant:
       \[ \frac{\partial}{\partial \mathbf{N}} \left( \lambda(\mathbf{N}) \mathbf{w} \right) = \mathbf{w} (\nabla \lambda)^\top \]
-      This results in a \textbf{Rank-1 Matrix} (outer product) where entry $(i,j)$ is $w_i \frac{\partial \lambda}{\partial N_j}$.
+      This yields a \textbf{Rank-1 Matrix} (Outer Product).
   \end{itemize}
 \end{frame}
 
-\begin{frame}{The Contradiction and Conclusion}
-  We equate the LHS (Diagonal) and RHS (Rank-1):
-  \[ \text{Diagonal Matrix} = \mathbf{w} (\nabla \lambda)^\top \]
+\begin{frame}{Visualizing the Matrix Equation}
+  We equate the LHS (Diagonal) and the RHS (Outer Product):
   
-  \textbf{Analysis:}
+  \[
+    \underbrace{
+    \begin{bmatrix} 
+    w_1 T''_1 & 0 & \cdots & 0 \\
+    0 & w_2 T''_2 & \cdots & 0 \\
+    \vdots & \vdots & \ddots & \vdots \\
+    0 & 0 & \cdots & w_d T''_d
+    \end{bmatrix}
+    }_{\text{Hessian of } X \text{ (Diagonal)}}
+    =
+    \underbrace{
+    \begin{bmatrix}
+    w_1 \frac{\partial \lambda}{\partial N_1} & w_1 \frac{\partial \lambda}{\partial N_2} & \cdots & w_1 \frac{\partial \lambda}{\partial N_d} \\
+    w_2 \frac{\partial \lambda}{\partial N_1} & w_2 \frac{\partial \lambda}{\partial N_2} & \cdots & w_2 \frac{\partial \lambda}{\partial N_d} \\
+    \vdots & \vdots & \ddots & \vdots \\
+    w_d \frac{\partial \lambda}{\partial N_1} & w_d \frac{\partial \lambda}{\partial N_2} & \cdots & w_d \frac{\partial \lambda}{\partial N_d}
+    \end{bmatrix}
+    }_{\text{Outer Product } \mathbf{w} (\nabla \lambda)^\top \text{ (Rank-1)}}
+  \]
+  
+  \vspace{0.3cm}
+\end{frame}
+
+\begin{frame}{The Contradiction}
+  Let us look at any \textbf{off-diagonal} term (row $i$, column $j$ where $i \neq j$) from the matrix equation on the previous slide.
+  
   \begin{itemize}
-    \item The off-diagonal entries ($i \neq j$) of the LHS are exactly 0.
-    \item Thus, the RHS off-diagonals must be 0: $w_i \frac{\partial \lambda}{\partial N_j} = 0$.
-    \item Since weights $w_i \neq 0$ (for a mixture), we must have $\frac{\partial \lambda}{\partial N_j} = 0$ for all $j$.
-    \item This implies $\nabla \lambda = \mathbf{0}$, so $\lambda$ is a \textbf{constant}.
+      \item \textbf{LHS says:} The entry is $\mathbf{0}$.
+      \item \textbf{RHS says:} The entry is $w_i \cdot \frac{\partial \lambda}{\partial N_j}$.
   \end{itemize}
   
-  \textbf{Final Result:}
-  If $\lambda$ is constant, then $T'_i(N_i) = \lambda$ implies $T_i$ must be linear.
+  \textbf{The Implication:}
+  \[ w_i \cdot \frac{\partial \lambda}{\partial N_j} = 0 \]
+  
+  Since we are in a mixture, the weights are non-zero ($w_i \neq 0$). Therefore, it must be that:
+  \[ \frac{\partial \lambda}{\partial N_j} = 0 \quad \text{for all } j \neq i \]
+  
+  \textbf{Conclusion:} $\nabla \lambda = \mathbf{0}$. The function $\lambda(\mathbf{N})$ is actually a \textbf{scalar}.
+\end{frame}
+
+\begin{frame}{Conclusion: Proof of Strict Inequality}
+  We have proven that equality holds \textbf{if and only if} $\lambda$ is constant.
+  \[ T'_i(N_i) = \lambda \implies T_i(x) = \lambda x + c \]
+  
+  \vspace{0.2cm}
+  \textbf{1. The Gaussian Case (Identity Map):}
   \begin{itemize}
-    \item Linear maps only exist for Gaussian sources.
-    \item For non-Gaussian sources, this contradiction proves \textbf{Strict Inequality}.
+      \item Sources are Gaussian $\to$ $T_i(x) = x$. This is linear ($\lambda=1$).
+      \item The condition is met. \textbf{Equality holds.}
   \end{itemize}
+  
+  \textbf{2. The Non-Gaussian Case (Curved Map):}
+  \begin{itemize}
+      \item Sources are non-Gaussian $\to$ $T_i$ is non-linear (curved).
+      \item The derivative $T'_i$ is not constant.
+      \item The condition fails.
+  \end{itemize}
+  
+  \begin{alertblock}{Strict Inequality Result}
+  For any mixture of non-Gaussian independent sources, the bound is strict:
+  \[
+    W_2^2(w \cdot Z, \mathcal{N}) < \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N})
+  \]
+  \end{alertblock}
 \end{frame}
 
 % ----------------------------------------------------------------------

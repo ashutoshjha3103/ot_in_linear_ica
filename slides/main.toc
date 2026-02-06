@@ -6,6 +6,6 @@
 \beamer@sectionintoc {6}{Optimal Transport}{26}{0}{6}
 \beamer@sectionintoc {7}{Theoretical Motivation: W2 Upper Bound}{30}{0}{7}
 \beamer@sectionintoc {8}{Proof of Strict Inequality}{35}{0}{8}
-\beamer@sectionintoc {9}{Empirical Comparison: W1 vs W2}{40}{0}{9}
-\beamer@sectionintoc {10}{Core Idea}{44}{0}{10}
-\beamer@sectionintoc {11}{Bibliography}{46}{0}{11}
+\beamer@sectionintoc {9}{Empirical Comparison: W1 vs W2}{41}{0}{9}
+\beamer@sectionintoc {10}{Core Idea}{45}{0}{10}
+\beamer@sectionintoc {11}{Bibliography}{47}{0}{11}
