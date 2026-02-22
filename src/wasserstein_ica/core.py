@@ -4,19 +4,16 @@ import scipy.stats
 
 class WassersteinICA:
     def __init__(self, X):
-        """
-        Initialize the Wasserstein ICA model.
-        X: torch tensor of mixed signals (shape: num_signals x num_samples)
-        """
         self.X = X
         self.n = X.shape[1]
         self.whitened = False
         self.epsilon = 1e-7
-    
+        # Cache for the analytical target (computed once)
+        self.analytical_target = None 
+
     def whiten(self):
         """
         Whiten the data (zero mean, unit variance, uncorrelated).
-        Stores whitening matrix self.W_white for later reconstruction.
         """
         X_centered = self.X - torch.mean(self.X, dim=1, keepdim=True)
         cov = torch.matmul(X_centered, X_centered.t()) / (self.n - 1)
@@ -25,105 +22,125 @@ class WassersteinICA:
         self.W_white = torch.matmul(D_inv_sqrt, E.T)
         self.X_white = torch.matmul(self.W_white, X_centered)
         self.whitened = True
+        # Pre-compute the exact analytical Gaussian target
+        self.analytical_target = self._compute_analytical_target(self.n)
     
-    def _normal_quantile(self, q):
+    def _compute_analytical_target(self, n):
         """
-        Compute inverse CDF of standard normal at quantile q.
+        Computes the EXACT 'Average Quantile' for each bin analytically.
+        Formula: Target_i = N * (pdf(z_{i-1}) - pdf(z_i))
+        This replaces 'sampling' with exact calculus.
         """
-        q_np = q.cpu().numpy()
-        inv_cdf = scipy.stats.norm.ppf(q_np)
-        return torch.tensor(inv_cdf, dtype=torch.float32, device=q.device)
-    
-    def wasserstein2_distance(self, w):
+        p_edges = np.linspace(0, 1, n + 1)
+        z_edges = scipy.stats.norm.ppf(p_edges)
+        phi_edges = scipy.stats.norm.pdf(z_edges)
+        
+        target_np = n * (phi_edges[:-1] - phi_edges[1:])
+        return torch.tensor(target_np, dtype=torch.float32, device=self.X.device)
+
+    # ==========================================
+    # VECTORIZED: Core Distance Metric
+    # ==========================================
+    def wasserstein2_analytical(self, W):
         """
-        Compute W2 distance between projection w^T X and N(0,1).
-        Uses Hazen plotting position for quantile alignment.
+        Computes W2 distance. 
+        Supports both single vectors (legacy) and matrices (batched parallel).
         """
         assert self.whitened, "Call whiten() before computing distance."
-        y = torch.mv(self.X_white.t(), w)
-        sorted_y, _ = torch.sort(y)
-        steps = torch.arange(1, self.n + 1, dtype=torch.float32, device=self.X.device)
-        q = (steps - 0.5) / self.n
-        F_n_inv = self._normal_quantile(q)
-        return torch.mean((sorted_y - F_n_inv) ** 2)
+        
+        # Vecotization logic - Check if input is 1D (single vector) or 2D (batch matrix)
+        is_1d = W.dim() == 1
+        if is_1d:
+            W = W.unsqueeze(0) # Temporarily make it 2D (1 x dim) for universal math
+            
+        # 1. Project all vectors at once (Shape: batch_size x n_samples)
+        Y = torch.mm(W, self.X_white) 
+        
+        # 2. Sort all rows independently at the same time (dim=1)
+        sorted_Y, _ = torch.sort(Y, dim=1) 
+        
+        # 3. Broadcast subtraction against the analytical target
+        diff = sorted_Y - self.analytical_target
+        
+        # 4. Mean over samples to get distance per component (Shape: batch_size)
+        distances = torch.mean(diff ** 2, dim=1)
+        
+        # Return scalar if a single vector was passed, otherwise return the array of distances
+        if is_1d:
+            return distances[0]
+        return distances
 
-    def wasserstein1_distance(self, w):
-        """
-        Compute W1 distance (mean absolute difference) vs N(0,1).
-        """
-        assert self.whitened, "Call whiten() before computing distance."
-        y = torch.mv(self.X_white.t(), w)
-        sorted_y, _ = torch.sort(y)
-        steps = torch.arange(1, self.n + 1, dtype=torch.float32, device=self.X.device)
-        q = (steps - 0.5) / self.n
-        F_n_inv = self._normal_quantile(q)
-        return torch.mean(torch.abs(sorted_y - F_n_inv))
-
-    def _wasserstein2_gradient_approx(self, w, delta=1e-5):
-        """
-        Finite difference approximation of W2 gradient (for debugging).
-        """
-        grad = torch.zeros_like(w)
-        base_val = self.wasserstein2_distance(w)
-        for i in range(len(w)):
-            w_perturb = w.clone()
-            w_perturb[i] += delta
-            w_perturb /= torch.norm(w_perturb)
-            val = self.wasserstein2_distance(w_perturb)
-            grad[i] = (val - base_val) / delta
-        return grad
-
-    def optimize_wasserstein2(self, prev_components=None, grid_points=100, continuous=True, max_iter=200, lr=0.1, n_restarts=3, decay_rate=0.5, decay_step=50):
+    # ==========================================
+    # VECTORIZED: Phase 1 (Deflation & Restarts)
+    # ==========================================
+    def optimize_wasserstein2(self, prev_components=None, grid_points=100, continuous=True, max_iter=200, lr=0.1, n_restarts=50, decay_rate=0.5, decay_step=50):
         """
         Find ONE maximizer of W2 distance (Deflationary).
-        Supports robust continuous optimization (Restarts+Annealing)
-        or legacy discrete grid search.
+        Uses BATCHED random restarts to explore multiple initializations simultaneously.
         """
         if continuous:
-            best_w = None
-            best_dist = -float('inf')
+            # Vectorization logic - Instead of a python for-loop, we create a matrix 
+            # containing ALL random restart vectors. Shape: (n_restarts, n_dim)
+            W_batch = torch.randn(n_restarts, self.X.shape[0], device=self.X.device)
             
-            # Restart loop to avoid local optima
-            for attempt in range(n_restarts):
-                w = torch.randn(self.X.shape[0], device=self.X.device)
-                if prev_components is not None and prev_components.shape[0] > 0:
-                    for pc in prev_components:
-                        w = w - torch.dot(w, pc) * pc
-                w = w / torch.norm(w)
-                w.requires_grad_(True)
-                current_lr = lr
+            # Broadcasted orthogonalization against previous components
+            if prev_components is not None and prev_components.shape[0] > 0:
+                proj = torch.matmul(W_batch, prev_components.t())
+                W_batch = W_batch - torch.matmul(proj, prev_components)
                 
-                # Gradient Ascent
-                for i in range(max_iter):
-                    if (i + 1) % decay_step == 0: current_lr *= decay_rate
-                    dist = self.wasserstein2_distance(w)
-                    if w.grad is not None: w.grad.zero_()
-                    dist.backward()
+            # Normalize all rows at once
+            W_batch = W_batch / torch.norm(W_batch, dim=1, keepdim=True)
+            W_batch.requires_grad_(True)
+            current_lr = lr
+            
+            # Gradient Ascent (All restarts optimized simultaneously)
+            for i in range(max_iter):
+                if (i + 1) % decay_step == 0: current_lr *= decay_rate
+                
+                # Get distances for all restarts in one shot. Sum them to create a single loss for backprop.
+                dist = self.wasserstein2_analytical(W_batch).sum()
+                
+                if W_batch.grad is not None: W_batch.grad.zero_()
+                dist.backward()
+                
+                with torch.no_grad():
+                    grad = W_batch.grad
                     
-                    grad = w.grad.data
+                    # 1. Broadcasted orthogonalization of gradients
                     if prev_components is not None and prev_components.shape[0] > 0:
-                        for pc in prev_components:
-                            grad = grad - torch.dot(grad, pc) * pc
-                    grad = grad - torch.dot(grad, w.data) * w.data # Tangent proj
+                        proj_grad = torch.matmul(grad, prev_components.t())
+                        grad = grad - torch.matmul(proj_grad, prev_components)
+                        
+                    # 2. Vectorized Tangent projection (keeps all gradients tangent to their respective spheres)
+                    dot_pw = torch.sum(grad * W_batch.data, dim=1, keepdim=True)
+                    grad = grad - dot_pw * W_batch.data 
                     
-                    grad_norm = torch.norm(grad)
-                    if grad_norm > 1.0: grad = grad / grad_norm # Clipping
+                    # 3. Vectorized Gradient Clipping
+                    grad_norms = torch.norm(grad, dim=1, keepdim=True)
+                    grad = torch.where(grad_norms > 1.0, grad / grad_norms, grad)
 
-                    with torch.no_grad():
-                        w.data = w.data + current_lr * grad
-                        # Hard re-orthogonalization to prevent drift
-                        if prev_components is not None and prev_components.shape[0] > 0:
-                            for pc in prev_components:
-                                w.data = w.data - torch.dot(w.data, pc) * pc
-                        w.data = w.data / torch.norm(w.data)
+                    # 4. Step
+                    W_batch.data += current_lr * grad
+                    
+                    # 5. Hard re-orthogonalization
+                    if prev_components is not None and prev_components.shape[0] > 0:
+                        proj = torch.matmul(W_batch.data, prev_components.t())
+                        W_batch.data = W_batch.data - torch.matmul(proj, prev_components)
+                        
+                    # 6. Vectorized Renormalization
+                    W_batch.data /= torch.norm(W_batch.data, dim=1, keepdim=True)
+            
+            # Evaluate all restarts and pick the winner
+            with torch.no_grad():
+                final_distances = self.wasserstein2_analytical(W_batch)
+                best_idx = torch.argmax(final_distances)
+                best_w = W_batch[best_idx].detach().clone()
+                best_dist = final_distances[best_idx].item()
                 
-                final_dist = self.wasserstein2_distance(w).item()
-                if final_dist > best_dist:
-                    best_dist = final_dist
-                    best_w = w.detach().clone()
             return best_w, best_dist
+            
         else:
-            # Legacy Discrete Grid Search
+            # Legacy Discrete Grid Search (Unchanged)
             angles = torch.linspace(0, 2 * np.pi, steps=grid_points, device=self.X.device)
             candidates = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1)
             if prev_components is not None and prev_components.shape[0] > 0:
@@ -138,32 +155,26 @@ class WassersteinICA:
             dist_best = -np.inf
             w_best = None
             for w in candidates:
-                d = self.wasserstein2_distance(w).item()
+                # Calls the new analytical function, which safely handles the 1D legacy call
+                d = self.wasserstein2_analytical(w).item()
                 if d > dist_best:
                     dist_best = d
                     w_best = w
             return w_best, dist_best
 
     def _symmetric_decorrelation(self, W):
-        """
-        Symmetric orthogonalization: W_new = (WW^T)^(-1/2) * W.
-        Distributes error evenly across all components.
-        """
         M = torch.mm(W, W.t())
         evals, evecs = torch.linalg.eigh(M)
         d_inv_sqrt = torch.diag(1.0 / torch.sqrt(evals + 1e-5))
         inv_sqrt_M = torch.mm(torch.mm(evecs, d_inv_sqrt), evecs.t())
         return torch.mm(inv_sqrt_M, W)
 
+    # ==========================================
+    # VECTORIZED: Phase 2
+    # ==========================================
     def optimize_symmetric(self, n_components=None, max_iter=300, lr=1.0, init_w=None, 
                            optimizer='sgd', penalty_weight=10.0, use_sinkhorn=False, 
                            reg=0.01, sinkhorn_iter=50):
-        """
-        Modified to support Sinkhorn distance during the L-BFGS phase.
-        use_sinkhorn: If True, uses the smooth Sinkhorn surface instead of sorting.
-        reg: Regularization parameter for Sinkhorn.
-        sinkhorn_iter: Number of Sinkhorn iterations (Lower = Faster/Approximate).
-        """
         if n_components is None: n_components = self.X.shape[0]
 
         if init_w is not None:
@@ -174,30 +185,29 @@ class WassersteinICA:
         W.requires_grad_(True)
         
         if optimizer == 'sgd':
+            # Fully parallelized SGD fallback
             for i in range(max_iter):
                 if W.grad is not None: W.grad.zero_()
                 
-                # Check metric choice
                 if use_sinkhorn:
-                    # Pass sinkhorn_iter here
-                    total_dist = sum(self.sinkhorn_distance(W[k], reg=reg, n_iter=sinkhorn_iter) for k in range(n_components))
+                    total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum()
                 else:
-                    total_dist = sum(self.wasserstein2_distance(W[k]) for k in range(n_components))
+                    total_dist = self.wasserstein2_analytical(W).sum()
                 
                 loss = -total_dist
                 loss.backward()
                 
                 with torch.no_grad():
                     grad = W.grad
-                    if torch.norm(grad) > 1.0: grad = grad / torch.norm(grad)
+                    # Vectorized gradient clipping (row-wise)
+                    grad_norms = torch.norm(grad, dim=1, keepdim=True)
+                    grad = torch.where(grad_norms > 1.0, grad / grad_norms, grad)
                     
                     W += lr * grad
-                    # Hard Projection
                     W.data = self._symmetric_decorrelation(W)
                     W.requires_grad_(True) 
 
         elif optimizer == 'lbfgs':
-            # Annealing Schedule
             penalties = [penalty_weight, penalty_weight * 100, penalty_weight * 10000, penalty_weight * 1000000]
             steps = max_iter // len(penalties)
             if steps < 5: steps = 5
@@ -208,16 +218,20 @@ class WassersteinICA:
                 def closure():
                     if W.grad is not None: W.grad.zero_()
                     
-                    # CHOOSE DISTANCE METRIC
                     if use_sinkhorn:
-                        # Pass sinkhorn_iter here
-                        total_dist = sum(self.sinkhorn_distance(W[k], reg=reg, n_iter=sinkhorn_iter) for k in range(n_components))
+                        total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum()
                     else:
-                        total_dist = sum(self.wasserstein2_distance(W[k]) for k in range(n_components))
+                        total_dist = self.wasserstein2_analytical(W).sum()
                     
+                    # Optimized Penalty Calculation
+                    # Instead of creating an identity matrix and subtracting, we use Trace math.
+                    # ||WW^T - I||^2 = trace((WW^T)^2) - 2*trace(WW^T) + n
                     gram = torch.mm(W, W.t())
-                    identity = torch.eye(n_components, device=self.X.device)
-                    loss = -total_dist + (p * torch.norm(gram - identity) ** 2)
+                    trace_gram = torch.trace(gram)
+                    trace_gram_sq = torch.trace(torch.mm(gram, gram))
+                    ortho_penalty = trace_gram_sq - 2 * trace_gram + n_components
+                    
+                    loss = -total_dist + (p * ortho_penalty)
                     loss.backward()
                     return loss
                 
@@ -227,42 +241,88 @@ class WassersteinICA:
             with torch.no_grad(): W.data = self._symmetric_decorrelation(W) 
                 
         return W.detach()
+
+    # ==========================================
+    # LEGACY / BACKWARD COMPATIBILITY FUNCTIONS
+    # ==========================================
+    def _normal_quantile(self, q):
+        q_np = q.cpu().numpy()
+        inv_cdf = scipy.stats.norm.ppf(q_np)
+        return torch.tensor(inv_cdf, dtype=torch.float32, device=q.device)
     
-    def sinkhorn_distance(self, w, reg=0.01, n_iter=50):
-        """
-        Compute Entropy-Regularized W2 distance (Sinkhorn) in Log-Space.
-        reg: Smoothing parameter (epsilon). 
-        n_iter: Number of Sinkhorn iterations.
-        """
+    def wasserstein2_distance(self, w):
         assert self.whitened, "Call whiten() before computing distance."
         y = torch.mv(self.X_white.t(), w)
+        sorted_y, _ = torch.sort(y)
+        steps = torch.arange(1, self.n + 1, dtype=torch.float32, device=self.X.device)
+        q = (steps - 0.5) / self.n
+        F_n_inv = self._normal_quantile(q)
+        return torch.mean((sorted_y - F_n_inv) ** 2)
+
+    def wasserstein1_distance(self, w):
+        assert self.whitened, "Call whiten() before computing distance."
+        y = torch.mv(self.X_white.t(), w)
+        sorted_y, _ = torch.sort(y)
+        steps = torch.arange(1, self.n + 1, dtype=torch.float32, device=self.X.device)
+        q = (steps - 0.5) / self.n
+        F_n_inv = self._normal_quantile(q)
+        return torch.mean(torch.abs(sorted_y - F_n_inv))
+
+    def _wasserstein2_gradient_approx(self, w, delta=1e-5):
+        grad = torch.zeros_like(w)
+        base_val = self.wasserstein2_distance(w)
+        for i in range(len(w)):
+            w_perturb = w.clone()
+            w_perturb[i] += delta
+            w_perturb /= torch.norm(w_perturb)
+            val = self.wasserstein2_distance(w_perturb)
+            grad[i] = (val - base_val) / delta
+        return grad
+
+    def sinkhorn_distance(self, W, reg=0.01, n_iter=50):
+        """
+        Batched Entropy-Regularized W2 distance (Sinkhorn) in Log-Space.
+        W shape: (n_components, n_dimensions) OR (n_dimensions,)
+        """
+        assert self.whitened, "Call whiten() before computing distance."
         
-        # 1. Target: Gaussian Quantiles
+        is_1d = W.dim() == 1
+        if is_1d:
+            W = W.unsqueeze(0)
+            
+        B = W.shape[0] # Batch size / Number of components
+        
+        # 1. Project all data at once (Shape: B x N)
+        Y = torch.mm(W, self.X_white)
+        
+        # 2. Target: Gaussian Quantiles (Shape: N)
         steps = torch.arange(1, self.n + 1, dtype=torch.float32, device=self.X.device)
         q = (steps - 0.5) / self.n
         target = self._normal_quantile(q)
-
-        # 2. Compute Cost Matrix: C_ij = (y_i - target_j)^2
-        C = (y.unsqueeze(1) - target.unsqueeze(0)) ** 2
-
-        # 3. Log-Space Sinkhorn Iterations (Stability Fix)
-        # We find vectors f and g such that the transport plan P = exp((f + g - C)/reg)
-        f = torch.zeros(self.n, device=self.X.device)
-        g = torch.zeros(self.n, device=self.X.device)
         
-        # Log of marginals (uniform = -log(n))
+        # 3. Batched Cost Matrix C: (B, N_y, N_target)
+        # Broadcasting: Y is (B, N, 1), target is (1, 1, N)
+        C = (Y.unsqueeze(2) - target.view(1, 1, self.n)) ** 2
+        
+        # 4. Sinkhorn Iterations
+        f = torch.zeros(B, self.n, device=self.X.device)
+        g = torch.zeros(B, self.n, device=self.X.device)
         log_mu = -torch.log(torch.tensor(self.n, dtype=torch.float32, device=self.X.device))
         
         for _ in range(n_iter):
-            # Update f: f = reg * (log_mu - logsumexp((g - C)/reg))
-            f = reg * (log_mu - torch.logsumexp((g.unsqueeze(0) - C) / reg, dim=1))
-            # Update g: g = reg * (log_mu - logsumexp((f - C)/reg))
-            g = reg * (log_mu - torch.logsumexp((f.unsqueeze(1) - C) / reg, dim=0))
+            # Update f: Sum over target dimension (dim=2)
+            f = reg * (log_mu - torch.logsumexp((g.unsqueeze(1) - C) / reg, dim=2))
+            # Update g: Sum over Y dimension (dim=1)
+            g = reg * (log_mu - torch.logsumexp((f.unsqueeze(2) - C) / reg, dim=1))
             
-        # 4. Return total cost: sum(P * C)
-        # In log space, the transport plan is exp((f+g-C)/reg)
-        log_P = (f.unsqueeze(1) + g.unsqueeze(0) - C) / reg
-        return torch.sum(torch.exp(log_P) * C)
+        # 5. Calculate total cost for each batch element
+        # log_P shape: (B, N, N)
+        log_P = (f.unsqueeze(2) + g.unsqueeze(1) - C) / reg
+        distances = torch.sum(torch.exp(log_P) * C, dim=(1, 2))
+        
+        if is_1d:
+            return distances[0]
+        return distances
     
     def optimize_symmetric_sinkhorn(self, n_components=None, max_iter=300, lr=1.0, init_w=None, reg=0.05):
         return self.optimize_symmetric(
@@ -271,6 +331,6 @@ class WassersteinICA:
             lr=lr, 
             init_w=init_w, 
             optimizer='lbfgs',
-            use_sinkhorn=True, # Critical flag
-            reg=reg            # Pass the reg parameter
+            use_sinkhorn=True, 
+            reg=reg            
         )
