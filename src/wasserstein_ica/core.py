@@ -209,6 +209,43 @@ class WassersteinICA:
                     W.data = self._symmetric_decorrelation(W) 
                     W.requires_grad_(True)  
 
+        elif optimizer == 'natural':
+            # Amari's Natural Gradient Descent over GL(n)
+            for i in range(max_iter):
+                if W.grad is not None: W.grad.zero_()
+                
+                if use_sinkhorn:
+                    total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum()
+                else:
+                    total_dist = self.wasserstein2_analytical(W).sum()
+                
+                # To prevent matrix collapse in non-orthogonal space, we add Amari's det penalty
+                det_W = torch.abs(torch.linalg.det(W))
+                det_W = torch.clamp(det_W, min=1e-6) # Prevent log(0)
+                
+                # We want to maximize W2 + log(det_W), so we minimize the negative
+                loss = -total_dist - penalty_weight * torch.log(det_W)
+                loss.backward()
+                
+                with torch.no_grad():
+                    grad = W.grad
+                    
+                    # Apply the Riemannian metric scaling: \nabla L * W^T * W
+                    Wt_W = torch.mm(W.t(), W)
+                    nat_grad = torch.mm(grad, Wt_W)
+                    
+                    # Vectorized gradient clipping
+                    grad_norms = torch.norm(nat_grad, dim=1, keepdim=True)
+                    nat_grad = torch.where(grad_norms > 1.0, nat_grad / grad_norms, nat_grad)
+                    
+                    W += lr * nat_grad
+                    
+                    # Normalizing rows to prevent numerical explosion, but NO symmetric decorrelation
+                    # This allows W to warp and scale naturally over the curved GL(n) manifold
+                    norms = torch.norm(W.data, dim=1, keepdim=True)
+                    W.data = W.data / norms
+                    W.requires_grad_(True)
+
         elif optimizer == 'lbfgs': 
             penalties = [penalty_weight, penalty_weight * 100, penalty_weight * 10000, penalty_weight * 1000000] 
             steps = max_iter // len(penalties) 
