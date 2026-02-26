@@ -209,8 +209,8 @@ class WassersteinICA:
                     W.data = self._symmetric_decorrelation(W) 
                     W.requires_grad_(True)  
 
-        elif optimizer == 'natural':
-            # Amari's Natural Gradient Descent over GL(n)
+        elif optimizer == 'stiefel':
+            # Riemannian Gradient Ascent on the Stiefel Manifold O(n)
             for i in range(max_iter):
                 if W.grad is not None: W.grad.zero_()
                 
@@ -219,31 +219,29 @@ class WassersteinICA:
                 else:
                     total_dist = self.wasserstein2_analytical(W).sum()
                 
-                # To prevent matrix collapse in non-orthogonal space, we add Amari's det penalty
-                det_W = torch.abs(torch.linalg.det(W))
-                det_W = torch.clamp(det_W, min=1e-6) # Prevent log(0)
-                
-                # We want to maximize W2 + log(det_W), so we minimize the negative
-                loss = -total_dist - penalty_weight * torch.log(det_W)
-                loss.backward()
+                #  Maximize distance directly
+                # Calling backward directly on the distance gives us the ascending gradient.
+                total_dist.backward()
                 
                 with torch.no_grad():
                     grad = W.grad
                     
-                    # Apply the Riemannian metric scaling: \nabla L * W^T * W
-                    Wt_W = torch.mm(W.t(), W)
-                    nat_grad = torch.mm(grad, Wt_W)
+                    # CRITICAL FIX 2: Correct Stiefel projection
+                    # P_W(G) = G - 0.5 * (G W^T + W G^T) W
+                    G_Wt = torch.mm(grad, W.data.t())
+                    W_Gt = torch.mm(W.data, grad.t())
+                    sym = 0.5 * (G_Wt + W_Gt)
+                    tangent_grad = grad - torch.mm(sym, W.data)
                     
-                    # Vectorized gradient clipping
-                    grad_norms = torch.norm(nat_grad, dim=1, keepdim=True)
-                    nat_grad = torch.where(grad_norms > 1.0, nat_grad / grad_norms, nat_grad)
+                    # Vectorized gradient clipping on the tangent plane
+                    tangent_norms = torch.norm(tangent_grad, dim=1, keepdim=True)
+                    tangent_grad = torch.where(tangent_norms > 1.0, tangent_grad / tangent_norms, tangent_grad)
                     
-                    W += lr * nat_grad
+                    # Take a step strictly along the curved tangent plane
+                    W += lr * tangent_grad
                     
-                    # Normalizing rows to prevent numerical explosion, but NO symmetric decorrelation
-                    # This allows W to warp and scale naturally over the curved GL(n) manifold
-                    norms = torch.norm(W.data, dim=1, keepdim=True)
-                    W.data = W.data / norms
+                    # Retraction: Gently snap back to the exact orthogonal manifold
+                    W.data = self._symmetric_decorrelation(W.data)
                     W.requires_grad_(True)
 
         elif optimizer == 'lbfgs': 
@@ -262,9 +260,6 @@ class WassersteinICA:
                     else: 
                         total_dist = self.wasserstein2_analytical(W).sum() 
                       
-                    # Optimized Penalty Calculation 
-                    # Instead of creating an identity matrix and subtracting, we use Trace math. 
-                    # ||WW^T - I||^2 = trace((WW^T)^2) - 2*trace(WW^T) + n 
                     gram = torch.mm(W, W.t()) 
                     trace_gram = torch.trace(gram) 
                     trace_gram_sq = torch.trace(torch.mm(gram, gram)) 
@@ -279,7 +274,7 @@ class WassersteinICA:
               
             with torch.no_grad(): W.data = self._symmetric_decorrelation(W)  
                   
-        return W.detach() 
+        return W.detach()
       
 
     # ========================================== 
