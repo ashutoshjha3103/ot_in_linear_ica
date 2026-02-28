@@ -217,3 +217,5 @@ __marimo__/
 *.bbl
 *.nav
 *.snm
+
+wica_env/

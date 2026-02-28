@@ -21,10 +21,17 @@ dependencies = [
     "numpy",
     "torch>=1.10.0",
     "scipy",
-    "matplotlib",  # Optional, but useful if you include plotting utils later
-    "pot"          # Python Optimal Transport (if you use it for verification)
+    "matplotlib",  
+    "pot",         
+    "scikit-learn",
+    "pandas",
+    "seaborn",
+    "tqdm",
+    "joblib",
+    "jupyter",
+    "ipykernel"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/OT_IN_LINEAR_ICA"
-"Bug Tracker" = "https://github.com/yourusername/OT_IN_LINEAR_ICA/issues"
+"Homepage" = "https://github.com/ashutoshjha3103/OT_IN_LINEAR_ICA"
+"Bug Tracker" = "https://github.com/ashutoshjha3103/OT_IN_LINEAR_ICA/issues"
