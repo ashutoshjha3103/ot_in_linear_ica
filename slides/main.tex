@@ -735,6 +735,93 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 
 
 
+% ----------------------------------------------------------------------
+% Algorithmic Advancements & Performance Optimization
+% ----------------------------------------------------------------------
+
+\section{Algorithmic Enhancements}
+
+\begin{frame}{Why W2-ICA? A Comparison with FastICA}
+  \begin{itemize}
+    \item \textbf{The FastICA Approach:} Relies on proxy contrast functions (e.g., Kurtosis or Negentropy approximations). These capture specific moments (fat tails, peaks) but ignore the full geometric structure of the distribution.
+    \item \textbf{The W2-ICA Advantage:} The Wasserstein-2 metric quantifies the true global geometric cost of transforming the empirical distribution into a Gaussian.
+    
+    \item \textbf{Robustness to Weak Signals:} For highly complex, multimodal, or weakly non-Gaussian signals where polynomial proxies fail or create jagged optimization landscapes, $W_2$ provides a smooth, globally aware gradient.
+    \item \textbf{Trade-off:} $W_2$ involves sorting operations $\mathcal{O}(N \log N)$, making it computationally heavier. We introduce several mathematical optimizations to close this performance gap.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 1: Exact Analytical Gaussian Target}
+  \begin{itemize}
+    \item \textbf{Previous Bottleneck:} Approximating the target Gaussian involved sampling or using the standard empirical quantile function: $q_i = \Phi^{-1}((i - 0.5)/N)$. This introduces approximation noise into the gradient.
+    \item \textbf{Analytical Solution:} We compute the \textit{exact} expected value of a Standard Normal variable within each discrete quantile bin using integral calculus.
+    \item Let the bin edges be $p_i = \frac{i}{N}$, with corresponding Gaussian boundaries $z_i = \Phi^{-1}(p_i)$.
+    \item The exact target value $T_i$ for the $i$-th sorted sample is:
+      \[
+        T_i = N \int_{z_{i-1}}^{z_i} x \phi(x) \, dx = N \left( \phi(z_{i-1}) - \phi(z_i) \right)
+      \]
+      where $\phi(x)$ is the standard normal PDF.
+    \item \textbf{Result:} Eliminates sampling noise.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 2: Batched Vectorization}
+  \begin{itemize}
+    \item \textbf{The Challenge:} Finding the global optimum requires multiple random initializations (restarts). Evaluating these sequentially via standard iterative loops is highly inefficient.
+    \item \textbf{Vectorized Approach:} We aggregate $B$ random restarts into a single tensor $\mathbf{W}_{\text{batch}} \in \mathbb{R}^{B \times d}$.
+    \item \textbf{Parallel Execution:} 
+      \begin{enumerate}
+          \item \textbf{Projection:} $\mathbf{Y} = \mathbf{W}_{\text{batch}} \mathbf{X}$ is computed for all $B$ restarts simultaneously.
+          \item \textbf{Sorting:} PyTorch sorts all $B$ rows of $\mathbf{Y}$ in parallel.
+          \item \textbf{Broadcasting:} The exact analytical target $\mathbf{T}$ is broadcast-subtracted across the batch to compute distances and gradients in one step.
+      \end{enumerate}
+    \item \textbf{Result:} Fully saturates CPU/GPU hardware, calculating dozens of trajectories in the time it previously took to compute one.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 3: Riemannian Gradient on the Stiefel Manifold}
+  
+  \textbf{Formal Math:}
+  \begin{itemize}
+    \item Unmixing matrices must be orthogonal: $\mathbf{W}\mathbf{W}^\top = \mathbf{I}$. The space of such matrices forms the \textbf{Stiefel Manifold} $\mathcal{S}$.
+    \item The standard Euclidean gradient $\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$ points into flat space, violating orthogonality constraints.
+    \item We project $\mathbf{G}$ directly onto the tangent space of the manifold at $\mathbf{W}$:
+      \[
+        \nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\left(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \right)\mathbf{W}
+      \]
+    \item \textbf{Intuitive Vector View:} The term $(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top)$ measures the exact symmetric violation of orthogonality. We subtract this violation from $\mathbf{G}$, ensuring our update step perfectly hugs the curvature of the manifold.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 3: Retraction via Symmetric Decorrelation}
+  \begin{itemize}
+    \item After stepping along the flat tangent plane ($\mathbf{W}_{\text{step}} = \mathbf{W} + \eta \nabla_{\mathcal{S}} \mathbf{W}$), the matrix slightly lifts off the curved manifold. We must "retract" it.
+    \item \textbf{Formal Retraction:}
+      \[
+        \mathbf{W}_{\text{new}} = (\mathbf{W}_{\text{step}}\mathbf{W}_{\text{step}}^\top)^{-1/2} \mathbf{W}_{\text{step}}
+      \]
+    \item \textbf{Why not Gram-Schmidt?} 
+      \begin{itemize}
+          \item Gram-Schmidt is asymmetric; it permanently fixes the first vector and modifies the rest to fit, which inherently biases simultaneous optimization.
+          \item Symmetric decorrelation computes the overlap covariance $(\mathbf{W}\mathbf{W}^\top)$ and applies a uniform, symmetric push $(-1/2 \text{ power})$ to all vectors simultaneously, treating all independent components equally.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 4: Novel OT Fixed-Point Iteration}
+  
+  \begin{itemize}
+    \item We formulated a gradient-free-like update rule that exploits the Optimal Transport mapping directly, acting as a Wasserstein-specific fixed-point step.
+    \item \textbf{Step 1 (The Ideal Target):} Sort current projections $\mathbf{Y} = \mathbf{W}\mathbf{X}$ to find the permutation matrix $\mathbf{P}$. The ideal Gaussian target mapped back to the original data order is:
+      \[ \mathbf{Y}_{\text{ideal}} = \mathbf{P}^{-1} \mathbf{T} \]
+    \item \textbf{Step 2 (The Pull):} The cross-covariance computes the exact linear transformation required to push our data toward pure Gaussian noise:
+      \[ \mathbf{G}_{\text{OT}} = \frac{1}{N-1} \mathbf{Y}_{\text{ideal}} \mathbf{X}^\top \]
+    \item \textbf{Step 3 (The Anti-Gaussian Step):} ICA maximizes non-Gaussianity. We subtract this transformation to step directly \textit{away} from the Gaussian valley:
+      \[ \mathbf{W}_{\text{new}} = \text{Retract}(\mathbf{W} - \eta \mathbf{G}_{\text{OT}}) \]
+  \end{itemize}
+\end{frame}
+
+
 
 
 \section{Bibliography}
