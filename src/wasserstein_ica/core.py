@@ -41,31 +41,32 @@ class WassersteinICA:
     # ========================================== 
     # VECTORIZED: Core Distance Metric 
     # ========================================== 
-    def wasserstein2_analytical(self, W): 
+    def wasserstein2_analytical(self, W, cost='l2'): 
         """ 
-        Computes W2 distance.  
+        Computes W distance.  
         Supports both single vectors (legacy) and matrices (batched parallel). 
+        cost: 'l2' for standard Wasserstein, 'logcosh' for robust Huber-like geometry.
         """ 
         assert self.whitened, "Call whiten() before computing distance." 
           
-        # Vecotization logic - Check if input is 1D (single vector) or 2D (batch matrix) 
         is_1d = W.dim() == 1 
         if is_1d: 
-            W = W.unsqueeze(0) # Temporarily make it 2D (1 x dim) for universal math 
+            W = W.unsqueeze(0) 
               
-        # 1. Project all vectors at once (Shape: batch_size x n_samples) 
         Y = torch.mm(W, self.X_white)  
-          
-        # 2. Sort all rows independently at the same time (dim=1) 
         sorted_Y, _ = torch.sort(Y, dim=1)  
-          
-        # 3. Broadcast subtraction against the analytical target 
         diff = sorted_Y - self.analytical_target 
           
-        # 4. Mean over samples to get distance per component (Shape: batch_size) 
-        distances = torch.mean(diff ** 2, dim=1) 
+        if cost == 'l2':
+            distances = torch.mean(diff ** 2, dim=1) 
+        elif cost == 'logcosh':
+            # Numerically stable logcosh to prevent NaN gradients on massive outliers
+            abs_diff = torch.abs(diff)
+            logcosh_diff = abs_diff + torch.log1p(torch.exp(-2.0 * abs_diff)) - np.log(2.0)
+            distances = torch.mean(logcosh_diff, dim=1)
+        else:
+            raise ValueError("cost must be 'l2' or 'logcosh'")
           
-        # Return scalar if a single vector was passed, otherwise return the array of distances 
         if is_1d: 
             return distances[0] 
         return distances 
@@ -75,66 +76,52 @@ class WassersteinICA:
     # ========================================== 
 
     def optimize_wasserstein2(self, prev_components=None, grid_points=100, continuous=True, 
-                              max_iter=200, lr=0.1, n_restarts=50, decay_rate=0.5, decay_step=50): 
+                              max_iter=200, lr=0.1, n_restarts=50, decay_rate=0.5, decay_step=50, cost='l2'): 
         """ 
-        Find ONE maximizer of W2 distance (Deflationary). 
-        Uses BATCHED random restarts to explore multiple initializations simultaneously. 
+        Find ONE maximizer of W distance (Deflationary). 
         """ 
         if continuous: 
-            # Vectorization logic - Instead of a python for-loop, we create a matrix  
-            # containing ALL random restart vectors. Shape: (n_restarts, n_dim) 
             W_batch = torch.randn(n_restarts, self.X.shape[0], device=self.X.device) 
               
-            # Broadcasted orthogonalization against previous components 
             if prev_components is not None and prev_components.shape[0] > 0: 
                 proj = torch.matmul(W_batch, prev_components.t()) 
                 W_batch = W_batch - torch.matmul(proj, prev_components) 
                   
-            # Normalize all rows at once 
             W_batch = W_batch / torch.norm(W_batch, dim=1, keepdim=True) 
             W_batch.requires_grad_(True) 
             current_lr = lr 
               
-            # Gradient Ascent (All restarts optimized simultaneously) 
             for i in range(max_iter): 
                 if (i + 1) % decay_step == 0: current_lr *= decay_rate 
                   
-                # Get distances for all restarts in one shot. Sum them to create a single loss for backprop. 
-                dist = self.wasserstein2_analytical(W_batch).sum() 
+                # Pass the cost function down
+                dist = self.wasserstein2_analytical(W_batch, cost=cost).sum() 
                   
                 if W_batch.grad is not None: W_batch.grad.zero_() 
                 dist.backward() 
                   
                 with torch.no_grad(): 
                     grad = W_batch.grad 
-                      
-                    # 1. Broadcasted orthogonalization of gradients 
                     if prev_components is not None and prev_components.shape[0] > 0: 
                         proj_grad = torch.matmul(grad, prev_components.t()) 
                         grad = grad - torch.matmul(proj_grad, prev_components) 
                           
-                    # 2. Vectorized Tangent projection (keeps all gradients tangent to their respective spheres) 
                     dot_pw = torch.sum(grad * W_batch.data, dim=1, keepdim=True) 
                     grad = grad - dot_pw * W_batch.data  
                       
-                    # 3. Vectorized Gradient Clipping 
                     grad_norms = torch.norm(grad, dim=1, keepdim=True) 
                     grad = torch.where(grad_norms > 1.0, grad / grad_norms, grad) 
 
-                    # 4. Step 
                     W_batch.data += current_lr * grad 
                       
-                    # 5. Hard re-orthogonalization 
                     if prev_components is not None and prev_components.shape[0] > 0: 
                         proj = torch.matmul(W_batch.data, prev_components.t()) 
                         W_batch.data = W_batch.data - torch.matmul(proj, prev_components) 
                           
-                    # 6. Vectorized Renormalization 
                     W_batch.data /= torch.norm(W_batch.data, dim=1, keepdim=True) 
               
-            # Evaluate all restarts and pick the winner 
             with torch.no_grad(): 
-                final_distances = self.wasserstein2_analytical(W_batch) 
+                final_distances = self.wasserstein2_analytical(W_batch, cost=cost) 
                 best_idx = torch.argmax(final_distances) 
                 best_w = W_batch[best_idx].detach().clone() 
                 best_dist = final_distances[best_idx].item() 
@@ -142,7 +129,7 @@ class WassersteinICA:
             return best_w, best_dist 
               
         else: 
-            # Legacy Discrete Grid Search (Unchanged) 
+            # Legacy Discrete Grid Search
             angles = torch.linspace(0, 2 * np.pi, steps=grid_points, device=self.X.device) 
             candidates = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1) 
             if prev_components is not None and prev_components.shape[0] > 0: 
@@ -157,8 +144,7 @@ class WassersteinICA:
             dist_best = -np.inf 
             w_best = None 
             for w in candidates: 
-                # Calls the new analytical function, which safely handles the 1D legacy call 
-                d = self.wasserstein2_analytical(w).item() 
+                d = self.wasserstein2_analytical(w, cost=cost).item() 
                 if d > dist_best: 
                     dist_best = d 
                     w_best = w 
@@ -171,12 +157,12 @@ class WassersteinICA:
         inv_sqrt_M = torch.mm(torch.mm(evecs, d_inv_sqrt), evecs.t()) 
         return torch.mm(inv_sqrt_M, W) 
 
-    # ========================================== 
+# ========================================== 
     # VECTORIZED: Phase 2 
     # ========================================== 
     def optimize_symmetric(self, n_components=None, max_iter=300, lr=1.0, init_w=None,  
                            optimizer='sgd', penalty_weight=10.0, use_sinkhorn=False,  
-                           reg=0.01, sinkhorn_iter=50): 
+                           reg=0.01, sinkhorn_iter=50, cost='l2'): 
         if n_components is None: n_components = self.X.shape[0] 
 
         if init_w is not None: 
@@ -187,21 +173,20 @@ class WassersteinICA:
         W.requires_grad_(True) 
           
         if optimizer == 'sgd': 
-            # Fully parallelized SGD fallback 
             for i in range(max_iter): 
                 if W.grad is not None: W.grad.zero_() 
                   
                 if use_sinkhorn: 
                     total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum() 
                 else: 
-                    total_dist = self.wasserstein2_analytical(W).sum() 
+                    # Pass cost
+                    total_dist = self.wasserstein2_analytical(W, cost=cost).sum() 
                   
                 loss = -total_dist 
                 loss.backward() 
                   
                 with torch.no_grad(): 
                     grad = W.grad 
-                    # Vectorized gradient clipping (row-wise) 
                     grad_norms = torch.norm(grad, dim=1, keepdim=True) 
                     grad = torch.where(grad_norms > 1.0, grad / grad_norms, grad) 
                       
@@ -210,37 +195,29 @@ class WassersteinICA:
                     W.requires_grad_(True)  
 
         elif optimizer == 'stiefel':
-            # Riemannian Gradient Ascent on the Stiefel Manifold O(n)
             for i in range(max_iter):
                 if W.grad is not None: W.grad.zero_()
                 
                 if use_sinkhorn:
                     total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum()
                 else:
-                    total_dist = self.wasserstein2_analytical(W).sum()
+                    # Pass cost
+                    total_dist = self.wasserstein2_analytical(W, cost=cost).sum()
                 
-                #  Maximize distance directly
-                # Calling backward directly on the distance gives us the ascending gradient.
                 total_dist.backward()
                 
                 with torch.no_grad():
                     grad = W.grad
                     
-                    # CRITICAL FIX 2: Correct Stiefel projection
-                    # P_W(G) = G - 0.5 * (G W^T + W G^T) W
                     G_Wt = torch.mm(grad, W.data.t())
                     W_Gt = torch.mm(W.data, grad.t())
                     sym = 0.5 * (G_Wt + W_Gt)
                     tangent_grad = grad - torch.mm(sym, W.data)
                     
-                    # Vectorized gradient clipping on the tangent plane
                     tangent_norms = torch.norm(tangent_grad, dim=1, keepdim=True)
                     tangent_grad = torch.where(tangent_norms > 1.0, tangent_grad / tangent_norms, tangent_grad)
                     
-                    # Take a step strictly along the curved tangent plane
                     W += lr * tangent_grad
-                    
-                    # Retraction: Gently snap back to the exact orthogonal manifold
                     W.data = self._symmetric_decorrelation(W.data)
                     W.requires_grad_(True)
 
@@ -258,7 +235,8 @@ class WassersteinICA:
                     if use_sinkhorn: 
                         total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum() 
                     else: 
-                        total_dist = self.wasserstein2_analytical(W).sum() 
+                        # Pass cost
+                        total_dist = self.wasserstein2_analytical(W, cost=cost).sum() 
                       
                     gram = torch.mm(W, W.t()) 
                     trace_gram = torch.trace(gram) 
