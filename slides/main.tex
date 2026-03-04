@@ -822,6 +822,80 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 \end{frame}
 
 
+% ----------------------------------------------------------------------
+% FastICA Failure Modes & W-ICA Robustness
+% ----------------------------------------------------------------------
+
+\section{Failure Modes of Proxy Optimization}
+
+\begin{frame}{The Blind Spot of FastICA}
+  \begin{itemize}
+    \item FastICA is the industry standard due to its fast, scale-invariant Newton-step optimizer.
+    \item It maximizes Negentropy using proxy contrast functions, typically the \texttt{logcosh} function: $G(x) = \frac{1}{a} \log \cosh(ax)$.
+    \item \textbf{The Mathematical Trap:} FastICA relies on \textbf{Assumption A.5} for its Newton step to converge. The denominator of its update rule is proportional to:
+    \[
+      \mathbb{E}[x \cdot g(x) - g'(x)] 
+    \]
+    where $g(x) = \tanh(x)$ and $g'(x) = 1 - \tanh^2(x)$.
+    \item If a non-Gaussian source distribution naturally causes this expectation to equal zero, the algorithmic curvature vanishes. FastICA is mathematically blinded and will fail to converge.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Engineering the A.5 Trap: The Trimodal Gaussian}
+  \begin{itemize}
+    \item To prove this limitation, we engineered a continuous distribution that forces the A.5 expectation to exactly zero.
+    \item The target function $h(x) = x \tanh(x) - 1 + \tanh^2(x)$ is negative near zero ($|x| < 0.82$) and positive elsewhere.
+    \item We constructed a \textbf{Trimodal Gaussian Mixture} parameterized by peak locations $\{-b, 0, b\}$ and variance $\sigma^2$.
+    \item By solving $\int h(x) \text{PDF}(x) dx = 0$ subject to the unit variance constraint ($E[X^2] = 1$), we found the exact probability masses that perfectly balance the negative center against the positive tails.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Experimental Results: Breaking FastICA}
+  \begin{itemize}
+    \item \textbf{Setup:} We mixed the engineered Trimodal Gaussians in 10, 20, and 30 dimensions with 50,000 samples and compared FastICA to W-ICA.
+    \item \textbf{FastICA Results:} As mathematically predicted, FastICA hit its maximum iteration limit without converging, yielding unmixing matrices with catastrophically high Amari Errors ($>1.0$).
+    \item \textbf{W-ICA Results:} W-ICA successfully unmixed the 10D and 20D signals (Amari Error $\sim 0.1$). 
+    \item \textbf{Why W-ICA Succeeds:} W-ICA maps the \textit{entire global geometry} of the empirical CDF to a Gaussian. It uses first-order optimization on the Stiefel manifold, completely bypassing the local zero-curvature traps that destroy Newton-step proxy methods.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Dimensionality Ceiling of W-ICA}
+  \begin{itemize}
+    \item While W-ICA bypassed the mathematical trap, its performance degraded significantly at 30 dimensions with 50,000 samples.
+    \item \textbf{The Cause:} The Central Limit Theorem.
+    \item A linear mixture of 30 independent trimodal sources creates a highly complex, overwhelmingly Gaussian-looking geometry.
+    \item \textbf{Sample Starvation:} To distinguish the microscopic "steps" of this 30D discrete-like mixture from a true continuous Gaussian, the empirical CDF requires a massive sample size. Without it, the Wasserstein gradients become overwhelmed by sample noise.
+    \item W-ICA's limitation is empirical (resolution), whereas FastICA's is structural (mathematical).
+  \end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------
+% Robust Optimal Transport
+% ----------------------------------------------------------------------
+
+\section{Robust Optimal Transport}
+
+\begin{frame}{The Outlier Problem in Exact Wasserstein}
+  \begin{itemize}
+    \item We established that $W_2$ provides superior, smooth gradients for weak signals compared to $W_1$.
+    \item However, because $W_2$ uses an L2 ground cost $c(x,y) = |x - y|^2$, it is highly sensitive to outliers (e.g., sensor artifacts). 
+    \item A single massive outlier forces the optimal transport plan to expend immense gradient effort to "pull" the outlier, destroying the unmixing matrix for the normal data.
+    \item The fact that $W_2$ is a strict mathematical metric guarantees geometric stability, but \textbf{not} statistical robustness.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{W-Huber: Robust Geometry via Ground Cost Modification}
+  \begin{itemize}
+    \item To combine the smooth gradients of $W_2$ with the outlier resistance of $W_1$, we modify the Optimal Transport ground cost.
+    \item We replace the L2 cost with a stable \texttt{logcosh} formulation:
+    \[
+      c(x,y) = \log(\cosh(x-y)) \approx |x-y| + \log(1 + e^{-2|x-y|}) - \log(2)
+    \]
+    \item \textbf{Result:} For small distances (normal data), it behaves like an L2 penalty, preserving the smooth Stiefel gradients. For large distances (outliers), it behaves like an L1 penalty, ignoring extreme noise.
+    \item Unlike FastICA, using \texttt{logcosh} as a ground cost inside W-ICA \textit{does not} trigger the A.5 trap, as W-ICA relies on first-order global matching rather than second-order local curvature.
+  \end{itemize}
+\end{frame}
+
 
 
 \section{Bibliography}
