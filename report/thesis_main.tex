@@ -1,36 +1,38 @@
 \documentclass[12pt,a4paper,twoside,openright]{book}
-%\usepackage[work]{MCthesis}			% you can select this to work
+%\usepackage[work]{MCthesis}            % you can select this to work
 
-
-
-
-\usepackage[final]{MCthesis}				% this is for the final submission
-
+\usepackage[final]{MCthesis}            % this is for the final submission
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\usepackage[utf8]{inputenc} 		% allow utf-8 input
-\usepackage[T1]{fontenc}    		% use 8-bit T1 fonts
-\usepackage{hyperref}       		% hyperlinks
-\usepackage{url}            			% simple URL typesetting
-\usepackage{booktabs}       		% professional-quality tables
-\usepackage{nicefrac}       		% compact symbols for 1/2, etc.
-\usepackage{microtype}      		% microtypography
-\usepackage{xcolor}         			% colors
+\usepackage[utf8]{inputenc}         % allow utf-8 input
+\usepackage[T1]{fontenc}            % use 8-bit T1 fonts
+\usepackage{hyperref}               % hyperlinks
+
+% Hiding the red boxes around links
+\hypersetup{
+    hidelinks
+}
+
+\usepackage{url}                    % simple URL typesetting
+\usepackage{booktabs}               % professional-quality tables
+\usepackage{nicefrac}               % compact symbols for 1/2, etc.
+\usepackage{microtype}              % microtypography
+\usepackage{xcolor}                 % colors
 \usepackage{amssymb,amsmath,amsfonts,amsbsy, amsthm}
-\usepackage{bm}             			% bold vectors
-\usepackage{listings} 			% to include R-Code
-\usepackage[section]{placeins}		% forces floats to appear in the section they are placed in
-\usepackage{listings} 			% to include R-Code
-\usepackage[]{apacite}	% bibliography example
+\usepackage{mathrsfs}
+\usepackage{bm}                     % bold vectors
+\usepackage{listings}               % to include R-Code
+\usepackage[section]{placeins}      % forces floats to appear in the section they are placed in
+\usepackage[]{apacite}              % bibliography example
 \usepackage[toc,page]{appendix}
 \usepackage{framed}
-\usepackage{listings}
 \usepackage{float}
+\usepackage{algorithm}              % For your pseudo-code
+\usepackage{algpseudocode}          % For your pseudo-code
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{blindtext}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SET VARIABLES FOR TITLE PAGE
@@ -40,20 +42,402 @@
 \matnr{6639615}
 \date{\today} % submission date
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% SET VARIABLES FOR  SUPERVISION AND EXAMINERS
-\supervisor{Prof. Dr. Joachim Grammig}{Prof. Dr. Michel Besserve}{}
-\reviewer{Prof. Dr. Augustin Kelava}{Dr. Simon Buchholz}{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SET VARIABLES FOR SUPERVISION AND EXAMINERS
+\supervisor{Prof. Dr. Joachim Grammig\textsuperscript{1}}
+           {Prof. Dr. Michel Besserve\textsuperscript{2,3}}
+           {Dr. Simon Buchholz\textsuperscript{2}}
 
+\reviewer{Prof. Dr. Joachim Grammig\textsuperscript{1}}
+         {Prof. Dr. Augustin Kelava\textsuperscript{4}
+          \\[1.5cm] % Adds space before the affiliations
+          \multicolumn{2}{l}{\small \textsuperscript{1} Chair of Statistics, Econometrics and Empirical Economics, University of Tübingen} \\
+          \multicolumn{2}{l}{\small \textsuperscript{2} Empirical Inference, Max Planck Institute for Intelligent Systems, Tübingen} \\
+          \multicolumn{2}{l}{\small \textsuperscript{3} Institute for Machine Learning and AI, TU Braunschweig} \\
+          \multicolumn{2}{l}{\small \textsuperscript{4} Methods Center, University of Tübingen}
+         }
+         {}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-
-
 \begin{document}
+
+% The \maketitle command in your MCthesis package automatically handles 
+% the title page, declaration, \frontmatter, \tableofcontents, and \mainmatter.
 \maketitle
-% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+% -----------------------------------------------------------------
+% CHAPTER 1: INTRODUCTION
+% -----------------------------------------------------------------
+\chapter{Introduction}
+
+\section{Motivation: Disentangling Latent Variables}
+Blind Source Separation, specifically formulated as Independent Component Analysis (ICA), is a fundamental problem in modern statistics \cite{jutten1985}. 
+It has widespread applications across diverse fields, including machine learning, signal processing, econometrics, and neuroscience. 
+The primary objective of ICA is to recover hidden, statistically independent sources from an observed set of mixtures. 
+In this thesis, we focus on the linear mixture setting. ICA is frequently contrasted with Principal Component Analysis (PCA); 
+however, while PCA merely ensures that the resulting components are uncorrelated, ICA enforces the much stronger condition of full statistical independence \cite{hyvarinen2001}. 
+This rigorous criterion allows ICA to successfully disentangle complex latent variables that PCA cannot fully separate.
+
+\section{Intuition from Central Limit Theorem (CLT)}
+For the linear ICA model to be identifiable, a strict condition must be met: at most one of the underlying independent sources can follow a Gaussian distribution. 
+If multiple sources are Gaussian, any linear combination of them results in another Gaussian distribution, 
+rendering the original signals rotationally symmetric and impossible to uniquely separate. 
+This fundamental limitation naturally translates the challenge of finding independent components into an optimization problem: we must find the projections that maximize non-Gaussianity.
+
+The theoretical justification for this approach is deeply rooted in the Central Limit Theorem (CLT). 
+The CLT establishes that the sum or any linear combination of independent random variables tends toward a Gaussian distribution, 
+regardless of the distributions of the original variables. Consequently, any observed mixture of independent, 
+non-Gaussian sources will inherently appear more Gaussian than the constituent sources themselves. 
+Therefore, by extracting the components that are the least Gaussian, we are effectively isolating the original independent signals.
+
+\section{Information Theory, Thermodynamics and CLT}
+The use of non-gaussianity as a measure for independence of components is also motivated by information 
+theory. For a continuous random variable with a fixed variance, it is a foundational result that the Gaussian 
+distribution uniquely possesses the maximum possible Shannon entropy. This mathematical property reveals a 
+profound intrinsic link between information theory, the Central Limit Theorem, and statistical mechanics. 
+
+In thermodynamics, isolated physical systems naturally evolve toward states of maximum entropy, or maximum 
+disorder. Viewed through this interdisciplinary lens, the Central Limit Theorem serves as the statistical 
+manifestation of this physical principle. The mathematical process of linearly mixing independent sources 
+inherently increases the overall entropy of the system, inevitably driving the joint distribution toward 
+the high-entropy Gaussian state. 
+
+Recovering the underlying independent components, then, is conceptually equivalent to reversing this 
+thermodynamic process. It requires projecting the empirical data away from the "disordered" high-entropy 
+Gaussian manifold, intentionally guiding it back toward the highly structured, lower-entropy state of the 
+original independent signals.
+
+\section{Problem Statement and Research Objectives}
+In practice, the ICA pipeline begins by centering and whitening the observed mixture. 
+Whitening is a crucial preprocessing step that removes linear correlations and scales the variances to unity. Once the data is whitened, 
+the search for independent components is geometrically restricted to finding an optimal orthogonal rotation. 
+Specifically, the problem reduces to searching the unit sphere of the Stiefel manifold, space of orthogonal matrices, 
+for the rotation matrix that maximizes the non-Gaussianity of the projected data.
+
+The primary novelty of this research lies in proposing and investigating Optimal Transport metric, the Wasserstein distance, as the objective function for this rotational search. 
+Our objective is to find the orthogonal candidates on the unit sphere that maximize the Wasserstein distance to a standard normal distribution. 
+While traditional ICA algorithms often rely on sample approximations of population moments (such as kurtosis) or surrogate information-theoretic measures (such as negentropy approximations), 
+the Wasserstein metric offers a distinct advantage: 
+it evaluates the true global geometry of the empirical distribution using order statistics (sorted data), providing a highly robust, non-parametric measure of distance to Gaussianity. 
+
+\section{Structure of the Thesis}
+The remainder of this thesis is structured as follows. Chapter 2 establishes the theoretical foundations of linear ICA, information geometry, and Optimal Transport. 
+Chapter 3 formalizes the squared Wasserstein-ICA (W2-ICA) framework, proving that the squared Wasserstein (W2) distance rigorously bounds mixture non-Gaussianity. 
+Chapter 4 details the algorithmic enhancements required to optimize this metric on the Stiefel manifold efficiently. 
+Chapter 5 presents our experimental evaluation, demonstrating the failure modes of standard proxy optimization (such as FastICA) and proposing a robust ground cost modification to handle outliers. 
+Finally, Chapter 6 concludes the thesis with a summary of findings and directions for future research.
+
+
+% -----------------------------------------------------------------
+% CHAPTER 2: THEORETICAL FOUNDATIONS
+% -----------------------------------------------------------------
+\chapter{Theoretical Foundations}
+
+\section{Linear Independent Component Analysis (ICA)}
+
+\subsection{Notation and the Linear Mixing Model}
+The foundational assumption of the linear Independent Component Analysis model is that the observed signals are generated by a linear combination of statistically independent latent sources. 
+Let the observed data be denoted by a random vector $\mathbf{X} \in \mathbb{R}^d$, and the latent independent sources by $\mathbf{S} \in \mathbb{R}^d$. 
+The linear mixing model is formally defined as
+\begin{equation}
+    \mathbf{X} = \mathbf{A} \mathbf{S}
+\end{equation}
+where $\mathbf{A} \in \mathbb{R}^{d \times d}$ is an unknown, invertible mixing matrix \cite{hyvarinen2001}. Expanded into vector notation, the model represents the observed variables as
+\begin{equation}
+    \begin{bmatrix}
+    x_1 \\
+    x_2 \\
+    \vdots \\
+    x_d
+    \end{bmatrix}
+    = 
+    \begin{bmatrix}
+    a_{11} & a_{12} & \cdots & a_{1d} \\
+    a_{21} & a_{22} & \cdots & a_{2d} \\
+    \vdots & \vdots & \ddots & \vdots \\
+    a_{d1} & a_{d2} & \cdots & a_{dd}
+    \end{bmatrix}
+    \begin{bmatrix}
+    s_1 \\
+    s_2 \\
+    \vdots \\
+    s_d
+    \end{bmatrix}.
+\end{equation}
+The core objective of ICA is to estimate an unmixing matrix $\mathbf{B} \approx \mathbf{A}^{-1}$ such that the recovered components $\mathbf{Z} = \mathbf{B}\mathbf{X}$ are as 
+statistically independent as possible, thereby reconstructing the original sources $\mathbf{S}$.
+
+\subsection{Identifiability and Ambiguities}
+For the linear ICA model to be identifiable, it is a strict mathematical requirement that at most one of the underlying sources $s_i$ follows a Gaussian distribution. 
+If two or more sources are Gaussian, any orthogonal transformation of those sources yields another set of independent Gaussian variables. Consequently, 
+the mixing matrix cannot be uniquely determined from the observed data. Furthermore, even when the non Gaussianity assumption is met, the ICA model contains two inherent ambiguities. 
+First, the variances (energies) of the independent components cannot be determined, which leads to a scaling ambiguity. Second, the order of the sources is arbitrary, 
+leading to a permutation ambiguity. These ambiguities are generally acceptable in practice because the structural shape and independence of the source distributions are preserved.
+
+\subsection{Centering and Whitening}
+To simplify the optimization problem, the observed data $\mathbf{X}$ is subjected to a two step preprocessing phase consisting of centering and whitening. 
+Centering ensures that the data has a zero mean by subtracting the expectation
+\begin{equation}
+    \mathbb{E}[\mathbf{X}] = \mathbf{0}.
+\end{equation}
+Given centered data, the covariance matrix simplifies to $\mathrm{Cov}(\mathbf{X}) = \mathbb{E}[\mathbf{X}\mathbf{X}^\top]$. 
+Whitening is then applied to transform the observed vector into a new vector $\widetilde{\mathbf{X}}$ whose components are uncorrelated and possess unit variance. 
+This is achieved using the eigenvalue decomposition of the covariance matrix
+\begin{equation}
+    \mathrm{Cov}(\mathbf{X}) = \mathbf{V}\mathbf{\Lambda}\mathbf{V}^\top
+\end{equation}
+where $\mathbf{V}$ is the orthogonal matrix of eigenvectors and $\mathbf{\Lambda}$ is the diagonal matrix of eigenvalues $\lambda_j$. 
+The whitening transformation matrix $\mathbf{W}$ is constructed by scaling the eigenvectors by the inverse square root of the eigenvalues
+\begin{equation}
+    \mathbf{W} = \mathbf{\Lambda}^{-1/2} \mathbf{V}^\top.
+\end{equation}
+Applying this transformation yields the whitened data $\widetilde{\mathbf{X}} = \mathbf{W}\mathbf{X}$. The covariance of this new variable is the identity matrix
+\begin{equation}
+    \mathrm{Cov}(\widetilde{\mathbf{X}}) = \mathbf{W} \mathbb{E}[\mathbf{X}\mathbf{X}^\top] \mathbf{W}^\top = \mathbf{\Lambda}^{-1/2} \mathbf{V}^\top \mathbf{V} \mathbf{\Lambda} \mathbf{V}^\top \mathbf{V} \mathbf{\Lambda}^{-1/2} = \mathbf{I}_d.
+\end{equation}
+After whitening, the search for the unmixing matrix is drastically simplified. 
+If we define the unmixing operation on the whitened data as $\widetilde{\mathbf{Z}} = \mathbf{U} \widetilde{\mathbf{X}}$, the covariance of the recovered components is
+\begin{equation}
+    \mathrm{Cov}(\widetilde{\mathbf{Z}}) = \mathbf{U} \mathrm{Cov}(\widetilde{\mathbf{X}}) \mathbf{U}^\top = \mathbf{U} \mathbf{I}_d \mathbf{U}^\top = \mathbf{U}\mathbf{U}^\top.
+\end{equation}
+Because the independent components must have unit variance, we require $\mathbf{U}\mathbf{U}^\top = \mathbf{I}_d$. This reveals that the unmixing matrix $\mathbf{U}$ must be perfectly orthogonal. 
+The ICA problem is thus reduced to finding an optimal rotation on the Stiefel manifold.
+
+\subsection{The Insufficiency of Principal Component Analysis}
+Principal Component Analysis is frequently used to decorrelate data, which corresponds to finding the matrix $\mathbf{V}^\top$ in the eigenvalue decomposition. 
+However, making a sample decorrelated and whitened is not sufficient for source separation when the data is non Gaussian. 
+Once the data is whitened such that $\mathbb{E}[\mathbf{X}\mathbf{X}^\top] = \mathbf{I}_d$, any rotational orientation satisfies the PCA criteria. 
+For multivariate Gaussian distributions, decorrelation directly implies independence, leaving nothing further for PCA to accomplish. For non Gaussian data, however, 
+higher order dependencies remain. ICA must therefore traverse the space of orthogonal matrices to find local optima of contrast functions such as $f(\mathbf{u}) = \mathbb{E}[(\mathbf{u}^\top \mathbf{X})^4]$ on the unit sphere $S_n$. 
+Gradient descent and other optimization techniques are required to pinpoint the exact rotation that maximizes non Gaussianity and achieves full statistical independence.
+
+\section{An Information Geometry Perspective on ICA}
+
+\subsection{Product and Gaussian Manifolds}
+Information geometry provides a rigorous framework for quantifying the relationship between independence and non Gaussianity by analyzing probability distributions as points on geometric manifolds. 
+Following the perspective introduced by Cardoso \citeyear{cardoso2022}, ICA can be understood as projecting the empirical distribution onto two distinct subspaces. The first is the Product manifold $\mathcal{P}$, 
+which contains all distributions where the components are strictly independent. The second is the Gaussian manifold $\mathcal{G}$, which encompasses all multivariate Gaussian distributions with zero mean and a fixed covariance structure. 
+Standard decorrelation merely ensures that the covariance is diagonal, but full ICA operates at the intersection of these manifolds to find a linear transform that projects the empirical data as closely as possible onto the Product manifold \cite{cardoso2022}.
+
+\subsection{Kullback-Leibler Pythagorean Identities}
+Distances between these distributions are measured using the Kullback-Leibler (KL) divergence. For any random vector $Y$ with a joint density $P_Y$, 
+the mutual information $\mathscr{I}(Y)$ measures the distance to the closest independent product distribution
+\begin{equation}
+    \mathscr{I}(Y) = D_{\mathrm{KL}}\left(P_Y \,\Vert \, \prod_{i} P_{Y_i}\right).
+\end{equation}
+A Pythagorean identity exists on the Product manifold. For any candidate product distribution $Q = \prod_{i} q_i$, the divergence splits precisely into the mutual information and the marginal divergences
+\begin{equation}
+    D_{\mathrm{KL}}\left(P_Y \Vert Q\right) = \mathscr{I}(Y) + \sum_{i} D_{\mathrm{KL}}\left(P_{Y_i} \Vert q_i\right).
+\end{equation}
+A similar Pythagorean identity holds for the Gaussian manifold $\mathcal{G}$. The KL divergence from $P_Y$ to any arbitrary Gaussian distribution $\mathcal{N}(\Sigma)$ decomposes into 
+the divergence to the best Gaussian fit and the divergence between the two Gaussian models
+\begin{equation}
+    D_{\mathrm{KL}}\big(P_Y \Vert \mathcal{N}(\Sigma)\big) = D_{\mathrm{KL}}\big(P_Y \Vert \mathcal{N}(\operatorname{Cov} Y)\big) + D_{\mathrm{KL}}\big(\mathcal{N}(\operatorname{Cov} Y) \Vert \mathcal{N}(\Sigma)\big).
+\end{equation}
+
+\subsection{Relating Independence, Correlation, and Non-Gaussianity}
+These geometric identities can be combined to relate independence directly to non Gaussianity. We define the non Gaussianity of the joint variable $Y$ as $G(Y) = D_{\mathrm{KL}}(P_Y \,\Vert\, \mathcal{N}(\operatorname{Cov} Y))$, and the scalar measure of correlation as $C(Y) = D_{\mathrm{KL}}(\mathcal{N}(\operatorname{Cov} Y) \,\Vert\, \mathcal{N}(\operatorname{diag\,Cov} Y))$. Cardoso's unified theorem states that
+\begin{equation}
+    \mathscr{I}(Y) + \sum_{i} G(Y_i) = C(Y) + G(Y).
+\end{equation}
+Crucially, the joint non Gaussianity $G(Y)$ is invariant under invertible linear transformations. Furthermore, after the data has been whitened, 
+the covariance matrix is the identity matrix, meaning $\operatorname{Cov}(Y) = \operatorname{diag\,Cov}(Y)$ and therefore the correlation term $C(Y) = 0$. 
+The relationship then drastically simplifies to
+\begin{equation}
+    \mathscr{I}(Y) = G(Y) - \sum_{i} G(Y_i).
+\end{equation}
+Because $G(Y)$ is constant under rotation, minimizing the mutual information $\mathscr{I}(Y)$ is mathematically equivalent to maximizing the sum of the 
+marginal non Gaussianities $\sum_i G(Y_i)$. This rigorously proves that centering and whitening constrain the data to a subspace where true statistical independence can be 
+achieved solely by maximizing non Gaussianity \cite{cardoso2022}.
+
+\section{Optimal Transport Theory}
+
+\subsection{The Monge-Kantorovich Problem}
+While information geometry utilizes Kullback-Leibler divergence, Optimal Transport offers an alternative metric space that is highly sensitive to the underlying geometry of the data. 
+First formulated by Gaspard Monge \citeyear{monge1781}, the problem was originally conceptualized as finding the most cost effective way to move a distribution of mass, such as a pile of soil, 
+to a target destination. 
+
+Mathematically, this is framed as finding a transport map $T$ that pushes forward a source probability measure $\mu$ to a target measure $\nu$, denoted as $T_{\#} \mu = \nu$. 
+This means that for any measurable set $A$, the mass assigned by $\nu$ is equal to the mass assigned by $\mu$ to the preimage of $A$, such that $\nu(A) = \mu(T^{-1}(A))$. 
+Because finding a deterministic map $T$ is highly restrictive, Kantorovich \citeyear{kantorovich1942} later relaxed this formulation by introducing transport plans. This allowed mass from a single source 
+location to be split and distributed across multiple targets. This relaxation transformed the rigorous mapping requirement into a joint probability distribution problem, 
+making the computation of transport costs mathematically tractable.
+
+\subsection{The Earth Mover's Distance ($W_1$)}
+The minimal cost required to transform one probability distribution into another is formalized as the Wasserstein distance \cite{villani2003}. The $W_1$ distance, commonly referred to as the Earth Mover's Distance, 
+quantifies the absolute effort of this transformation. For one dimensional distributions with cumulative distribution functions $F$ and $G$, the $W_1$ distance is computed as the integral of the 
+absolute differences between the cumulative functions
+\begin{equation}
+    W_1(\mu, \nu) = \int_{-\infty}^\infty |F(x) - G(x)| \, dx.
+\end{equation}
+Intuitively, $W_1$ sums the vertical area between the two distribution curves. While this metric is robust to extreme outliers, it often underestimates structural deviations in variance.
+
+\subsection{The Squared Wasserstein Distance ($W_2$)}
+To better capture variations in spread and central location, the Squared Wasserstein distance is utilized. It is most conveniently defined using the quantile functions, 
+which are the inverses of the cumulative distribution functions $F^{-1}$ and $G^{-1}$. The $W_2$ distance is formulated as
+\begin{equation}
+    W_2(\mu, \nu) = \left( \int_0^1 |F^{-1}(t) - G^{-1}(t)|^2 \, dt \right)^{1/2}.
+\end{equation}
+By squaring the transport cost, the $W_2$ metric heavily penalizes local geometric distortions. When evaluating the distance between an empirical projection and a 
+standard normal distribution $\mathcal{N}(0,1)$, $W_2$ provides a highly sensitive and reliable measure of Gaussianity. This makes it an ideal contrast function for Independent Component Analysis, 
+as it maps the exact geometric deformations required to transform the candidate components into Gaussian noise.
+
+\subsection{Brenier's Theorem and Caffarelli's Regularity}
+The use of the squared Euclidean cost function in the $W_2$ distance provides profound geometric properties that are not present in $W_1$. 
+Specifically, Brenier's Theorem establishes a direct link between the squared Wasserstein distance and convex analysis \cite{brenier1991}. 
+The theorem states that if the source measure $\mu$ is absolutely continuous with respect to the Lebesgue measure, the optimal transport plan is uniquely given by a deterministic Monge map $T$. 
+Crucially, Brenier proved that this optimal map is the gradient of a convex function $\phi$, such that $T = \nabla \phi$. 
+
+The analytical behavior of this transport map is governed by Caffarelli's regularity theory \cite{caffarelli1992}. Caffarelli demonstrated that if both the source and target probability densities are 
+smooth and bounded strictly away from zero on their supports, the convex potential $\phi$ is strictly convex and its gradient $T$ is continuously differentiable. 
+This regularity implies that the optimal transport map does not tear or fold the probability space abruptly. 
+In the context of linear ICA, the existence of a unique, smooth, and differentiable transport map mapping empirical projections to a Gaussian target provides the 
+necessary mathematical foundation to analyze optimization gradients and theoretically bound mixture non-Gaussianities.
+
+% -----------------------------------------------------------------
+% CHAPTER 3: THE SQUARED WASSERSTEIN-ICA (W2-ICA) FRAMEWORK
+% -----------------------------------------------------------------
+\chapter{The Squared Wasserstein-ICA (W2-ICA) Framework}
+
+\section{Formulating ICA as an Optimal Transport Problem}
+As established in the preceding chapter, the process of centering and whitening restricts the search for independent components to the manifold of orthogonal matrices. Furthermore, Cardoso's unified theorem \cite{cardoso2022} demonstrates that within this whitened space, the mutual information of the projections is minimized precisely when the sum of their marginal non-Gaussianities is maximized. Traditional Independent Component Analysis algorithms approach this optimization by utilizing proxy contrast functions, such as kurtosis or negentropy approximations. While computationally inexpensive, these proxies often capture only specific statistical moments, ignoring the broader geometric structure of the underlying probability distributions.
+
+This thesis proposes a paradigm shift by formulating ICA directly as an Optimal Transport problem. Instead of relying on proxy moments, we utilize the squared Wasserstein distance, $W_2^2$, as a direct, geometrically rigorous measure of non-Gaussianity. Let $\mathbf{X}$ be the whitened observed mixture, and let $\mathbf{u} \in S_n$ be a candidate projection vector on the unit sphere. The empirical distribution of the projected data is denoted by $\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}$. We formally define the objective of the W2-ICA framework as finding the orthogonal rotation matrix whose column vectors $\mathbf{u}$ maximize the transport cost to a standard normal distribution $\mathcal{N}(0,1)$:
+\begin{equation}
+    \hat{\mathbf{u}} = \arg\max_{\mathbf{u} \in S_n} W_2^2\big(\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}, \mathcal{N}(0,1)\big).
+\end{equation}
+By framing the problem in this manner, we leverage the Optimal Transport metric's unique ability to capture global geometric deviations from Gaussianity, providing a highly sensitive contrast function capable of disentangling complex latent variables.
+
+\section{Theoretical Motivation: Bounding Mixture Non-Gaussianity}
+To mathematically justify the use of $W_2^2$ as an objective function for ICA, we must prove that maximizing this distance recovers the true independent sources. By the Central Limit Theorem, we possess the intuitive understanding that a mixture of non-Gaussian sources is more Gaussian than the constituent sources themselves. In the language of Optimal Transport, this implies that the Wasserstein distance between a mixture and a Gaussian distribution must be strictly bounded by the distances of its independent components. 
+
+\subsection{Constructing the Common Source Coupling}
+To formally prove this bound, we construct a specific joint probability distribution, or coupling, using a common source of randomness. Let $\mathbf{N} = (N_1, \dots, N_d)^\top$ be a vector of $d$ independent standard normal variables, such that $\mathbf{N} \sim \mathcal{N}(0, \mathbf{I}_d)$. For each true independent latent source $Z_i$, there exists an Optimal Transport map $T_i$ that pushes forward the standard normal distribution to the source distribution, denoted as $(T_i)_{\#} \mathcal{N}(0,1) = Z_i$. 
+
+We can construct a random variable $X$ representing a linear mixture of the sources using a weight vector $\mathbf{w}$ defined on the unit sphere ($\sum_{i=1}^d w_i^2 = 1$). By applying the transport maps to our common noise vector, the mixture is defined as
+\begin{equation}
+    X = \sum_{i=1}^d w_i T_i(N_i).
+\end{equation}
+Because $T_i(N_i)$ follows the distribution of $Z_i$, it follows that $X$ perfectly models the weighted mixture $\mathbf{w} \cdot \mathbf{Z}$. To compare this mixture to a Gaussian distribution, we construct a target variable $Y$ using the exact same underlying noise vector $\mathbf{N}$ and the same weights:
+\begin{equation}
+    Y = \sum_{i=1}^d w_i N_i.
+\end{equation}
+Given that the weights sum to unity and the components $N_i$ are independent standard normals, the resulting variable $Y$ is guaranteed to follow a standard normal distribution, $Y \sim \mathcal{N}(0,1)$. The pair $(X, Y)$ therefore creates a valid coupling $\pi_{X,Y}^{\mathbf{N}}$ between the mixture distribution and the Gaussian target.
+
+\subsection{Proof of the $W_2$ Upper Bound}
+The squared Wasserstein distance is defined as the infimum of the expected squared cost over all possible valid couplings. Because the infimum represents the absolute optimal transport plan, the cost of the optimal plan must be less than or equal to the cost of our specifically constructed coupling $(X, Y)$. This yields the fundamental inequality:
+\begin{equation}
+    W_2^2(\mathbf{w} \cdot \mathbf{Z}, \mathcal{N}(0,1)) \le \mathbb{E}\left[|X - Y|^2\right].
+\end{equation}
+We evaluate the right side of this inequality by expanding the squared difference:
+\begin{align}
+    |X - Y|^2 &= \left| \sum_{i=1}^d w_i T_i(N_i) - \sum_{i=1}^d w_i N_i \right|^2 \nonumber \\
+              &= \left( \sum_{i=1}^d w_i \big(T_i(N_i) - N_i\big) \right)^2.
+\end{align}
+Squaring the summation produces a combination of diagonal terms where $i=j$ and cross terms where $i \neq j$:
+\begin{equation}
+    |X - Y|^2 = \sum_{i=1}^d w_i^2 \big(T_i(N_i) - N_i\big)^2 + \sum_{i \neq j} w_i w_j \big(T_i(N_i) - N_i\big)\big(T_j(N_j) - N_j\big).
+\end{equation}
+Taking the mathematical expectation of this expansion drastically simplifies the expression. Because the underlying noise variables $N_i$ and $N_j$ are independent, and the functions evaluate to a mean of zero, the expectation of all cross terms strictly vanishes. We are left solely with the expectation of the diagonal terms:
+\begin{equation}
+    \mathbb{E}\left[|X - Y|^2\right] = \sum_{i=1}^d w_i^2 \mathbb{E}\left[ \big(T_i(N_i) - N_i\big)^2 \right].
+\end{equation}
+Recognizing that $\mathbb{E}[ (T_i(N_i) - N_i)^2 ]$ is the exact definition of the squared Wasserstein distance between the individual source $Z_i$ and a standard normal distribution, we arrive at the final upper bound:
+\begin{equation}
+    W_2^2(\mathbf{w} \cdot \mathbf{Z}, \mathcal{N}(0,1)) \le \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N}(0,1)).
+\end{equation}
+This convexity adjacent property rigorously proves that mixing independent sources mathematically reduces the Wasserstein distance to Gaussianity. Maximizing the left-hand side forces the weight vector $\mathbf{w}$ to collapse toward a canonical axis, effectively isolating a single independent source.
+
+\subsection{Comonotonicity and the Proof of Strict Inequality}
+While the upper bound demonstrates that mixtures do not exceed the non-Gaussianity of their sources, successfully optimizing ICA requires proving that mixtures are strictly less non-Gaussian. We must therefore determine the conditions under which the aforementioned inequality becomes a strict inequality. 
+
+In a one-dimensional setting, the Wasserstein-2 distance equals the expected squared difference of a specific coupling if and only if the random variables are comonotonic. By Brenier's Theorem \cite{brenier1991}, this implies there exists a strictly increasing, deterministic function mapping one variable to the other. For our constructed variables $X$ and $Y$ to be comonotonic with respect to the noise vector $\mathbf{N}$, their gradients must be perfectly parallel at every point in the probability space. This requires the existence of a scalar function $\lambda(\mathbf{N})$ such that:
+\begin{equation}
+    \nabla X(\mathbf{N}) = \lambda(\mathbf{N}) \nabla Y(\mathbf{N}).
+\end{equation}
+Taking the gradients of our constructed variables yields $\nabla Y = \mathbf{w}$ and $\nabla X = [w_1 T'_1(N_1), \dots, w_d T'_d(N_d)]^\top$. To test the equality condition, we differentiate both sides with respect to $\mathbf{N}$ to construct the Hessian matrices. Because the components of $X$ are independent, its Hessian is a purely diagonal matrix. Conversely, differentiating the right side using the product rule on $\lambda(\mathbf{N}) \mathbf{w}$ yields an outer product, forming a Rank-1 matrix. 
+
+Equating a diagonal matrix to a Rank-1 matrix forces a profound contradiction. For any off-diagonal entry where $i \neq j$, the diagonal matrix dictates the value is zero, while the Rank-1 matrix evaluates to $w_i \frac{\partial \lambda}{\partial N_j}$. Because the weight $w_i$ is non-zero in a valid mixture, it must be true that $\frac{\partial \lambda}{\partial N_j} = 0$ for all partial derivatives. Consequently, $\lambda$ is not a function of $\mathbf{N}$, but a global constant.
+
+If $\lambda$ is constant, the derivatives of the transport maps $T'_i$ must also be constant, meaning the maps themselves are strictly linear functions of the form $T_i(x) = \lambda x + c$. However, applying a linear transformation to a Gaussian noise source $N_i$ can only produce another Gaussian distribution. Because the foundational assumption of ICA guarantees our sources are non-Gaussian, their optimal transport maps must be non-linear (curved). Therefore, the comonotonicity condition fundamentally fails for non-Gaussian sources. We conclude that for any valid mixture, the relationship is a strict inequality:
+\begin{equation}
+    W_2^2(\mathbf{w} \cdot \mathbf{Z}, \mathcal{N}(0,1)) < \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N}(0,1)).
+\end{equation}
+
+\section{Empirical Landscape: $W_1$ versus $W_2$}
+Having theoretically established that the squared Wasserstein distance successfully isolates non-Gaussian sources, we now evaluate its practical suitability as an optimization landscape. Specifically, we compare the squared $W_2$ distance (Mean Squared Error ground cost) against the $W_1$ distance (Mean Absolute Error ground cost) to observe gradient behavior during rotational search.
+
+\subsection{Student-t Distributions and Degrees of Freedom}
+To conduct this empirical comparison, we generated synthetic bivariate mixtures from Student-t distributions. The Student-t distribution is ideal for this analysis because its kurtosis and non-Gaussianity can be precisely controlled by adjusting its degrees of freedom ($\nu$). A low degrees of freedom parameter (e.g., $\nu=2$) produces heavy tails, representing a strong non-Gaussian signal. Conversely, as $\nu$ approaches higher values (e.g., $\nu=10$), the tails become lighter, and the distribution closely approximates a standard normal, representing a weak non-Gaussian signal. We systematically evaluated the $W_1$ and $W_2^2$ distances from a standard normal distribution across a continuous range of rotation angles $\theta$ relative to the optimal unmixing axis.
+
+\subsection{Robustness to Weak Non-Gaussian Signals}
+The empirical results revealed a stark contrast in the optimization landscapes of the two metrics. For strong non-Gaussian signals ($\nu=2$), both metrics successfully identified the global optimum, exhibiting distinct peaks aligned with the true source axis. However, the $W_2^2$ landscape exhibited significantly higher curvature around the optimum, providing stronger, more directional gradients for convergence. 
+
+The most critical divergence in behavior occurred in the presence of weak signals ($\nu=10$). As the underlying distribution approached Gaussian noise, the $W_1$ landscape deteriorated rapidly, becoming highly jagged and non-convex. This roughness introduces severe vulnerability, as gradient-based solvers are highly likely to become trapped in spurious local optima. In contrast, the $W_2^2$ metric remained remarkably smooth and unimodal, maintaining a clear gradient path toward the true global maximum despite the weak signal strength. This robust empirical behavior, combined with the strict mathematical bounds established previously, definitively justifies the computational expense of selecting the squared Wasserstein distance as the core contrast function for the proposed W2-ICA framework.
+
+% -----------------------------------------------------------------
+% CHAPTER 4: ALGORITHMIC DESIGN AND OPTIMIZATION
+% -----------------------------------------------------------------
+\chapter{Algorithmic Enhancements}
+
+\section{The Baseline W2-ICA Algorithm}
+
+\section{Computational Bottlenecks and Solutions}
+\subsection{Exact Analytical Gaussian Targets}
+\subsection{Batched Vectorization for Restarts}
+
+\section{Optimization on the Stiefel Manifold}
+\subsection{The Riemannian Gradient}
+\subsection{Retraction via Symmetric Decorrelation}
+
+\section{A Novel Optimal Transport Fixed-Point Iteration}
+
+% -----------------------------------------------------------------
+% CHAPTER 5: EXPERIMENTS AND ROBUSTNESS
+% -----------------------------------------------------------------
+\chapter{Experimental Evaluation and Applications}
+
+\section{The Blind Spot of Proxy Optimization (FastICA)}
+\subsection{The Assumption A.5 Trap in Fixed-Point Iteration}
+\subsection{Constructing the Failure Mode Counterexample}
+\subsection{Empirical Results: Breaking FastICA}
+
+\section{Dimensionality Limits and Sample Starvation}
+
+\section{Robust Optimal Transport via Ground Cost Modification}
+\subsection{The Outlier Sensitivity of Exact $W_2$}
+\subsection{The W-Huber Formulation (Logcosh Cost)}
+
+% --- NEW SECTION ADDED HERE ---
+\section{Application: Price Discovery and Information Shares}
+\subsection{Non-Gaussianity in Econometric Market Microstructure}
+\subsection{Economic Identification Strategy (Permutation and Sign Resolution)}
+\subsection{Empirical Results on Market Data}
+
+% -----------------------------------------------------------------
+% CHAPTER 6: CONCLUSION
+% -----------------------------------------------------------------
+\chapter{Conclusion}
+\section{Summary of Contributions}
+\section{Limitations}
+\section{Future Work}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BACK MATTER
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\backmatter
+
+\bibliographystyle{apacite}
+\bibliography{references} 
+
+\begin{appendices}
+    \chapter{Mathematical Proofs and Derivations}
+    \section{Derivation of the FastICA Fixed-Point Failure Condition}
+    
+    \chapter{Additional Algorithms and Code}
+\end{appendices}
 
 \end{document}

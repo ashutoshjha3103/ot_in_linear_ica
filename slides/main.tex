@@ -897,6 +897,46 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 \end{frame}
 
 
+% ----------------------------------------------------------------------
+% Limitations: The Intractability of Newton's Method
+% ----------------------------------------------------------------------
+
+\section{Optimization Limits: Why not Fast-Wasserstein-ICA?}
+
+\begin{frame}{Intractability of an Exact Newton Step}
+  \begin{itemize}
+    \item FastICA achieves rapid convergence using a Newton (second-order) fixed-point step because its contrast function $g(\cdot)$ is static.
+    \item To build a "Fast-Wasserstein-ICA", we would need the Hessian of the Wasserstein distance: $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$.
+    \item The first derivative (Gradient) uses the Optimal Transport map $T_{\mathbf{w}}$:
+      \[ \nabla_{\mathbf{w}} \left( \frac{1}{2} W_2^2 \right) = \mathbb{E}\left[ \mathbf{X} \left( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \right) \right] \]
+    \item The Hessian requires differentiating $T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})$ with respect to $\mathbf{w}$. Applying the total derivative yields two terms:
+      \[ \nabla_{\mathbf{w}} [T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})] = \underbrace{T'_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \mathbf{X}}_{\text{Argument Derivative}} + \underbrace{(\nabla_{\mathbf{w}} T_{\mathbf{w}})(\mathbf{w}^\top \mathbf{X})}_{\text{Map Derivative}} \]
+    \item Caffarelli's regularity guarantees the first term exists. The second term, however, is structurally problematic.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Density Estimation Bottleneck}
+  Let us expand the problematic Map Derivative. The 1D transport map to a standard Gaussian relies on the empirical CDF $F_{\mathbf{w}}$ of the projection:
+  \[ (\nabla_{\mathbf{w}} T_{\mathbf{w}})(y) = \nabla_{\mathbf{w}} \left[ \Phi^{-1}(F_{\mathbf{w}}(y)) \right] = \frac{1}{\phi(\Phi^{-1}(F_{\mathbf{w}}(y)))} \nabla_{\mathbf{w}} F_{\mathbf{w}}(y) \]
+  
+  \textbf{The Mathematical Trap:}
+  \begin{itemize}
+    \item The term $\nabla_{\mathbf{w}} F_{\mathbf{w}}(y)$ asks: \textit{"How does the cumulative mass change as we rotate the projection plane?"}
+    \item Mathematically, the derivative of a CDF boundary relies strictly on the Probability Density Function (PDF) evaluated exactly at that boundary.
+    \item \textbf{The W-ICA Advantage Defeated:} The primary computational advantage of 1D Optimal Transport is that it uses sorting (empirical CDFs) to \textbf{completely avoid} continuous density estimation (PDFs).
+    \item Requiring the PDF for the Hessian forces us to use Kernel Density Estimation (KDE), which introduces massive statistical noise and bandwidth-tuning fragility.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusion: The Role of Quasi-Newton Methods}
+  \begin{itemize}
+    \item Because the exact Hessian requires unstable density estimation, a true Newton-based fixed-point algorithm for exact W-ICA is mathematically intractable.
+    \item \textbf{Our Solution:} This justifies our reliance on \textbf{Quasi-Newton methods} (like L-BFGS on the Stiefel manifold).
+    \item L-BFGS intelligently approximates the inverse Hessian curvature strictly by observing the history of the stable, first-order Wasserstein gradients.
+    \item This allows us to achieve super-linear convergence rates while strictly preserving the CDF-only, sorting-based elegance of the Optimal Transport formulation.
+  \end{itemize}
+\end{frame}
+
 
 \section{Bibliography}
 
