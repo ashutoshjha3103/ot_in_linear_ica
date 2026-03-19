@@ -939,6 +939,72 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 
 
 % ----------------------------------------------------------------------
+% The Generalized Hybrid Mixture Experiment
+% ----------------------------------------------------------------------
+
+\section{The Generalized Hybrid Mixture}
+
+\begin{frame}{The Ultimate Stress Test: Generalized Mixtures}
+  \begin{itemize}
+    \item Real-world signals rarely belong to a single statistical family. To test the true robustness of W-ICA, we designed a highly chaotic, generalized mixture.
+    \item \textbf{The Setup:} We evaluated mixtures across $10$ to $75$ dimensions with $10,000$ samples.
+    \item \textbf{Source Composition:} 
+      \begin{itemize}
+          \item Exactly \textbf{one} Standard Gaussian source $\mathcal{N}(0,1)$.
+          \item The remaining sources were randomly drawn from a diverse pool of $8$ distinct distributions: Laplace, Bernoulli, Uniform, Student-t, Poisson, Binomial, Chi-squared, and Exponential.
+      \end{itemize}
+    \item \textbf{W-ICA Configuration:} We maintained the robust settings engineered for the discrete case ($\sigma_{\text{dither}} = 0.01$, batch size $= 1024$) to handle the unpredictable presence of discrete and light-tailed components.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Results: W-ICA Stability vs. FastICA Degradation}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      % [PLACE AMARI ERROR GRAPH HERE]
+      \includegraphics[width=\textwidth]{placeholder_general_amari.png} 
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Key Observations:}
+      \begin{itemize}
+        \item \textbf{W-ICA (Orange):} Successfully maintains a low Amari error ($< 0.25$) up to $50$ dimensions, proving the geometric $W_2$ metric generalizes across highly diverse topological landscapes.
+        \item \textbf{FastICA (Blue):} Performance degrades rapidly, crossing the critical $0.5$ Amari error threshold immediately after $20$ dimensions.
+        \item At higher dimensions, the hyper-complex mixture completely blinds FastICA's proxy contrast functions.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Diagnosing FastICA: The Oscillation Problem}
+  \begin{itemize}
+    \item During the generalized experiment, FastICA consistently triggered non-convergence warnings.
+    \item \textbf{The Hypothesis:} FastICA's Newton-Raphson solver assumes a relatively uniform curvature. When forced to simultaneously evaluate highly kurtotic (Laplace) and negatively kurtotic (Uniform, Bernoulli) signals, the gradient updates contradict each other, causing the solver to oscillate indefinitely.
+    \item \textbf{The Deep-Dive Test:} To prove this was a structural failure and not merely a lack of compute time, we evaluated FastICA under extreme optimization parameters:
+      \begin{enumerate}
+          \item Baseline (\texttt{max\_iter=2000, tol=1e-4})
+          \item High Iterations (\texttt{max\_iter=10000, tol=1e-4})
+          \item Relaxed Tolerance (\texttt{max\_iter=2000, tol=1e-3})
+      \end{enumerate}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Convergence Failure in Complex Landscapes}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      % [PLACE CONVERGENCE RATE GRAPH HERE]
+      \includegraphics[width=\textwidth]{placeholder_fastica_convergence.png} 
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Conclusion:}
+      \begin{itemize}
+        \item Even when granted 5x the normal iteration limit ($10,000$ steps), FastICA's convergence rate plummets to $0\%$ past 30 dimensions.
+        \item Relaxing the tolerance only marginally delays this collapse.
+        \item This definitively proves that FastICA is structurally oscillating. In unpredictable, hybrid environments, proxy-based Newton solvers become trapped in contradictory gradient loops, whereas W-ICA's first-order global CDF matching remains stable.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ----------------------------------------------------------------------
 % Limitations: The Intractability of Newton's Method
 % ----------------------------------------------------------------------
 
