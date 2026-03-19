@@ -41,11 +41,12 @@ class WassersteinICA:
     # ========================================== 
     # VECTORIZED: Core Distance Metric 
     # ========================================== 
-    def wasserstein2_analytical(self, W, cost='l2'): 
+    def wasserstein2_analytical(self, W, cost='l2', dither_sigma=0.0): 
         """ 
         Computes W distance.  
         Supports both single vectors (legacy) and matrices (batched parallel). 
         cost: 'l2' for standard Wasserstein, 'logcosh' for robust Huber-like geometry.
+        dither_sigma: Injects continuous noise to smooth discrete CDF steps.
         """ 
         assert self.whitened, "Call whiten() before computing distance." 
           
@@ -54,6 +55,11 @@ class WassersteinICA:
             W = W.unsqueeze(0) 
               
         Y = torch.mm(W, self.X_white)  
+        
+        # DITHERING: Inject continuous noise to break discrete ties and smooth the CDF
+        if dither_sigma > 0:
+            Y = Y + torch.randn_like(Y) * dither_sigma
+            
         sorted_Y, _ = torch.sort(Y, dim=1)  
         diff = sorted_Y - self.analytical_target 
           
@@ -69,14 +75,13 @@ class WassersteinICA:
           
         if is_1d: 
             return distances[0] 
-        return distances 
+        return distances
 
     # ========================================== 
     # VECTORIZED: Phase 1 (Deflation & Restarts) 
     # ========================================== 
-
     def optimize_wasserstein2(self, prev_components=None, grid_points=100, continuous=True, 
-                              max_iter=200, lr=0.1, n_restarts=50, decay_rate=0.5, decay_step=50, cost='l2'): 
+                              max_iter=200, lr=0.1, n_restarts=50, decay_rate=0.5, decay_step=50, cost='l2', dither_sigma=0.0): 
         """ 
         Find ONE maximizer of W distance (Deflationary). 
         """ 
@@ -94,8 +99,8 @@ class WassersteinICA:
             for i in range(max_iter): 
                 if (i + 1) % decay_step == 0: current_lr *= decay_rate 
                   
-                # Pass the cost function down
-                dist = self.wasserstein2_analytical(W_batch, cost=cost).sum() 
+                # Pass the dither parameter down
+                dist = self.wasserstein2_analytical(W_batch, cost=cost, dither_sigma=dither_sigma).sum() 
                   
                 if W_batch.grad is not None: W_batch.grad.zero_() 
                 dist.backward() 
@@ -121,7 +126,8 @@ class WassersteinICA:
                     W_batch.data /= torch.norm(W_batch.data, dim=1, keepdim=True) 
               
             with torch.no_grad(): 
-                final_distances = self.wasserstein2_analytical(W_batch, cost=cost) 
+                # Evaluate final best vector without noise to get the true mathematical distance
+                final_distances = self.wasserstein2_analytical(W_batch, cost=cost, dither_sigma=0.0) 
                 best_idx = torch.argmax(final_distances) 
                 best_w = W_batch[best_idx].detach().clone() 
                 best_dist = final_distances[best_idx].item() 
@@ -144,7 +150,7 @@ class WassersteinICA:
             dist_best = -np.inf 
             w_best = None 
             for w in candidates: 
-                d = self.wasserstein2_analytical(w, cost=cost).item() 
+                d = self.wasserstein2_analytical(w, cost=cost, dither_sigma=dither_sigma).item() 
                 if d > dist_best: 
                     dist_best = d 
                     w_best = w 
@@ -157,12 +163,12 @@ class WassersteinICA:
         inv_sqrt_M = torch.mm(torch.mm(evecs, d_inv_sqrt), evecs.t()) 
         return torch.mm(inv_sqrt_M, W) 
 
-# ========================================== 
+    # ========================================== 
     # VECTORIZED: Phase 2 
     # ========================================== 
     def optimize_symmetric(self, n_components=None, max_iter=300, lr=1.0, init_w=None,  
                            optimizer='sgd', penalty_weight=10.0, use_sinkhorn=False,  
-                           reg=0.01, sinkhorn_iter=50, cost='l2'): 
+                           reg=0.01, sinkhorn_iter=50, cost='l2', dither_sigma=0.0, batch_size=512): 
         if n_components is None: n_components = self.X.shape[0] 
 
         if init_w is not None: 
@@ -172,6 +178,11 @@ class WassersteinICA:
             W = self._symmetric_decorrelation(W) 
         W.requires_grad_(True) 
           
+        # Store originals to safely patch during stochastic batching
+        original_X_white = self.X_white
+        original_n = self.n
+        original_target = self.analytical_target
+          
         if optimizer == 'sgd': 
             for i in range(max_iter): 
                 if W.grad is not None: W.grad.zero_() 
@@ -179,8 +190,7 @@ class WassersteinICA:
                 if use_sinkhorn: 
                     total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum() 
                 else: 
-                    # Pass cost
-                    total_dist = self.wasserstein2_analytical(W, cost=cost).sum() 
+                    total_dist = self.wasserstein2_analytical(W, cost=cost, dither_sigma=dither_sigma).sum() 
                   
                 loss = -total_dist 
                 loss.backward() 
@@ -195,20 +205,28 @@ class WassersteinICA:
                     W.requires_grad_(True)  
 
         elif optimizer == 'stiefel':
+            current_lr = lr
             for i in range(max_iter):
                 if W.grad is not None: W.grad.zero_()
+                
+                # STOCHASTIC BATCHING: Randomly slice data to inject gradient noise
+                if batch_size is not None and batch_size < original_n:
+                    indices = torch.randperm(original_n, device=self.X.device)[:batch_size]
+                    self.X_white = original_X_white[:, indices]
+                    self.n = batch_size
+                    self.analytical_target = self._compute_analytical_target(self.n)
                 
                 if use_sinkhorn:
                     total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum()
                 else:
-                    # Pass cost
-                    total_dist = self.wasserstein2_analytical(W, cost=cost).sum()
+                    total_dist = self.wasserstein2_analytical(W, cost=cost, dither_sigma=dither_sigma).sum()
                 
                 total_dist.backward()
                 
                 with torch.no_grad():
                     grad = W.grad
                     
+                    # Stiefel Projection
                     G_Wt = torch.mm(grad, W.data.t())
                     W_Gt = torch.mm(W.data, grad.t())
                     sym = 0.5 * (G_Wt + W_Gt)
@@ -217,9 +235,13 @@ class WassersteinICA:
                     tangent_norms = torch.norm(tangent_grad, dim=1, keepdim=True)
                     tangent_grad = torch.where(tangent_norms > 1.0, tangent_grad / tangent_norms, tangent_grad)
                     
-                    W += lr * tangent_grad
+                    # Apply step with decaying learning rate to allow settling
+                    W += current_lr * tangent_grad
                     W.data = self._symmetric_decorrelation(W.data)
                     W.requires_grad_(True)
+                    
+                # Decay learning rate by 1% each step
+                current_lr *= 0.99 
 
         elif optimizer == 'lbfgs': 
             penalties = [penalty_weight, penalty_weight * 100, penalty_weight * 10000, penalty_weight * 1000000] 
@@ -235,8 +257,7 @@ class WassersteinICA:
                     if use_sinkhorn: 
                         total_dist = self.sinkhorn_distance(W, reg=reg, n_iter=sinkhorn_iter).sum() 
                     else: 
-                        # Pass cost
-                        total_dist = self.wasserstein2_analytical(W, cost=cost).sum() 
+                        total_dist = self.wasserstein2_analytical(W, cost=cost, dither_sigma=dither_sigma).sum() 
                       
                     gram = torch.mm(W, W.t()) 
                     trace_gram = torch.trace(gram) 
@@ -251,6 +272,11 @@ class WassersteinICA:
                 except RuntimeError: break 
               
             with torch.no_grad(): W.data = self._symmetric_decorrelation(W)  
+        
+        # Restore original full dataset after optimization loop finishes
+        self.X_white = original_X_white
+        self.n = original_n
+        self.analytical_target = original_target
                   
         return W.detach()
       

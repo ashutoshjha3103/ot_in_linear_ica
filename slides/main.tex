@@ -898,6 +898,47 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 
 
 % ----------------------------------------------------------------------
+% Challenges with Discrete Distributions
+% ----------------------------------------------------------------------
+
+\section{Challenges with Discrete Distributions}
+
+\begin{frame}{The Discrete Case: A Pathological Landscape}
+  \begin{itemize}
+    \item Real-world signals can be discrete (e.g., binary states, digital communication). To test this, we evaluated a mixture of independent Bernoulli sources ($\{-1, 1\}$).
+    \item \textbf{FastICA Dominates:} The Bernoulli distribution has an excess kurtosis of $-2$ (the absolute theoretical minimum). FastICA's proxy metrics act as heat-seeking missiles for this extreme, sharp "hypercube" geometry.
+    \item \textbf{W-ICA Fails:} Optimal Transport matches the empirical CDF to a continuous Gaussian. For binary data, any 1D projection creates a step-like, rigid "staircase" CDF, which fundamentally breaks the continuous $W_2$ geometry.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Shattered Optimization Landscape}
+  \begin{itemize}
+    \item \textbf{The Sorting Problem:} $W_2$ relies on sorting projected points. As the optimizer rotates the unmixing matrix, clumps of discrete points slide past each other, causing the sorting order to abruptly jump.
+    \item \textbf{Spurious Maxima:} Every sorting jump instantly changes the gradient direction. This shatters the smooth $W_2$ landscape into a jagged mountain range of combinatorial local optima.
+    \item \textbf{The Hypercube Trap:} W-ICA climbs the nearest peak (often a diagonal projection of the hypercube that vaguely approximates a binomial step-curve) and becomes permanently trapped, yielding catastrophic Amari errors.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Algorithmic Fix 1: Gaussian Dithering}
+  \begin{itemize}
+    \item \textbf{The Goal:} Restore the smooth gradients of the Stiefel manifold without resorting to computationally expensive $O(N^2)$ Entropic Regularization (Sinkhorn distances).
+    \item \textbf{The Method:} We inject a microscopic amount of continuous, zero-mean Gaussian noise ($\sigma \approx 0.01$) to the projections immediately before sorting.
+    \item \textbf{Geometric Effect:} This mathematically convolves the discrete Dirac spikes with a Gaussian kernel, "melting" the rigid staircase into a strictly increasing, smooth continuous curve.
+    \item \textbf{Result:} Eliminates non-differentiable sorting ties and restores stable gradients while maintaining $O(N \log N)$ computational efficiency.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Algorithmic Fix 2: Stochastic Mini-Batching}
+  \begin{itemize}
+    \item \textbf{The Limitation of Full-Batch:} Evaluating the exact $W_2$ distance on all $N$ samples guarantees convergence to the \textit{nearest} local maximum, which is fatal in a landscape riddled with shallow discrete traps.
+    \item \textbf{The Method:} We replace full-batch gradient ascent with Stochastic Mini-Batching (evaluating random subsets of $512$ or $1024$ samples per step).
+    \item \textbf{Simulated Annealing:} The random subsampling introduces stochastic gradient noise. A trap for the full dataset may not be a trap for a random subset, allowing the optimizer to "bounce" out of local hypercube diagonals.
+    \item \textbf{Conclusion:} Combining dithering (smoothing the steps) with stochastic batching (escaping the traps) allows W-ICA to successfully separate discrete mixtures up to strict high-dimensional sample limits.
+  \end{itemize}
+\end{frame}
+
+
+% ----------------------------------------------------------------------
 % Limitations: The Intractability of Newton's Method
 % ----------------------------------------------------------------------
 
