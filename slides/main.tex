@@ -1024,6 +1024,68 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
 \end{frame}
 
 % ----------------------------------------------------------------------
+% Deep Dive: Isolating Discrete Failure Modes
+% ----------------------------------------------------------------------
+
+\section{Deep Dive: Isolating Discrete Failure Modes}
+
+\begin{frame}{Deconstructing the Discrete Failure}
+  \begin{itemize}
+    \item We established that pure discrete pools cause catastrophic failure. To understand \textit{why}, we isolated the three discrete distributions (Bernoulli, Poisson, Binomial) in independent tests.
+    \item \textbf{Setup:} We generated mixtures containing 1 Gaussian source and $(N-1)$ sources of a \textit{single} discrete type at Dimensions 30 and 40 (10,000 samples).
+    \item \textbf{The Goal:} Determine if the failure is driven by binary state-flips (Bernoulli) or by count-based discreteness (Poisson/Binomial).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{FastICA: The Bernoulli Catastrophe}
+  \begin{itemize}
+    \item \textbf{Bernoulli (Binary Flips):} FastICA fails catastrophically. It achieved $0\%$ convergence at both Dim 30 and Dim 40, with massive Amari Errors ($\sim 1.0$ and $\sim 1.3$).
+    \item \textbf{Poisson \& Binomial (Count Data):} FastICA performed significantly better, achieving $100\%$ convergence at Dim 30 and $80\%$ at Dim 40, with relatively low errors ($\sim 0.2$).
+    \item \textbf{The Diagnosis:} FastICA's proxy contrast functions break down specifically when faced with the extreme hypercube geometry and minimal kurtosis ($-2$) of purely binary Bernoulli signals.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance Visualization: FastICA Discrete Isolation}
+    \begin{figure}
+        \centering
+        % Replace with the actual filename of your FastICA discrete graph
+        \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{fast_ica_discrete.png}
+        \caption{FastICA: Amari Error and Convergence across isolated discrete types.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{OT-ICA: The Fundamental Sorting Trap}
+  \begin{itemize}
+    \item We ran the exact same isolation study using OT-ICA (W-ICA).
+    \item \textbf{The Result:} OT-ICA failed universally across \textit{all} discrete types (Bernoulli, Poisson, Binomial). 
+    \item While it often reports algorithmic "convergence" (finding a local maximum), it consistently converges to spurious, incorrect unmixing matrices, yielding catastrophic Amari Errors ($>1.2$) across the board.
+    \item \textbf{The Diagnosis:} This confirms our hypothesis regarding the shattered $W_2$ optimization landscape. Any form of discreteness creates step-like empirical CDFs. The continuous Wasserstein metric cannot establish meaningful gradients across these rigid "staircases," trapping the optimizer regardless of the specific discrete shape.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance Visualization: OT-ICA Discrete Isolation}
+    \begin{figure}
+        \centering
+        % Replace with the actual filename of your OT-ICA discrete graph
+        \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{ot_ica_discrete.png}
+        \caption{OT-ICA: High Amari Errors demonstrate failure across all isolated discrete types.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{The OT-ICA Advantage: Hybrid Robustness}
+  \begin{itemize}
+    \item If OT-ICA fails on purely discrete pools, why use it over FastICA?
+    \item \textbf{The Answer: Real-World Hybridization.} Real signals are rarely purely discrete; they are noisy, continuous, or complex mixtures.
+    \item As demonstrated in our Sub-Pool ablation studies:
+      \begin{itemize}
+        \item \textbf{FastICA breaks} when faced with a "Full Hybrid" pool (dropping to $40\%$ convergence with high error).
+        \item \textbf{OT-ICA thrives} in a "Full Hybrid" pool, maintaining perfect stability and low Amari Errors.
+      \end{itemize}
+    \item \textbf{Conclusion:} While pure discreteness breaks the optimal transport sorting mechanism, the presence of continuous distributions in a hybrid mix provides enough smooth geometric structure to guide the $W_2$ metric past the discrete traps—an environment where FastICA's static proxies become overwhelmed.
+  \end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------
 % Limitations: The Intractability of Newton's Method
 % ----------------------------------------------------------------------
 
