@@ -1004,6 +1004,39 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
   \end{columns}
 \end{frame}
 
+\documentclass{beamer}
+\usepackage{graphicx}
+
+\title{Algorithm Performance Analysis}
+\subtitle{Amari Error and Convergence by Pool Type}
+\date{}
+
+\begin{document}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}{Interpretation of Results}
+    \begin{itemize}
+        \item \textbf{Top Performers:} \textit{Continuous Only} and \textit{Strictly Super-Gaussian} are the definitive best, consistently achieving 100\% convergence and maintaining the lowest Amari Errors across both dimensions.
+        \item \textbf{Complete Failure:} The \textit{Discrete Only} pool type failed entirely, with 0\% convergence and exceptionally high errors at both dimensions.
+        \item \textbf{Struggling Performers:} \textit{Full Hybrid} and \textit{Zero Gaussian} showed inconsistent convergence rates (varying between 40\% and 60\%) and significantly higher errors than the top performers.
+        \item \textbf{Dimensionality Impact:} Increasing the dimension from 30 to 40 degraded performance across the board, resulting in higher Amari Errors for all methods and dropping the convergence rate for the Full Hybrid model.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance Visualizations}
+    \begin{figure}
+        \centering
+        % Replace 'image.png' with the actual filename of your graph
+        \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{fast_ica_failures.png}
+        \caption{Amari Error (left) and Convergence Success Rate (right)}
+    \end{figure}
+\end{frame}
+
+\end{document}
+
 % ----------------------------------------------------------------------
 % Limitations: The Intractability of Newton's Method
 % ----------------------------------------------------------------------
