@@ -4,6 +4,7 @@
 \usepackage{multimedia}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{graphicx}
 
 \title{Master Thesis Presentation}
 \subtitle{Optimal Transport in Linear Independent Component Analysis}
@@ -1003,20 +1004,8 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
   \end{itemize}
 \end{frame}
 
-\documentclass{beamer}
-\usepackage{graphicx}
 
-\title{Algorithm Performance Analysis}
-\subtitle{Amari Error and Convergence by Pool Type}
-\date{}
-
-\begin{document}
-
-\begin{frame}
-    \titlepage
-\end{frame}
-
-\begin{frame}{Interpretation of Results}
+\begin{frame}{Why Does FastICA Fail in General setting?}
     \begin{itemize}
         \item \textbf{Top Performers:} \textit{Continuous Only} and \textit{Strictly Super-Gaussian} are the definitive best, consistently achieving 100\% convergence and maintaining the lowest Amari Errors across both dimensions.
         \item \textbf{Complete Failure:} The \textit{Discrete Only} pool type failed entirely, with 0\% convergence and exceptionally high errors at both dimensions.
@@ -1029,12 +1018,10 @@ The sources \( s_i \) are assumed to be statistically independent, and at most o
     \begin{figure}
         \centering
         % Replace 'image.png' with the actual filename of your graph
-        \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{fast_ica_failures.png}
+        \includegraphics[width=\textwidth,height=0.9\textheight,keepaspectratio]{fast_ica_failures.png}
         \caption{Amari Error (left) and Convergence Success Rate (right)}
     \end{figure}
 \end{frame}
-
-\end{document}
 
 % ----------------------------------------------------------------------
 % Limitations: The Intractability of Newton's Method
