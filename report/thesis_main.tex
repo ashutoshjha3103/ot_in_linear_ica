@@ -303,32 +303,56 @@ necessary mathematical foundation to analyze optimization gradients and theoreti
 \chapter{The Squared Wasserstein-ICA (W2-ICA) Framework}
 
 \section{Formulating ICA as an Optimal Transport Problem}
-As established in the preceding chapter, the process of centering and whitening restricts the search for independent components to the manifold of orthogonal matrices. Furthermore, Cardoso's unified theorem \cite{cardoso2022} demonstrates that within this whitened space, the mutual information of the projections is minimized precisely when the sum of their marginal non-Gaussianities is maximized. Traditional Independent Component Analysis algorithms approach this optimization by utilizing proxy contrast functions, such as kurtosis or negentropy approximations. While computationally inexpensive, these proxies often capture only specific statistical moments, ignoring the broader geometric structure of the underlying probability distributions.
+As established in the preceding chapter, the process of centering and whitening restricts the search for independent 
+components to the manifold of orthogonal matrices. Furthermore, Cardoso's unified theorem \cite{cardoso2022} demonstrates 
+that within this whitened space, the mutual information of the projections is minimized precisely when the sum of their 
+marginal non-Gaussianities is maximized. Traditional Independent Component Analysis algorithms approach this optimization 
+by utilizing proxy contrast functions, such as kurtosis or negentropy approximations. While computationally inexpensive, 
+these proxies often capture only specific statistical moments, ignoring the broader geometric structure of the underlying probability distributions.
 
-This thesis proposes a paradigm shift by formulating ICA directly as an Optimal Transport problem. Instead of relying on proxy moments, we utilize the squared Wasserstein distance, $W_2^2$, as a direct, geometrically rigorous measure of non-Gaussianity. Let $\mathbf{X}$ be the whitened observed mixture, and let $\mathbf{u} \in S_n$ be a candidate projection vector on the unit sphere. The empirical distribution of the projected data is denoted by $\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}$. We formally define the objective of the W2-ICA framework as finding the orthogonal rotation matrix whose column vectors $\mathbf{u}$ maximize the transport cost to a standard normal distribution $\mathcal{N}(0,1)$:
+This thesis proposes a paradigm shift by formulating ICA directly as an Optimal Transport problem. Instead of relying on 
+proxy moments, we utilize the squared Wasserstein distance, $W_2^2$, as a direct, geometrically rigorous measure of non-Gaussianity. 
+Let $\mathbf{X}$ be the whitened observed mixture, and let $\mathbf{u} \in S_n$ be a candidate projection vector on the unit sphere. 
+The empirical distribution of the projected data is denoted by $\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}$. We formally define the 
+objective of the W2-ICA framework as finding the orthogonal rotation matrix whose column vectors $\mathbf{u}$ maximize the 
+transport cost to a standard normal distribution $\mathcal{N}(0,1)$:
 \begin{equation}
     \hat{\mathbf{u}} = \arg\max_{\mathbf{u} \in S_n} W_2^2\big(\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}, \mathcal{N}(0,1)\big).
 \end{equation}
-By framing the problem in this manner, we leverage the Optimal Transport metric's unique ability to capture global geometric deviations from Gaussianity, providing a highly sensitive contrast function capable of disentangling complex latent variables.
+By framing the problem in this manner, we leverage the Optimal Transport metric's unique ability to capture global geometric 
+deviations from Gaussianity, providing a highly sensitive contrast function.
 
 \section{Theoretical Motivation: Bounding Mixture Non-Gaussianity}
-To mathematically justify the use of $W_2^2$ as an objective function for ICA, we must prove that maximizing this distance recovers the true independent sources. By the Central Limit Theorem, we possess the intuitive understanding that a mixture of non-Gaussian sources is more Gaussian than the constituent sources themselves. In the language of Optimal Transport, this implies that the Wasserstein distance between a mixture and a Gaussian distribution must be strictly bounded by the distances of its independent components. 
+To mathematically justify the use of $W_2^2$ as an objective function for ICA, we must prove that maximizing this distance 
+recovers the true independent sources. By the Central Limit Theorem, we possess the intuitive understanding that a mixture of 
+non-Gaussian sources is more Gaussian than the constituent sources themselves. In the language of Optimal Transport, this implies 
+that the Wasserstein distance between a mixture and a Gaussian distribution must be strictly bounded by the distances of its independent components. 
+
 
 \subsection{Constructing the Common Source Coupling}
-To formally prove this bound, we construct a specific joint probability distribution, or coupling, using a common source of randomness. Let $\mathbf{N} = (N_1, \dots, N_d)^\top$ be a vector of $d$ independent standard normal variables, such that $\mathbf{N} \sim \mathcal{N}(0, \mathbf{I}_d)$. For each true independent latent source $Z_i$, there exists an Optimal Transport map $T_i$ that pushes forward the standard normal distribution to the source distribution, denoted as $(T_i)_{\#} \mathcal{N}(0,1) = Z_i$. 
+To formally prove this bound, we construct a specific joint probability distribution, or coupling, using a common source of randomness. 
+Let $\mathbf{N} = (N_1, \dots, N_d)^\top$ be a vector of $d$ independent standard normal variables, such that $\mathbf{N} \sim \mathcal{N}(0, \mathbf{I}_d)$. 
+For each true independent latent source $Z_i$, there exists an Optimal Transport map $T_i$ that pushes forward the standard normal distribution 
+to the source distribution, denoted as $(T_i)_{\#} \mathcal{N}(0,1) = Z_i$. 
 
-We can construct a random variable $X$ representing a linear mixture of the sources using a weight vector $\mathbf{w}$ defined on the unit sphere ($\sum_{i=1}^d w_i^2 = 1$). By applying the transport maps to our common noise vector, the mixture is defined as
+We can construct a random variable $X$ representing a linear mixture of the sources using a weight vector $\mathbf{w}$ defined on the 
+unit sphere ($\sum_{i=1}^d w_i^2 = 1$). By applying the transport maps to our common noise vector, the mixture is defined as
 \begin{equation}
     X = \sum_{i=1}^d w_i T_i(N_i).
 \end{equation}
-Because $T_i(N_i)$ follows the distribution of $Z_i$, it follows that $X$ perfectly models the weighted mixture $\mathbf{w} \cdot \mathbf{Z}$. To compare this mixture to a Gaussian distribution, we construct a target variable $Y$ using the exact same underlying noise vector $\mathbf{N}$ and the same weights:
+Because $T_i(N_i)$ follows the distribution of $Z_i$, it follows that $X$ perfectly models the weighted mixture $\mathbf{w} \cdot \mathbf{Z}$. 
+To compare this mixture to a Gaussian distribution, we construct a target variable $Y$ using the exact same underlying noise vector $\mathbf{N}$ and the same weights:
 \begin{equation}
     Y = \sum_{i=1}^d w_i N_i.
 \end{equation}
-Given that the weights sum to unity and the components $N_i$ are independent standard normals, the resulting variable $Y$ is guaranteed to follow a standard normal distribution, $Y \sim \mathcal{N}(0,1)$. The pair $(X, Y)$ therefore creates a valid coupling $\pi_{X,Y}^{\mathbf{N}}$ between the mixture distribution and the Gaussian target.
+Given that the weights sum to unity and the components $N_i$ are independent standard normals, the resulting variable $Y$ is guaranteed to follow 
+a standard normal distribution, $Y \sim \mathcal{N}(0,1)$. The pair $(X, Y)$ therefore creates a valid coupling $\pi_{X,Y}^{\mathbf{N}}$ 
+between the mixture distribution and the Gaussian target.
 
 \subsection{Proof of the $W_2$ Upper Bound}
-The squared Wasserstein distance is defined as the infimum of the expected squared cost over all possible valid couplings. Because the infimum represents the absolute optimal transport plan, the cost of the optimal plan must be less than or equal to the cost of our specifically constructed coupling $(X, Y)$. This yields the fundamental inequality:
+The squared Wasserstein distance is defined as the infimum of the expected squared cost over all possible valid couplings. 
+Because the infimum represents the absolute optimal transport plan, the cost of the optimal plan must be less than or equal to the cost of our 
+specifically constructed coupling $(X, Y)$. This yields the fundamental inequality:
 \begin{equation}
     W_2^2(\mathbf{w} \cdot \mathbf{Z}, \mathcal{N}(0,1)) \le \mathbb{E}\left[|X - Y|^2\right].
 \end{equation}
@@ -341,42 +365,126 @@ Squaring the summation produces a combination of diagonal terms where $i=j$ and 
 \begin{equation}
     |X - Y|^2 = \sum_{i=1}^d w_i^2 \big(T_i(N_i) - N_i\big)^2 + \sum_{i \neq j} w_i w_j \big(T_i(N_i) - N_i\big)\big(T_j(N_j) - N_j\big).
 \end{equation}
-Taking the mathematical expectation of this expansion drastically simplifies the expression. Because the underlying noise variables $N_i$ and $N_j$ are independent, and the functions evaluate to a mean of zero, the expectation of all cross terms strictly vanishes. We are left solely with the expectation of the diagonal terms:
+Taking the mathematical expectation of this expansion drastically simplifies the expression. Because the underlying noise variables $N_i$ and $N_j$ are independent, 
+and the functions evaluate to a mean of zero, the expectation of all cross terms strictly vanishes. We are left solely with the expectation of the diagonal terms:
 \begin{equation}
     \mathbb{E}\left[|X - Y|^2\right] = \sum_{i=1}^d w_i^2 \mathbb{E}\left[ \big(T_i(N_i) - N_i\big)^2 \right].
 \end{equation}
-Recognizing that $\mathbb{E}[ (T_i(N_i) - N_i)^2 ]$ is the exact definition of the squared Wasserstein distance between the individual source $Z_i$ and a standard normal distribution, we arrive at the final upper bound:
+Recognizing that $\mathbb{E}[ (T_i(N_i) - N_i)^2 ]$ is the exact definition of the squared Wasserstein distance between the individual source $Z_i$ and a 
+standard normal distribution, we arrive at the final upper bound:
 \begin{equation}
     W_2^2(\mathbf{w} \cdot \mathbf{Z}, \mathcal{N}(0,1)) \le \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N}(0,1)).
 \end{equation}
-This convexity adjacent property rigorously proves that mixing independent sources mathematically reduces the Wasserstein distance to Gaussianity. Maximizing the left-hand side forces the weight vector $\mathbf{w}$ to collapse toward a canonical axis, effectively isolating a single independent source.
+This convexity adjacent property proves that mixing independent sources mathematically reduces the Wasserstein distance to Gaussianity. 
+Maximizing the left-hand side forces the weight vector $\mathbf{w}$ to collapse toward a canonical axis, effectively isolating a single independent source.
 
 \subsection{Comonotonicity and the Proof of Strict Inequality}
-While the upper bound demonstrates that mixtures do not exceed the non-Gaussianity of their sources, successfully optimizing ICA requires proving that mixtures are strictly less non-Gaussian. We must therefore determine the conditions under which the aforementioned inequality becomes a strict inequality. 
+While the upper bound demonstrates that mixtures do not exceed the non-Gaussianity of their sources, successfully optimizing ICA requires proving 
+that mixtures are strictly less non-Gaussian than the original sources. We must therefore determine the conditions under which the aforementioned 
+inequality becomes a strict inequality. 
 
-In a one-dimensional setting, the Wasserstein-2 distance equals the expected squared difference of a specific coupling if and only if the random variables are comonotonic. By Brenier's Theorem \cite{brenier1991}, this implies there exists a strictly increasing, deterministic function mapping one variable to the other. For our constructed variables $X$ and $Y$ to be comonotonic with respect to the noise vector $\mathbf{N}$, their gradients must be perfectly parallel at every point in the probability space. This requires the existence of a scalar function $\lambda(\mathbf{N})$ such that:
+In a one-dimensional setting, the $W_2$ distance equals the expected squared difference of a specific coupling if and only if the random variables 
+are comonotonic. By Brenier's Theorem \cite{brenier1991}, this implies there exists a strictly increasing, deterministic function mapping one variable to the other. 
+For our constructed mixture variable $X$ and the Gaussian target $Y$ to be comonotonic with respect to the shared noise vector $\mathbf{N} \in \mathbb{R}^d$, 
+their gradients must be perfectly parallel at every point in the probability space. This requires the existence of a scalar scaling function $\lambda(\mathbf{N})$ such that:
 \begin{equation}
     \nabla X(\mathbf{N}) = \lambda(\mathbf{N}) \nabla Y(\mathbf{N}).
 \end{equation}
-Taking the gradients of our constructed variables yields $\nabla Y = \mathbf{w}$ and $\nabla X = [w_1 T'_1(N_1), \dots, w_d T'_d(N_d)]^\top$. To test the equality condition, we differentiate both sides with respect to $\mathbf{N}$ to construct the Hessian matrices. Because the components of $X$ are independent, its Hessian is a purely diagonal matrix. Conversely, differentiating the right side using the product rule on $\lambda(\mathbf{N}) \mathbf{w}$ yields an outer product, forming a Rank-1 matrix. 
 
-Equating a diagonal matrix to a Rank-1 matrix forces a profound contradiction. For any off-diagonal entry where $i \neq j$, the diagonal matrix dictates the value is zero, while the Rank-1 matrix evaluates to $w_i \frac{\partial \lambda}{\partial N_j}$. Because the weight $w_i$ is non-zero in a valid mixture, it must be true that $\frac{\partial \lambda}{\partial N_j} = 0$ for all partial derivatives. Consequently, $\lambda$ is not a function of $\mathbf{N}$, but a global constant.
+Assuming the source distributions possess smooth and strictly positive densities, Caffarelli's regularity theory \cite{caffarelli1992} guarantees that the 
+Optimal Transport maps $T_i$ are continuously differentiable. We can therefore compute the gradients of our constructed variables with respect to the noise vector $\mathbf{N}$. 
+The gradient of the Gaussian target is simply the weight vector:
+\begin{equation}
+    Y(\mathbf{N}) = \sum_{i=1}^d w_i N_i \implies \nabla Y = \mathbf{w}.
+\end{equation}
+The gradient of the source mixture leverages the derivatives of the individual transport maps:
+\begin{equation}
+    X(\mathbf{N}) = \sum_{i=1}^d w_i T_i(N_i) \implies \nabla X = \begin{bmatrix} w_1 T'_1(N_1) \\ w_2 T'_2(N_2) \\ \vdots \\ w_d T'_d(N_d) \end{bmatrix}.
+\end{equation}
 
-If $\lambda$ is constant, the derivatives of the transport maps $T'_i$ must also be constant, meaning the maps themselves are strictly linear functions of the form $T_i(x) = \lambda x + c$. However, applying a linear transformation to a Gaussian noise source $N_i$ can only produce another Gaussian distribution. Because the foundational assumption of ICA guarantees our sources are non-Gaussian, their optimal transport maps must be non-linear (curved). Therefore, the comonotonicity condition fundamentally fails for non-Gaussian sources. We conclude that for any valid mixture, the relationship is a strict inequality:
+Substituting these gradients back into our comonotonicity condition yields the system of equations:
+\begin{equation}
+    \nabla X = \lambda(\mathbf{N}) \mathbf{w}.
+\end{equation}
+To determine if this condition can hold for non-Gaussian sources, we differentiate both the Left-Hand Side (LHS) and the Right-Hand Side (RHS) 
+with respect to $\mathbf{N}$ to compute their respective Hessian (Jacobian) matrices.
+
+On the left hand side, because $X$ separates into independent terms $w_i T_i(N_i)$, the cross-derivatives $\frac{\partial^2 X}{\partial N_i \partial N_j}$ 
+are strictly zero for all $i \neq j$. This yields a purely diagonal matrix containing the second derivatives of the transport maps.
+
+On the right hand side,we differentiate the product $\lambda(\mathbf{N}) \mathbf{w}$. Because the weight vector $\mathbf{w}$ is a constant, 
+applying the product rule yields the outer product of $\mathbf{w}$ and the gradient of the scalar function $\nabla \lambda$. This forms a Rank-1 matrix.
+
+Equating the left and right hand sides:
+\begin{equation}
+    \underbrace{
+    \begin{bmatrix} 
+    w_1 T''_1(N_1) & 0 & \cdots & 0 \\
+    0 & w_2 T''_2(N_2) & \cdots & 0 \\
+    \vdots & \vdots & \ddots & \vdots \\
+    0 & 0 & \cdots & w_d T''_d(N_d)
+    \end{bmatrix}
+    }_{\text{Hessian of } X \text{ (Diagonal)}}
+    =
+    \underbrace{
+    \begin{bmatrix}
+    w_1 \frac{\partial \lambda}{\partial N_1} & w_1 \frac{\partial \lambda}{\partial N_2} & \cdots & w_1 \frac{\partial \lambda}{\partial N_d} \\
+    w_2 \frac{\partial \lambda}{\partial N_1} & w_2 \frac{\partial \lambda}{\partial N_2} & \cdots & w_2 \frac{\partial \lambda}{\partial N_d} \\
+    \vdots & \vdots & \ddots & \vdots \\
+    w_d \frac{\partial \lambda}{\partial N_1} & w_d \frac{\partial \lambda}{\partial N_2} & \cdots & w_d \frac{\partial \lambda}{\partial N_d}
+    \end{bmatrix}
+    }_{\text{Outer Product } \mathbf{w} (\nabla \lambda)^\top \text{ (Rank-1)}}
+\end{equation}
+
+This matrix equality forces a profound contradiction. Let us examine any off-diagonal entry located at row $i$ and column $j$ (where $i \neq j$). 
+The diagonal LHS matrix dictates that this entry must be exactly zero. However, the RHS Rank-1 matrix evaluates this same entry as $w_i \frac{\partial \lambda}{\partial N_j}$. 
+This establishes the requirement:
+\begin{equation}
+    w_i \frac{\partial \lambda}{\partial N_j} = 0 \quad \text{for all } i \neq j.
+\end{equation}
+Because we are assuming a valid mixture where the component weights are non-zero ($w_i \neq 0$), it must be true that $\frac{\partial \lambda}{\partial N_j} = 0$. 
+Since this holds across all dimensions, the gradient of the scaling function is zero ($\nabla \lambda = \mathbf{0}$). 
+Consequently, $\lambda(\mathbf{N})$ must be a global scalar constant, $\lambda$.
+
+If $\lambda$ is a constant, then equating the diagonal elements of our matrices implies that $T'_i(N_i) = \lambda$. Integrating this relationship means the 
+Optimal Transport maps themselves must be strictly linear functions of the form:
+\begin{equation}
+    T_i(x) = \lambda x + c.
+\end{equation}
+We know that applying a purely linear transformation to a Gaussian noise source $N_i$ can only ever produce another Gaussian distribution. 
+However, the foundational identifiability assumption of ICA guarantees that our original latent sources $Z_i$ are non-Gaussian. Because the sources are non-Gaussian, 
+their Optimal Transport mappings from a Gaussian base must be non-linear (curved). 
+
+Therefore, the linear map requirement derived from the comonotonicity condition fundamentally fails for non-Gaussian sources. 
+Because the condition for equality cannot be met, we conclude that for any valid mixture of independent, non-Gaussian variables, the relationship is a strict inequality:
 \begin{equation}
     W_2^2(\mathbf{w} \cdot \mathbf{Z}, \mathcal{N}(0,1)) < \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N}(0,1)).
 \end{equation}
 
 \section{Empirical Landscape: $W_1$ versus $W_2$}
-Having theoretically established that the squared Wasserstein distance successfully isolates non-Gaussian sources, we now evaluate its practical suitability as an optimization landscape. Specifically, we compare the squared $W_2$ distance (Mean Squared Error ground cost) against the $W_1$ distance (Mean Absolute Error ground cost) to observe gradient behavior during rotational search.
+Having theoretically established that the squared Wasserstein distance successfully isolates non-Gaussian sources, we now evaluate its 
+practical suitability as an optimization landscape. Specifically, we compare the squared $W_2$ distance (Mean Squared Error ground cost) against the $W_1$ distance 
+(Mean Absolute Error ground cost) to observe gradient behavior during rotational search.
 
 \subsection{Student-t Distributions and Degrees of Freedom}
-To conduct this empirical comparison, we generated synthetic bivariate mixtures from Student-t distributions. The Student-t distribution is ideal for this analysis because its kurtosis and non-Gaussianity can be precisely controlled by adjusting its degrees of freedom ($\nu$). A low degrees of freedom parameter (e.g., $\nu=2$) produces heavy tails, representing a strong non-Gaussian signal. Conversely, as $\nu$ approaches higher values (e.g., $\nu=10$), the tails become lighter, and the distribution closely approximates a standard normal, representing a weak non-Gaussian signal. We systematically evaluated the $W_1$ and $W_2^2$ distances from a standard normal distribution across a continuous range of rotation angles $\theta$ relative to the optimal unmixing axis.
+To conduct this empirical comparison, we generated synthetic bivariate mixtures from Student-t distributions. The Student-t distribution is ideal for this analysis 
+because its non-Gaussianity can be precisely controlled by adjusting its degrees of freedom ($\nu$). 
+A low degrees of freedom parameter (e.g., $\nu=2$) produces heavy tails, representing a strong non-Gaussian signal. 
+Conversely, as $\nu$ approaches higher values (e.g., $\nu=10$), the tails become lighter, and the distribution closely approximates a standard normal, 
+representing a weak non-Gaussian signal. We systematically evaluated the $W_1$ and $W_2^2$ distances from a standard normal distribution across 
+a continuous range of rotation angles $\theta$ relative to the optimal unmixing axis.
 
 \subsection{Robustness to Weak Non-Gaussian Signals}
-The empirical results revealed a stark contrast in the optimization landscapes of the two metrics. For strong non-Gaussian signals ($\nu=2$), both metrics successfully identified the global optimum, exhibiting distinct peaks aligned with the true source axis. However, the $W_2^2$ landscape exhibited significantly higher curvature around the optimum, providing stronger, more directional gradients for convergence. 
+The empirical results revealed a stark contrast in the optimization landscapes of the two metrics. For strong non-Gaussian signals ($\nu=2$), 
+both metrics successfully identified the global optimum, exhibiting distinct peaks aligned with the true source axis. However, the $W_2^2$ landscape 
+exhibited significantly higher curvature around the optimum, providing stronger, more directional gradients for convergence. 
 
-The most critical divergence in behavior occurred in the presence of weak signals ($\nu=10$). As the underlying distribution approached Gaussian noise, the $W_1$ landscape deteriorated rapidly, becoming highly jagged and non-convex. This roughness introduces severe vulnerability, as gradient-based solvers are highly likely to become trapped in spurious local optima. In contrast, the $W_2^2$ metric remained remarkably smooth and unimodal, maintaining a clear gradient path toward the true global maximum despite the weak signal strength. This robust empirical behavior, combined with the strict mathematical bounds established previously, definitively justifies the computational expense of selecting the squared Wasserstein distance as the core contrast function for the proposed W2-ICA framework.
+The most critical divergence in behavior occurred in the presence of weak signals ($\nu=10$). As the underlying distribution approached Gaussian noise, 
+the $W_1$ landscape deteriorated rapidly, becoming highly jagged and non-convex. This roughness introduces severe vulnerability, 
+as gradient-based solvers are highly likely to become trapped in spurious local optima. In contrast, the $W_2^2$ metric remained remarkably smooth and unimodal, 
+maintaining a clear gradient path toward the true global maximum despite the weak signal strength. This robust empirical behavior, 
+combined with the strict mathematical bounds established previously, definitively justifies the computational expense of selecting the 
+squared Wasserstein distance as the core contrast function for the proposed W2-ICA framework.
 
 % -----------------------------------------------------------------
 % CHAPTER 4: ALGORITHMIC DESIGN AND OPTIMIZATION
@@ -384,39 +492,247 @@ The most critical divergence in behavior occurred in the presence of weak signal
 \chapter{Algorithmic Enhancements}
 
 \section{The Baseline W2-ICA Algorithm}
+Having established the theoretical optimality of the squared Wasserstein distance ($W_2^2$) for Independent Component Analysis, 
+the challenge transitions to computationally minimizing this cost function. The baseline W2-ICA algorithm proceeds by first centering and whitening 
+the observed mixture $\mathbf{X} \in \mathbb{R}^{d \times N}$, yielding the whitened data $\widetilde{\mathbf{X}}$. The algorithm then initializes 
+an orthogonal unmixing matrix $\mathbf{W} \in \mathbb{R}^{d \times d}$. In the forward pass, the data is projected onto the candidate components, 
+$\mathbf{Y} = \mathbf{W}\widetilde{\mathbf{X}}$. For each row (component) of $\mathbf{Y}$, the empirical cumulative distribution function is 
+constructed by sorting the $N$ observations. The $W_2^2$ distance is then computed by matching these sorted empirical quantiles to the corresponding quantiles of a standard normal distribution. 
+
+While theoretically sound, the naive implementation of this gradient descent loop faces severe computational and geometric hurdles. 
+The exact Optimal Transport matching requires sorting at every iteration, presenting a significant computational bottleneck. 
+Furthermore, standard gradient updates do not inherently respect the strict orthogonality constraint of the mixing matrix, 
+and discrete approximations of the target Gaussian introduce gradient noise. To make W2-ICA computationally competitive with existing methods, 
+several specific algorithmic and geometric enhancements are required.
 
 \section{Computational Bottlenecks and Solutions}
+
 \subsection{Exact Analytical Gaussian Targets}
+A primary source of instability in the baseline algorithm is the discrete approximation of the target Gaussian distribution. 
+Traditionally, the target quantiles are approximated by evaluating the inverse cumulative distribution function at evenly spaced intervals, 
+such as $q_i = \Phi^{-1}((i - 0.5)/N)$. However, representing a continuous, infinite-tailed Gaussian distribution with a finite set of discrete points 
+introduces approximation noise. When the algorithm computes the gradient of the $W_2^2$ distance, this noise translates into a jagged optimization landscape, 
+severely hindering convergence as the components approach true independence.
+
+To eliminate this approximation noise, we replace the point-sampled targets with an exact analytical formulation. Using integral calculus, 
+we compute the exact expected value of a standard normal variable within each discrete quantile bin. Let the uniform probability bin edges be defined 
+as $p_i = \frac{i}{N}$ for $i = 0, \dots, N$, with corresponding Gaussian domain boundaries $z_i = \Phi^{-1}(p_i)$. 
+The exact analytical target value $T_i$ for the $i$-th sorted sample is computed as the conditional expectation within that interval:
+\begin{equation}
+    T_i = N \int_{z_{i-1}}^{z_i} x \phi(x) \, dx
+\end{equation}
+where $\phi(x)$ is the standard normal probability density function. Evaluating this integral yields the closed-form solution:
+\begin{equation}
+    T_i = N \big( \phi(z_{i-1}) - \phi(z_i) \big).
+\end{equation}
+By computing this exact analytical target once during initialization, the algorithm evaluates the $W_2^2$ distance against a mathematically perfect 
+discrete representation of a Gaussian, ensuring perfectly smooth gradients near the global optimum.
+
 \subsection{Batched Vectorization for Restarts}
+Unlike Principal Component Analysis, which yields a unique global solution via singular value decomposition, 
+the ICA optimization landscape is highly non-convex and characterized by numerous local optima. Consequently, 
+identifying the true independent components strictly requires multiple random initializations (restarts) to thoroughly explore the hypothesis space. 
+
+Because evaluating the $W_2^2$ objective inherently requires an $\mathcal{O}(N \log N)$ sorting operation for each candidate component, 
+executing these random restarts sequentially via standard iterative loops is computationally prohibitive. To resolve this, we utilize a batched vectorization strategy. 
+Rather than maintaining a single weight matrix, we aggregate $B$ random restarts into a single high-dimensional tensor $\mathbf{W}_{\text{batch}} \in \mathbb{R}^{B \times d \times d}$. 
+
+This formulation allows the projection $\mathbf{Y} = \mathbf{W}_{\text{batch}} \widetilde{\mathbf{X}}$ to be computed simultaneously for all $B$ trajectories. 
+Modern hardware accelerators (GPUs) can then sort the elements of the resulting batch tensor in parallel. 
+The pre-computed exact analytical target vector $\mathbf{T}$ is subsequently broadcast-subtracted across the entire batch to compute the distances and gradients in a single step.
 
 \section{Optimization on the Stiefel Manifold}
-\subsection{The Riemannian Gradient}
-\subsection{Retraction via Symmetric Decorrelation}
 
-\section{A Novel Optimal Transport Fixed-Point Iteration}
+\subsection{The Riemannian Gradient}
+Because the input data is whitened, the unmixing matrix $\mathbf{W}$ must remain strictly orthogonal, satisfying $\mathbf{W}\mathbf{W}^\top = \mathbf{I}$. 
+The geometric space of all such orthogonal matrices forms the Stiefel manifold, denoted $\mathcal{S}$. If we compute the standard Euclidean gradient of the squared Wasserstein distance, 
+$\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$, this vector points into the flat, unconstrained ambient space $\mathbb{R}^{d \times d}$. 
+Updating the matrix using this Euclidean gradient would immediately violate the orthogonality constraint.
+
+To navigate the curved geometry of the Stiefel manifold, we must project the Euclidean gradient onto the tangent space of the manifold at the current point $\mathbf{W}$. 
+The resulting Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$ is given by:
+\begin{equation}
+    \nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}.
+\end{equation}
+Geometrically, the term $(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top)$ precisely measures the symmetric violation of orthogonality induced by the Euclidean gradient. 
+By subtracting this specific violation, we ensure that the update step perfectly hugs the curvature of the manifold, preserving the decorrelation of the components.
+
+\subsection{Retraction via Symmetric Decorrelation}
+Although the Riemannian gradient ensures the update step is tangential to the Stiefel manifold, 
+moving along this flat tangent plane for a finite step size $\eta$ will cause the new matrix $\mathbf{W}_{\text{step}} = \mathbf{W} - \eta \nabla_{\mathcal{S}} \mathbf{W}$ 
+to slightly lift off the curved manifold surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold via a mathematical operation known as a retraction.
+
+While the Gram-Schmidt orthogonalization process is a common approach, it is fundamentally asymmetric; 
+it permanently fixes the first vector and modifies subsequent vectors to fit, which inherently biases simultaneous optimization. 
+Instead, we utilize symmetric decorrelation as our retraction mechanism:
+\begin{equation}
+    \mathbf{W}_{\text{new}} = (\mathbf{W}_{\text{step}}\mathbf{W}_{\text{step}}^\top)^{-1/2} \mathbf{W}_{\text{step}}.
+\end{equation}
+This operation computes the overlap covariance of the stepped matrix and applies a uniform, symmetric adjustment to all vectors simultaneously. 
+This ensures that no single independent component is arbitrarily prioritized during the retraction process, maintaining the stability of the batched optimization.
+
+\section{The Intractability of Fixed Point Algorithms for W2-ICA}
+The industry standard algorithm for ICA, FastICA, achieves highly efficient, super-linear convergence by employing a Newton (second-order) fixed-point step. 
+FastICA is mathematically able to utilize this approach because it maximizes proxy contrast functions (such as the \textit{logcosh} function) that are static and easily differentiable. 
+A natural question arises: can we formulate a "Fast-Wasserstein-ICA" by deriving an exact Newton step for the $W_2^2$ objective? 
+
+To implement a Newton step, we would require the exact Hessian matrix of the squared Wasserstein distance, $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$. 
+The first derivative (the gradient) of the objective with respect to the weight vector $\mathbf{w}$ utilizes the Optimal Transport map $T_{\mathbf{w}}$:
+\begin{equation}
+    \nabla_{\mathbf{w}} \left( \frac{1}{2} W_2^2 \right) = \mathbb{E}\Big[ \mathbf{X} \big( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \big) \Big].
+\end{equation}
+To compute the Hessian, we must differentiate the optimal transport map $T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})$ itself with respect to $\mathbf{w}$. 
+Applying the total derivative yields two distinct terms:
+\begin{equation}
+    \nabla_{\mathbf{w}} [T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})] = \underbrace{T'_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \mathbf{X}}_{\text{Argument Derivative}} + \underbrace{(\nabla_{\mathbf{w}} T_{\mathbf{w}})(\mathbf{w}^\top \mathbf{X})}_{\text{Map Derivative}}.
+\end{equation}
+By Caffarelli's regularity theory, the transport map $T_{\mathbf{w}}$ is continuously differentiable, guaranteeing the existence of the Argument Derivative. 
+The structural problem lies exclusively within the Map Derivative. 
+
+In the 1D Optimal Transport setting, the transport map to a standard Gaussian relies directly on the empirical cumulative distribution function, $F_{\mathbf{w}}$, 
+of the projected data $y = \mathbf{w}^\top \mathbf{X}$. Expanding the Map Derivative yields:
+\begin{equation}
+    (\nabla_{\mathbf{w}} T_{\mathbf{w}})(y) = \nabla_{\mathbf{w}} \big[ \Phi^{-1}(F_{\mathbf{w}}(y)) \big] = \frac{1}{\phi(\Phi^{-1}(F_{\mathbf{w}}(y)))} \nabla_{\mathbf{w}} F_{\mathbf{w}}(y).
+\end{equation}
+This introduces a severe mathematical pitfall. The term $\nabla_{\mathbf{w}} F_{\mathbf{w}}(y)$ represents the rate of change of the 
+cumulative probability mass as the projection plane $\mathbf{w}$ is rotated. Conceptually and mathematically, the derivative of a 
+cumulative distribution function's boundary relies strictly on the underlying Probability Density Function (PDF) evaluated exactly at that boundary. 
+
+This requirement fundamentally defeats the primary advantage of the W2-ICA formulation. 
+This advantage of 1D Optimal Transport stems from its reliance on sorting (empirical CDFs), completely circumventing the need for continuous density estimation. 
+Requiring the PDF to compute the Hessian forces the algorithm to rely on Kernel Density Estimation (KDE). 
+KDE introduces massive statistical noise and bandwidth-tuning dependencies. 
+
+Because the exact Hessian requires continuous density estimation, computing a true Newton-based fixed-point step for exact Wasserstein-ICA is mathematically intractable. 
+Consequently, the optimal strategy for the W2-ICA framework is the utilization of Quasi-Newton methods, such as the Limited-memory BFGS (L-BFGS) algorithm adapted for the Stiefel manifold. 
+L-BFGS intelligently approximates the inverse Hessian curvature strictly by observing the history of the highly stable, first-order Wasserstein gradients. 
+This approach bridges the gap, allowing the algorithm to achieve faster convergence rates while preserving the advantageous, sorting-based methodology of the Optimal Transport formulation.
 
 % -----------------------------------------------------------------
 % CHAPTER 5: EXPERIMENTS AND ROBUSTNESS
 % -----------------------------------------------------------------
 \chapter{Experimental Evaluation and Applications}
 
-\section{The Blind Spot of Proxy Optimization (FastICA)}
-\subsection{The Assumption A.5 Trap in Fixed-Point Iteration}
+\section{The Blind Spots of FastICA}
+While FastICA is widely considered the industry standard for independent component recovery, its reliance on fixed proxy contrast functions and a 
+Newton-based fixed-point iteration introduces critical mathematical vulnerabilities. In this section, we expose two distinct mathematical blind spots 
+that cause FastICA to fail on perfectly valid, non-Gaussian independent components.
+
+\subsection{The Zero-Negentropy Pitfall}
+FastICA does not measure true negentropy; instead, it relies on a computationally efficient approximation. For a whitened random variable $x$, 
+the negentropy $J(x)$ is approximated using a non-quadratic contrast function $G(\cdot)$, most commonly the \textit{logcosh} function $G(x) = \frac{1}{a} \log \cosh(ax)$. 
+The approximation is given by:
+\begin{equation}
+    J(x) \propto \big( \mathbb{E}[G(x)] - \mathbb{E}[G(\nu)] \big)^2
+\end{equation}
+where $\nu$ is a standard Gaussian random variable. The algorithm searches for projections that maximize this squared difference. 
+
+The first failure mode occurs if a latent independent source possesses a specific structural shape such that its expected value under the 
+contrast function exactly equals that of a Gaussian, i.e., $\mathbb{E}[G(x)] = \mathbb{E}[G(\nu)]$. When this equality holds, 
+the approximated negentropy evaluates identically to zero. In this scenario, the objective function completely collapses. 
+FastICA becomes entirely blind to the non-Gaussianity of the source, falsely perceiving it as Gaussian noise, and consequently fails to extract it.
+
+\subsection{The Vanishing Curvature Pitfall}
+Even if a source successfully bypasses the zero-negentropy pitfall (meaning $J(x) > 0$), the actual \textit{optimization algorithm} used by FastICA can still fail. 
+To achieve super-linear convergence, FastICA utilizes a Newton (second-order) fixed-point iteration step. 
+However, the mathematical stability of this convergence relies explicitly on a foundational technical condition governing the algorithmic curvature of the optimization landscape. 
+As formalized in the FastICA convergence proofs by Hyv{\"a}rinen, Karhunen, and Oja \cite[Chapter 8]{hyvarinen2001}, this requirement is dictated by the following expectation:
+
+The theorem states that for the fixed-point iteration to converge to a true independent component $s_i$, 
+the expected value governing the second-order Taylor expansion of the iteration must not vanish. Specifically, defining $g(x) = G'(x)$ and $g'(x) = G''(x)$, the convergence requires:
+\begin{equation}
+    \mathbb{E}\big[s_i g(s_i) - g'(s_i)\big] \neq 0
+\end{equation}
+This expectation geometrically represents the algorithmic curvature of the optimization landscape at the optimal point. 
+For the standard \textit{logcosh} contrast function (with $a=1$), this equates to $g(x) = \tanh(x)$ and $g'(x) = 1 - \tanh^2(x)$. 
+
+If a specific non-Gaussian source distribution naturally causes this specific expectation to evaluate precisely to zero, 
+the algorithmic curvature vanishes. When this condition fails, the denominator of the FastICA update rule collapses, 
+destroying the local quadratic (or cubic) convergence guarantees. The fixed-point fails to converge, 
+even though the component is strictly independent and non-Gaussian.
+
 \subsection{Constructing the Failure Mode Counterexample}
+To empirically demonstrate the severity of the vanishing curvature limitation, we engineered a continuous source distribution specifically designed to trigger the assumption
+described in the previous section. 
+We analyzed the target function representing the curvature condition: 
+\begin{equation}
+    h(x) = x \tanh(x) - 1 + \tanh^2(x).
+\end{equation}
+We observed that $h(x)$ evaluates to negative values near the origin ($|x| < 0.82$) and positive values in the extreme tails. 
+
+We constructed a Trimodal Gaussian Mixture model parameterized by symmetrically spaced peak locations $\{-b, 0, b\}$ and a shared variance $\sigma^2$. 
+By solving the integral equation $\int h(x) \text{PDF}(x) dx = 0$ subject to the standard unit variance constraint ($\mathbb{E}[X^2] = 1$), 
+we determined the exact probability masses required to perfectly balance the negative central region against the positive tail regions. 
+This carefully engineered distribution remains strictly non-Gaussian and perfectly valid under the linear ICA assumptions, 
+yet its algorithmic curvature is exactly zero, rendering it mathematically invisible to FastICA's fixed-point solver.
+
 \subsection{Empirical Results: Breaking FastICA}
+We evaluated both FastICA and the proposed W2-ICA framework on mixtures of these engineered Trimodal Gaussian sources across 10, 20, and 30 dimensions, 
+utilizing a sample size of $N=50,000$. As mathematically predicted by the failure of Assumption A.5, FastICA consistently hit its maximum iteration limits without converging. 
+It returned unmixing matrices with catastrophically high Amari errors ($>1.0$), indicating a complete failure to separate the sources.
+
+Conversely, W2-ICA successfully unmixed the 10-dimensional and 20-dimensional signals with high accuracy (Amari error $\approx 0.1$). 
+W2-ICA succeeds in this environment because it maps the entire global geometry of the empirical CDF to a Gaussian target via Optimal Transport. 
+By utilizing first-order gradient optimization (L-BFGS) on the Stiefel manifold, W2-ICA completely bypasses the local, second-order curvature pitfalls that dismantle Newton-step proxy methods.
 
 \section{Dimensionality Limits and Sample Starvation}
+While W2-ICA successfully bypassed the vanishing curvature pitfall, its performance degraded significantly at 30 dimensions with the fixed $50,000$ sample size. 
+This performance ceiling is not a structural mathematical failure, but rather an empirical limitation dictated by the Central Limit Theorem.
+
+A linear mixture of 30 independent trimodal sources creates a highly complex joint distribution that appears overwhelmingly Gaussian. 
+To mathematically distinguish the microscopic geometric "steps" of this high-dimensional discrete mixture from true continuous Gaussian noise, 
+the empirical CDF requires a massive sample size to achieve sufficient resolution. When the sample size is inadequate relative to the dimensionality, 
+the system experiences "sample starvation." The subtle non-Gaussian structural signals become overwhelmed by standard empirical sampling noise, 
+preventing the Wasserstein gradients from accurately identifying the independent components.
 
 \section{Robust Optimal Transport via Ground Cost Modification}
+
 \subsection{The Outlier Sensitivity of Exact $W_2$}
+While the exact squared Wasserstein distance ($W_2^2$) provides superior, smooth gradients for weak signals, it introduces a separate vulnerability. 
+Because $W_2$ utilizes an L2 (squared Euclidean) ground cost $c(x,y) = |x - y|^2$, it is notoriously sensitive to outliers, 
+such as sensor artifacts or extreme market anomalies. A single massive outlier forces the Optimal Transport plan to expend immense gradient effort to align that single data point, 
+massively distorting the overall unmixing matrix and degrading the recovery of the normal data distribution. While $W_2$ is a strict mathematical metric guaranteeing geometric stability, 
+it lacks robust statistical properties.
+
 \subsection{The W-Huber Formulation (Logcosh Cost)}
+To combine the smooth gradient properties of $W_2$ with the outlier resistance inherent to $W_1$ (which uses an L1 absolute error cost), 
+we propose modifying the Optimal Transport ground cost. We replace the strict L2 cost with a statistically robust \textit{logcosh} formulation, creating a "W-Huber" distance metric:
+\begin{equation}
+    c(x,y) = \log(\cosh(x-y)) \approx |x-y| + \log(1 + e^{-2|x-y|}) - \log(2).
+\end{equation}
+For small transport distances (representing the core normal data), this cost function behaves quadratically like an L2 penalty, 
+preserving the smooth Stiefel gradients necessary for precise convergence. For exceptionally large distances (representing extreme outliers), 
+the function transitions to an L1-like absolute penalty, effectively capping the gradient influence of extreme noise. 
+Crucially, utilizing the \textit{logcosh} function as a ground cost inside the global Optimal Transport matching process does not trigger the FastICA vanishing curvature pitfall, 
+as W-ICA relies on first-order global CDF matching rather than second-order local density approximations.
 
-% --- NEW SECTION ADDED HERE ---
 \section{Application: Price Discovery and Information Shares}
-\subsection{Non-Gaussianity in Econometric Market Microstructure}
-\subsection{Economic Identification Strategy (Permutation and Sign Resolution)}
-\subsection{Empirical Results on Market Data}
 
+\subsection{Non-Gaussianity in Econometric Market Microstructure}
+To demonstrate the empirical utility of the W2-ICA framework, we apply it to the problem of price discovery in financial econometrics. 
+In fragmented financial markets where the same asset is traded across multiple venues, 
+determining which market contributes most to the incorporation of new information (price discovery) is a non-trivial challenge. 
+Standard vector error correction models (VECMs) identify information shares by relying on the uncorrelation of price innovations. 
+However, as demonstrated by Zema and Cordoni \citeyear{zema2025}, any identification approach relying solely on uncorrelation is statistically equivalent up to an orthogonal transformation. 
+
+By leveraging the inherent non-Gaussianity of latent market shocks, ICA can be utilized to resolve this orthogonal ambiguity, 
+unifying disparate price discovery metrics into a single, unique measurement of market information shares. 
+
+\subsection{Economic Identification Strategy}
+While ICA successfully identifies the independent structural shocks driving the market, the raw statistical output remains subject to the inherent permutation and sign ambiguities 
+discussed in Chapter 2. To translate these statistical components into meaningful economic drivers, we impose two strict economic identification constraints.
+
+First, to resolve the permutation ambiguity, we enforce a Dominant Diagonal constraint. 
+We postulate that the structural shock assigned to Market $i$ must be the specific shock that contributes the maximum variance to that market's price innovations. 
+We implement this assignment algorithmically using the Hungarian Algorithm, which uniquely solves the optimal bipartite matching problem between the recovered independent components 
+and the individual markets.
+
+Second, to resolve the sign ambiguity, we enforce a Positive Impact constraint based on the economic theory of positive spillovers. 
+We assert that a structural innovation representing "good news" must have a positive initial impact on its own market price. 
+Any column of the unmixing matrix that violates this economic logic is sign-flipped, ensuring the final structural parameters are economically interpretable. 
+
+\subsection{Empirical Results on Market Data}
+[Note: This subsection will be populated with the specific empirical results, tables, and figures generated by the Wasserstein-ICA algorithm applied to the market microstructure data].
 % -----------------------------------------------------------------
 % CHAPTER 6: CONCLUSION
 % -----------------------------------------------------------------
