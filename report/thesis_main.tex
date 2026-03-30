@@ -68,6 +68,12 @@
 % the title page, declaration, \frontmatter, \tableofcontents, and \mainmatter.
 \maketitle
 
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+\cleardoublepage
+
 % -----------------------------------------------------------------
 % CHAPTER 1: INTRODUCTION
 % -----------------------------------------------------------------
@@ -221,6 +227,18 @@ Information geometry provides a rigorous framework for quantifying the relations
 Following the perspective introduced by Cardoso \citeyear{cardoso2022}, ICA can be understood as projecting the empirical distribution onto two distinct subspaces. The first is the Product manifold $\mathcal{P}$, 
 which contains all distributions where the components are strictly independent. The second is the Gaussian manifold $\mathcal{G}$, which encompasses all multivariate Gaussian distributions with zero mean and a fixed covariance structure. 
 Standard decorrelation merely ensures that the covariance is diagonal, but full ICA operates at the intersection of these manifolds to find a linear transform that projects the empirical data as closely as possible onto the Product manifold \cite{cardoso2022}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{pythagorean_ig_ica.png}
+    \caption[Information Geometry of ICA]{The Pythagorean geometry of Independent Component Analysis. 
+    The empirical joint distribution $P_Y$ is orthogonally projected onto the Product manifold $\mathcal{P}$ (yielding the independent marginals $P_Y^P$) 
+    and the Gaussian manifold $\mathcal{G}$ (yielding the best Gaussian fit $P_Y^G$). The intersection of these approximations yields 
+    the Product-Gaussian distribution $P_Y^{PG}$. The Kullback-Leibler divergences between these nodes geometrically represent distinct statistical properties: 
+    Mutual Information $\mathscr{I}(Y) = D_{\mathrm{KL}}(P_Y \Vert P_Y^P)$, Joint Non-Gaussianity $G(Y) = D_{\mathrm{KL}}(P_Y \Vert P_Y^G)$, 
+    and Correlation $C(Y) = D_{\mathrm{KL}}(P_Y^G \Vert P_Y^{PG})$. Figure adapted from \cite{cardoso2022}.}
+    \label{fig:cardoso_geometry}
+\end{figure}
 
 \subsection{Kullback-Leibler Pythagorean Identities}
 Distances between these distributions are measured using the Kullback-Leibler (KL) divergence. For any random vector $Y$ with a joint density $P_Y$, 
@@ -462,29 +480,51 @@ Because the condition for equality cannot be met, we conclude that for any valid
 \end{equation}
 
 \section{Empirical Landscape: $W_1$ versus $W_2$}
-Having theoretically established that the squared Wasserstein distance successfully isolates non-Gaussian sources, we now evaluate its 
-practical suitability as an optimization landscape. Specifically, we compare the squared $W_2$ distance (Mean Squared Error ground cost) against the $W_1$ distance 
-(Mean Absolute Error ground cost) to observe gradient behavior during rotational search.
+Having theoretically established that the squared Wasserstein distance successfully bounds mixture non-Gaussianity, 
+we now evaluate its practical suitability as an optimization landscape. In the context of ICA, the objective is to \textit{maximize} non-Gaussianity. 
+Therefore, gradient ascent algorithms must locate the peaks (maxima) of the distance metric to successfully isolate the independent sources. 
+We compare the empirical gradients of the squared $W_2$ distance (Mean Squared Error ground cost) against the $W_1$ distance 
+(Mean Absolute Error ground cost) to observe their behavior during rotational search.
 
 \subsection{Student-t Distributions and Degrees of Freedom}
-To conduct this empirical comparison, we generated synthetic bivariate mixtures from Student-t distributions. The Student-t distribution is ideal for this analysis 
-because its non-Gaussianity can be precisely controlled by adjusting its degrees of freedom ($\nu$). 
-A low degrees of freedom parameter (e.g., $\nu=2$) produces heavy tails, representing a strong non-Gaussian signal. 
-Conversely, as $\nu$ approaches higher values (e.g., $\nu=10$), the tails become lighter, and the distribution closely approximates a standard normal, 
-representing a weak non-Gaussian signal. We systematically evaluated the $W_1$ and $W_2^2$ distances from a standard normal distribution across 
-a continuous range of rotation angles $\theta$ relative to the optimal unmixing axis.
+To conduct this empirical comparison, we generated synthetic bivariate mixtures from Student-t distributions. 
+The Student-t distribution is ideal for this analysis because its non-Gaussianity can be precisely controlled by adjusting its degrees of freedom ($\nu$). 
+A low degrees of freedom parameter (e.g., $\nu=2$) produces heavy tails, representing a strong non-Gaussian signal. Conversely, 
+as $\nu$ approaches higher values (e.g., $\nu=10$), the tails become lighter, and the distribution closely approximates a standard normal, 
+representing a weak non-Gaussian signal. 
+
+We systematically evaluated the $W_1$ and $W_2^2$ distances from a standard normal distribution across a continuous range of 
+rotation angles $\theta \in [0, \pi]$. Because the whitened unmixing matrix restricts the search to orthogonal vectors, 
+the two true independent components in a bivariate mixture are geometrically separated by exactly $\pi/2$ radians ($90^\circ$). 
+Consequently, sweeping the projection vector across a $\pi$ interval should theoretically reveal exactly two distinct maxima, 
+corresponding to the two latent sources.
 
 \subsection{Robustness to Weak Non-Gaussian Signals}
-The empirical results revealed a stark contrast in the optimization landscapes of the two metrics. For strong non-Gaussian signals ($\nu=2$), 
-both metrics successfully identified the global optimum, exhibiting distinct peaks aligned with the true source axis. However, the $W_2^2$ landscape 
-exhibited significantly higher curvature around the optimum, providing stronger, more directional gradients for convergence. 
+The empirical results, visualized in Figure \ref{fig:w1_vs_w2_landscape}, reveal a stark contrast in the optimization landscapes of the two metrics. 
+For strong non-Gaussian signals ($\nu=2$), both metrics successfully identify the global optima, exhibiting two distinct peaks separated by $\pi/2$. 
+However, the $W_2^2$ metric consistently exhibits significantly higher curvature (strict concavity) around these optima, providing a stronger, 
+more directional gradient for optimization solvers to climb. 
 
-The most critical divergence in behavior occurred in the presence of weak signals ($\nu=10$). As the underlying distribution approached Gaussian noise, 
-the $W_1$ landscape deteriorated rapidly, becoming highly jagged and non-convex. This roughness introduces severe vulnerability, 
-as gradient-based solvers are highly likely to become trapped in spurious local optima. In contrast, the $W_2^2$ metric remained remarkably smooth and unimodal, 
-maintaining a clear gradient path toward the true global maximum despite the weak signal strength. This robust empirical behavior, 
-combined with the strict mathematical bounds established previously, definitively justifies the computational expense of selecting the 
-squared Wasserstein distance as the core contrast function for the proposed W2-ICA framework.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{w1_vs_w2_landscape.png}
+    \caption[Optimization Landscapes of $W_1$ and $W_2^2$]{Comparison of the optimization landscapes for the $W_1$ and $W_2^2$ metrics across 
+    varying signal strengths. Distances are normalized to a $[0, 1]$ scale for direct shape comparison. The two peaks represent the maximum 
+    non-Gaussianity locations of the two independent components, separated by $\pi/2$ radians. While both metrics perform well 
+    for strong signals, the $W_1$ landscape deteriorates into flat plateaus for weak signals, whereas $W_2^2$ maintains smooth, strictly guiding gradients.}
+    \label{fig:w1_vs_w2_landscape}
+\end{figure}
+
+The critical divergence in algorithmic stability occurs in the presence of weak signals ($\nu=10$). As the underlying distribution approaches Gaussian noise, 
+the structural deviations are confined almost entirely to the extreme tails. The $W_1$ metric, relying on absolute error, 
+fails to sufficiently penalize these tail deviations. Consequently, the $W_1$ landscape degrades into a flat, jagged plateau around the true sources. 
+This flatness causes gradients to vanish prematurely, virtually guaranteeing that optimization solvers will stall or become trapped in spurious local noise. 
+
+In contrast, the squared penalty inherent to the $W_2^2$ metric heavily magnifies these subtle tail deviations. 
+The $W_2^2$ metric remains remarkably smooth and unimodal around the optimum, maintaining a strict concavity that guides the solver to 
+the true peak despite the weak signal strength. This robust gradient retention justifies the computational expense of selecting 
+the squared Wasserstein distance as the core objective function for the proposed W2-ICA framework.
+
 
 % -----------------------------------------------------------------
 % CHAPTER 4: ALGORITHMIC DESIGN AND OPTIMIZATION
@@ -550,7 +590,7 @@ $\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$, this vector points into the flat, unco
 Updating the matrix using this Euclidean gradient would immediately violate the orthogonality constraint.
 
 To navigate the curved geometry of the Stiefel manifold, we must project the Euclidean gradient onto the tangent space of the manifold at the current point $\mathbf{W}$. 
-The resulting Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$ is given by:
+The resulting Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$ is given by \cite{absil2008optimization}:
 \begin{equation}
     \nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}.
 \end{equation}
@@ -560,7 +600,7 @@ By subtracting this specific violation, we ensure that the update step perfectly
 \subsection{Retraction via Symmetric Decorrelation}
 Although the Riemannian gradient ensures the update step is tangential to the Stiefel manifold, 
 moving along this flat tangent plane for a finite step size $\eta$ will cause the new matrix $\mathbf{W}_{\text{step}} = \mathbf{W} - \eta \nabla_{\mathcal{S}} \mathbf{W}$ 
-to slightly lift off the curved manifold surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold via a mathematical operation known as a retraction.
+to slightly lift off the curved manifold surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold via a mathematical operation known as a retraction \cite{absil2008optimization}.
 
 While the Gram-Schmidt orthogonalization process is a common approach, it is fundamentally asymmetric; 
 it permanently fixes the first vector and modifies subsequent vectors to fit, which inherently biases simultaneous optimization. 
@@ -571,8 +611,45 @@ Instead, we utilize symmetric decorrelation as our retraction mechanism:
 This operation computes the overlap covariance of the stepped matrix and applies a uniform, symmetric adjustment to all vectors simultaneously. 
 This ensures that no single independent component is arbitrarily prioritized during the retraction process, maintaining the stability of the batched optimization.
 
+\section{Navigating Discrete Optimization Landscapes}
+While the W2-ICA framework demonstrates robust convergence on continuous distributions, real-world data often contains discrete signals, such as binary states, 
+digital communications, or count-based market events. Applying continuous Optimal Transport directly to discrete mixtures introduces severe geometric pathologies 
+that fracture the optimization landscape.
+
+\subsection{The Shattered Landscape of Discrete CDFs}
+The exact analytical Gaussian target developed in Section 4.2 relies on matching the empirical cumulative distribution function (CDF) of the projected data. 
+For a continuous variable, this empirical CDF smoothly approximates a strictly increasing curve. However, for highly discrete data, any one-dimensional 
+projection creates a rigid, step-like "staircase" CDF. 
+
+This discreteness breaks the continuous geometry of the $W_2$ metric due to the fundamental mechanics of sorting. Evaluating the Wasserstein distance requires 
+sorting the projected points. As the optimization algorithm rotates the unmixing matrix $\mathbf{W}$, dense clumps of discrete data points slide past one another, 
+causing the sorting order to jump abruptly. Every instantaneous change in the sorting permutation causes a discontinuous shift in the gradient direction. 
+Consequently, the theoretically smooth $W_2$ landscape shatters into a highly jagged, non-differentiable surface filled with combinatorial local optima. 
+The optimizer becomes permanently trapped on spurious peaks (often corresponding to diagonal projections of the discrete hypercube), leading to catastrophic unmixing failures.
+
+\subsection{Continuous Smoothing via Gaussian Dithering}
+To restore the smooth gradients of the Stiefel manifold without resorting to computationally prohibitive $\mathcal{O}(N^2)$ entropic regularization techniques 
+(such as Sinkhorn distances), we introduce an algorithmic Gaussian Dithering step. 
+
+Adapted from classical signal processing techniques used to decorrelate quantization error \cite{schuchman1964dither}, we inject a microscopic amount of continuous, zero-mean Gaussian noise 
+($\sigma_{\text{dither}} \approx 0.01$) into the projected components immediately prior to the sorting operation in the forward pass. 
+Mathematically, this operation convolves the discrete Dirac spikes of 
+the empirical distribution with a narrow Gaussian kernel. This effectively "melts" the rigid staircase of the discrete CDF into a strictly increasing, 
+smooth continuous curve. By eliminating non-differentiable sorting ties, Gaussian dithering restores stable, informative gradients while preserving 
+the high-speed $\mathcal{O}(N \log N)$ computational efficiency of the 1D Optimal Transport formulation.
+
+\subsection{Escaping Traps with Stochastic Mini-Batching}
+Even with a smoothed CDF, the global optimization landscape of a discrete mixture remains highly non-convex. Evaluating the exact $W_2$ distance using the 
+full dataset guarantees deterministic convergence to the \textit{nearest} local maximum. In an environment riddled with shallow discrete traps, this deterministic behavior is fatal.
+
+To counter this, we transition from full-batch evaluation to Stochastic Mini-Batching. At each optimization step, the algorithm evaluates 
+the Wasserstein gradients using a randomly sampled subset of the data (e.g., $N_{\text{batch}} = 512$ or $1024$). This stochastic subsampling introduces calculated gradient noise, 
+acting as a form of simulated annealing. A geometric trap that exists for the full dataset may not exist, or may have a significantly different gradient profile, for a specific random subset. 
+This stochastic momentum allows the optimizer to "bounce" out of spurious local minima. The combination of Gaussian dithering to smooth 
+the discrete steps and stochastic mini-batching to navigate the non-convex topology allows W2-ICA to successfully separate mixed environments.
+
 \section{The Intractability of Fixed Point Algorithms for W2-ICA}
-The industry standard algorithm for ICA, FastICA, achieves highly efficient, super-linear convergence by employing a Newton (second-order) fixed-point step. 
+The industry standard algorithm for ICA, FastICA \cite{hyvarinen2001}, achieves highly efficient, super-linear convergence by employing a Newton (second-order) fixed-point step. 
 FastICA is mathematically able to utilize this approach because it maximizes proxy contrast functions (such as the \textit{logcosh} function) that are static and easily differentiable. 
 A natural question arises: can we formulate a "Fast-Wasserstein-ICA" by deriving an exact Newton step for the $W_2^2$ objective? 
 
@@ -586,7 +663,7 @@ Applying the total derivative yields two distinct terms:
 \begin{equation}
     \nabla_{\mathbf{w}} [T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})] = \underbrace{T'_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \mathbf{X}}_{\text{Argument Derivative}} + \underbrace{(\nabla_{\mathbf{w}} T_{\mathbf{w}})(\mathbf{w}^\top \mathbf{X})}_{\text{Map Derivative}}.
 \end{equation}
-By Caffarelli's regularity theory, the transport map $T_{\mathbf{w}}$ is continuously differentiable, guaranteeing the existence of the Argument Derivative. 
+By Caffarelli's regularity theory \cite{caffarelli1992}, the transport map $T_{\mathbf{w}}$ is continuously differentiable, guaranteeing the existence of the Argument Derivative. 
 The structural problem lies exclusively within the Map Derivative. 
 
 In the 1D Optimal Transport setting, the transport map to a standard Gaussian relies directly on the empirical cumulative distribution function, $F_{\mathbf{w}}$, 
@@ -603,8 +680,9 @@ This advantage of 1D Optimal Transport stems from its reliance on sorting (empir
 Requiring the PDF to compute the Hessian forces the algorithm to rely on Kernel Density Estimation (KDE). 
 KDE introduces massive statistical noise and bandwidth-tuning dependencies. 
 
-Because the exact Hessian requires continuous density estimation, computing a true Newton-based fixed-point step for exact Wasserstein-ICA is mathematically intractable. 
-Consequently, the optimal strategy for the W2-ICA framework is the utilization of Quasi-Newton methods, such as the Limited-memory BFGS (L-BFGS) algorithm adapted for the Stiefel manifold. 
+Because the exact Hessian requires continuous density estimation, computing a true Newton-based fixed-point step for exact W2-ICA is mathematically intractable. 
+Consequently, the optimal strategy for the W2-ICA framework is the utilization of Quasi-Newton methods, specifically 
+the Limited-memory BFGS (L-BFGS) algorithm \cite{liu1989limited} adapted for the Stiefel manifold \cite{absil2008optimization}. 
 L-BFGS intelligently approximates the inverse Hessian curvature strictly by observing the history of the highly stable, first-order Wasserstein gradients. 
 This approach bridges the gap, allowing the algorithm to achieve faster convergence rates while preserving the advantageous, sorting-based methodology of the Optimal Transport formulation.
 
@@ -612,6 +690,41 @@ This approach bridges the gap, allowing the algorithm to achieve faster converge
 % CHAPTER 5: EXPERIMENTS AND ROBUSTNESS
 % -----------------------------------------------------------------
 \chapter{Experimental Evaluation and Applications}
+
+\section{Evaluation Metrics: The Amari Performance Index}
+To empirically evaluate the success of an Independent Component Analysis algorithm, we require a quantitative metric that measures the distance between 
+the estimated unmixing matrix $\mathbf{W}_{\text{est}}$ and the true generative mixing matrix $\mathbf{A}$. Because ICA is subject to inherent scaling and permutation ambiguities, 
+standard matrix distance metrics (such as the Frobenius norm) are entirely unsuitable. 
+
+Instead, we utilize the industry-standard Amari Performance Index, often referred to as the Amari error \cite{amari1996new}. 
+The Amari error measures how close the global transfer matrix $\mathbf{P} = \mathbf{W}_{\text{est}} \mathbf{A}$ is to a generalized permutation matrix 
+(a matrix containing exactly one non-zero element in each row and column). For a $d \times d$ matrix $\mathbf{P}$ with elements $p_{ij}$, the Amari error is defined as:
+\begin{equation}
+    E(\mathbf{P}) = \frac{1}{2d} \sum_{i=1}^d \left( \sum_{j=1}^d \frac{|p_{ij}|}{\max_k |p_{ik}|} - 1 \right) + \frac{1}{2d} \sum_{j=1}^d \left( \sum_{i=1}^d \frac{|p_{ij}|}{\max_k |p_{kj}|} - 1 \right).
+\end{equation}
+This formulation normalizes each row and column by its maximum absolute value. If $\mathbf{P}$ is a perfect generalized permutation matrix (indicating perfect source separation), 
+the index evaluates exactly to zero. 
+
+Throughout our experimental evaluations, we employ the heuristic thresholds detailed in Table \ref{tab:amari_thresholds} to interpret the Amari error.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{@{}lp{10cm}@{}}
+        \toprule
+        \textbf{Amari Error ($E$)} & \textbf{Interpretation / Quality of Separation} \\
+        \midrule
+        $E < 0.1$ & Excellent to near-perfect source separation. \\
+        \addlinespace
+        $0.1 \le E < 0.3$ & Good separation; the structural shape of the underlying sources is highly recoverable. \\
+        \addlinespace
+        $E \ge 0.5$ & Severe degradation; multiple sources remain significantly mixed. \\
+        \addlinespace
+        $E \ge 1.0$ & Catastrophic algorithmic failure. The estimated matrix is effectively a random orthogonal projection with no meaningful relation to the true sources. \\
+        \bottomrule
+    \end{tabular}
+    \caption{Heuristic thresholds for interpreting the Amari Performance Index.}
+    \label{tab:amari_thresholds}
+\end{table}
 
 \section{The Blind Spots of FastICA}
 While FastICA is widely considered the industry standard for independent component recovery, its reliance on fixed proxy contrast functions and a 
@@ -648,11 +761,11 @@ For the standard \textit{logcosh} contrast function (with $a=1$), this equates t
 
 If a specific non-Gaussian source distribution naturally causes this specific expectation to evaluate precisely to zero, 
 the algorithmic curvature vanishes. When this condition fails, the denominator of the FastICA update rule collapses, 
-destroying the local quadratic (or cubic) convergence guarantees. The fixed-point fails to converge, 
+destroying the local quadratic (or cubic) convergence guarantees. The fixed-point iteration fails to converge, 
 even though the component is strictly independent and non-Gaussian.
 
 \subsection{Constructing the Failure Mode Counterexample}
-To empirically demonstrate the severity of the vanishing curvature limitation, we engineered a continuous source distribution specifically designed to trigger the assumption
+To empirically demonstrate the severity of the vanishing curvature limitation, we engineered a continuous source distribution specifically designed to trigger the assumption 
 described in the previous section. 
 We analyzed the target function representing the curvature condition: 
 \begin{equation}
@@ -668,7 +781,7 @@ yet its algorithmic curvature is exactly zero, rendering it mathematically invis
 
 \subsection{Empirical Results: Breaking FastICA}
 We evaluated both FastICA and the proposed W2-ICA framework on mixtures of these engineered Trimodal Gaussian sources across 10, 20, and 30 dimensions, 
-utilizing a sample size of $N=50,000$. As mathematically predicted by the failure of Assumption A.5, FastICA consistently hit its maximum iteration limits without converging. 
+utilizing a sample size of $N=50,000$. As mathematically predicted by the failure of the curvature assumption, FastICA consistently hit its maximum iteration limits without converging. 
 It returned unmixing matrices with catastrophically high Amari errors ($>1.0$), indicating a complete failure to separate the sources.
 
 Conversely, W2-ICA successfully unmixed the 10-dimensional and 20-dimensional signals with high accuracy (Amari error $\approx 0.1$). 
@@ -694,17 +807,71 @@ such as sensor artifacts or extreme market anomalies. A single massive outlier f
 massively distorting the overall unmixing matrix and degrading the recovery of the normal data distribution. While $W_2$ is a strict mathematical metric guaranteeing geometric stability, 
 it lacks robust statistical properties.
 
-\subsection{The W-Huber Formulation (Logcosh Cost)}
-To combine the smooth gradient properties of $W_2$ with the outlier resistance inherent to $W_1$ (which uses an L1 absolute error cost), 
-we propose modifying the Optimal Transport ground cost. We replace the strict L2 cost with a statistically robust \textit{logcosh} formulation, creating a "W-Huber" distance metric:
-\begin{equation}
-    c(x,y) = \log(\cosh(x-y)) \approx |x-y| + \log(1 + e^{-2|x-y|}) - \log(2).
-\end{equation}
-For small transport distances (representing the core normal data), this cost function behaves quadratically like an L2 penalty, 
-preserving the smooth Stiefel gradients necessary for precise convergence. For exceptionally large distances (representing extreme outliers), 
-the function transitions to an L1-like absolute penalty, effectively capping the gradient influence of extreme noise. 
-Crucially, utilizing the \textit{logcosh} function as a ground cost inside the global Optimal Transport matching process does not trigger the FastICA vanishing curvature pitfall, 
-as W-ICA relies on first-order global CDF matching rather than second-order local density approximations.
+%\subsection{The W-Huber Formulation (Logcosh Cost)}
+%To combine the smooth gradient properties of $W_2$ with the outlier resistance inherent to $W_1$ (which uses an L1 absolute error cost), 
+%we propose modifying the Optimal Transport ground cost. We replace the strict L2 cost with a statistically robust \textit{logcosh} formulation, creating a "W-Huber" distance metric:
+%\begin{equation}
+%    c(x,y) = \log(\cosh(x-y)) \approx |x-y| + \log(1 + e^{-2|x-y|}) - \log(2).
+%\end{equation}
+%For small transport distances (representing the core normal data), this cost function behaves quadratically like an L2 penalty, 
+%preserving the smooth Stiefel gradients necessary for precise convergence. For exceptionally large distances (representing extreme outliers), 
+%the function transitions to an L1-like absolute penalty, effectively capping the gradient influence of extreme noise. 
+%Crucially, utilizing the \textit{logcosh} function as a ground cost inside the global Optimal Transport matching process does not trigger the FastICA vanishing curvature pitfall, 
+%as W2-ICA relies on first-order global CDF matching rather than second-order local density approximations.
+
+\section{The Generalized Hybrid Mixture Stress Test}
+Real-world signals rarely belong to a single statistical family. To test the true algorithmic robustness of both W2-ICA and FastICA, we designed a highly complex, 
+generalized hybrid mixture. This stress test evaluates the capacity of the algorithms to separate sources drawn from fundamentally contradictory geometric landscapes.
+
+\subsection{Experimental Setup}
+We generated linear mixtures spanning $10$ to $75$ dimensions, maintaining a fixed sample size of $10,000$. To satisfy the ICA identifiability constraint, 
+exactly one source was fixed as a standard Gaussian distribution, $\mathcal{N}(0,1)$. The remaining $(d-1)$ independent sources were randomly drawn from 
+a diverse pool of eight distinct distributions: Laplace, Bernoulli, Uniform, Student-t, Poisson, Binomial, Chi-squared, and Exponential. 
+To account for the unpredictable presence of discrete and light-tailed components within this hybrid pool, W2-ICA utilized the robust settings engineered in 
+Chapter 4 ($\sigma_{\text{dither}} = 0.01$, stochastic batch size $= 1024$).
+
+\subsection{Results: Structural Oscillation vs. Geometric Stability}
+The results revealed a stark divergence in the stability of the two algorithms. The W2-ICA framework successfully maintained a low Amari error ($< 0.25$) up to $35$ dimensions. 
+This performance validates that the globally-aware $W_2$ metric, when smoothed via dithering and regularized via mini-batching, generalizes robustly across highly diverse topological landscapes.
+
+In contrast, FastICA's performance degraded rapidly, crossing the critical $0.5$ Amari error threshold immediately after $20$ dimensions. During the generalized experiment, 
+FastICA consistently triggered non-convergence warnings. We hypothesized that this failure stems from the Newton-Raphson solver's assumption of uniform curvature. 
+When forced to simultaneously evaluate highly kurtotic signals (e.g., Laplace) and negatively kurtotic signals (e.g., Uniform), 
+the fixed-point update steps generate contradictory gradient information, causing the solver to oscillate indefinitely. 
+
+To confirm this was a structural oscillation and not merely a matter of insufficient compute time, we evaluated FastICA under extreme optimization parameters 
+(up to $10,000$ maximum iterations) and relaxed convergence tolerances ($1e-3$). Even under these highly permissive conditions, FastICA's convergence rate plummeted 
+to $0\%$ past 30 dimensions. This definitively proves that in unpredictable, hybrid environments, proxy-based Newton solvers become trapped in contradictory gradient loops, 
+whereas W2-ICA's first-order global CDF matching remains stable.
+
+\section{Deep Dive: Isolating Discrete Failure Modes}
+To further understand the behavior of these algorithms in non-continuous environments, we isolated specific discrete distributions to observe their individual impact on 
+the optimization landscape. We generated mixtures containing one continuous Gaussian source and $(N-1)$ sources of a \textit{single} discrete type (Bernoulli, Poisson, or Binomial) 
+evaluated at 30 and 40 dimensions.
+
+\subsection{Performance on Pure Discrete Pools}
+The empirical results revealed a nuanced performance profile for both algorithms depending on the specific statistical nature of the discrete distributions. 
+FastICA proved highly capable of separating purely binary Bernoulli mixtures, successfully converging with a low Amari error. 
+However, when faced with the multi-step, count-based geometries of Poisson and Binomial distributions, FastICA experienced complete algorithmic failure and could not separate 
+the underlying sources.
+
+Interestingly, the W2-ICA framework exhibited an identical performance dichotomy. Like FastICA, W2-ICA successfully unmixed the pure Bernoulli sources. 
+The extreme bimodal geometry of the binary states, smoothed by the continuous Gaussian dithering step, provided a sufficient geometric signal for the optimal transport metric 
+to establish reliable gradients. Conversely, W2-ICA failed completely when applied to the pure Poisson and Binomial pools. In these environments, 
+the L-BFGS optimizer became predictably trapped in spurious local maxima, yielding catastrophic Amari errors ($> 1.0$). 
+
+This shared limitation suggests that the failure may not be caused simply by the data being discrete, but rather by the specific parameterizations of these count-based distributions. 
+The structural gaps within the Binomial and Poisson distributions under these parameters may fail to project a sufficiently strong non-Gaussian signal, 
+depriving both proxy-based and optimal transport-based solvers of the necessary gradient information to separate the mixtures.
+
+\subsection{The Necessity of Hybridization}
+The uniform failure of W2-ICA on purely discrete pools raises a critical question: why utilize it over FastICA? The answer lies in the nature of real-world data, 
+which is rarely purely discrete. As demonstrated by the preceding Generalized Hybrid experiment, FastICA fundamentally breaks when forced to navigate 
+a "Full Hybrid" pool combining continuous and discrete variables. 
+
+Conversely, W2-ICA thrives in precisely this hybrid environment. The presence of continuous distributions within a mixed pool provides sufficient smooth geometric structure 
+to guide the $W_2$ metric. This continuous context allows the stochastic mini-batching and dithering mechanisms to effectively bridge the discrete gaps, 
+enabling Optimal Transport to successfully disentangle complex mixtures where static proxies fail entirely.
 
 \section{Application: Price Discovery and Information Shares}
 
@@ -731,8 +898,49 @@ Second, to resolve the sign ambiguity, we enforce a Positive Impact constraint b
 We assert that a structural innovation representing "good news" must have a positive initial impact on its own market price. 
 Any column of the unmixing matrix that violates this economic logic is sign-flipped, ensuring the final structural parameters are economically interpretable. 
 
-\subsection{Empirical Results on Market Data}
-[Note: This subsection will be populated with the specific empirical results, tables, and figures generated by the Wasserstein-ICA algorithm applied to the market microstructure data].
+\subsection{Empirical Results on Simulated Market Data}
+To validate the efficacy of our Optimal Transport-based identification strategy, we simulated a fragmented market scenario. The simulation targets three distinct markets with pre-defined theoretical Information Shares of $12\%$, $24\%$, and $64\%$, respectively. The market innovations were generated using heavy-tailed Student-t distributions to satisfy the fundamental non-Gaussianity requirements of the ICA framework. We executed 500 Monte Carlo simulations, each comprising 5,000 observations.
+
+For each simulation, the W2-ICA framework successfully recovered the independent structural shocks. Figure \ref{fig:shock_recovery} illustrates a representative run, demonstrating the high correlation between the true generative shocks and the empirical shocks estimated by W2-ICA. The tight alignment along the identity line confirms that the algorithm successfully unmixed the latent variables prior to any economic transformation.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{shock_recovery_scatter.png}
+    \caption[Recovery of Structural Shocks via W2-ICA]{Pairplot demonstrating the recovery of true structural shocks versus the estimated shocks from W2-ICA for a single Monte Carlo run. \textbf{Takeaway:} The strong linear alignment indicates highly accurate unmixing of the latent non-Gaussian market innovations.}
+    \label{fig:shock_recovery}
+\end{figure}
+
+By applying the economic identification constraints detailed in the previous section—specifically, the Dominant Diagonal and Positive Impact rules—we uniquely mapped these statistical components to their corresponding markets and calculated the resulting empirical information shares.
+
+Table \ref{tab:simulated_is_results} presents the aggregate results across all 500 simulations. The W2-ICA estimator, combined with our economic identification strategy, demonstrates exceptional accuracy. The mean estimated information shares converge almost exactly to their theoretical targets, with minimal standard deviations indicating a highly stable recovery process. 
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{@{}lccc@{}}
+        \toprule
+        \textbf{Market / Source} & \textbf{True IS} & \textbf{Estimated IS (Mean)} & \textbf{Standard Deviation} \\
+        \midrule
+        Market 1 & 0.1200 & 0.1212 & 0.0161 \\
+        \addlinespace
+        Market 2 & 0.2400 & 0.2399 & 0.0245 \\
+        \addlinespace
+        Market 3 & 0.6400 & 0.6389 & 0.0260 \\
+        \bottomrule
+    \end{tabular}
+    \caption[Simulation Results for Information Share Recovery]{Monte Carlo simulation results comparing true Information Shares (IS) against the estimated IS recovered via the W2-ICA framework over 500 runs. \textbf{Takeaway:} W2-ICA robustly and accurately recovers the true structural parameters of the market.}
+    \label{tab:simulated_is_results}
+\end{table}
+
+Furthermore, Figure \ref{fig:is_distribution} illustrates the empirical density of the estimated information shares across all simulation runs. The distributions are tightly centered around the true parameter values, empirically confirming that W2-ICA effectively resolves the orthogonal ambiguity and robustly recovers the structural drivers of price discovery.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{econ_applicatn_is_distribution.png} % Replace with your actual filename
+    \caption[Empirical Distribution of Estimated Information Shares]{Empirical density distributions of the estimated Information Shares across 500 Monte Carlo simulations. The vertical dashed lines represent the true theoretical values. \textbf{Takeaway:} The tight, unimodal centering around the true values demonstrates the lack of structural oscillation in the Optimal Transport gradients.}
+    \label{fig:is_distribution}
+\end{figure}
+
+
 % -----------------------------------------------------------------
 % CHAPTER 6: CONCLUSION
 % -----------------------------------------------------------------
