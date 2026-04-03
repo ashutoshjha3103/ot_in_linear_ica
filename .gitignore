@@ -217,5 +217,8 @@ __marimo__/
 *.bbl
 *.nav
 *.snm
+*.lof
+*.lot
+*.blg
 
 wica_env/

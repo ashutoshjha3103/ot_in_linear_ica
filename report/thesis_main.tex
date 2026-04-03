@@ -1,4 +1,4 @@
-\documentclass[12pt,a4paper,twoside,openright]{book}
+\documentclass[12pt,a4paper,twoside,openany]{book}
 %\usepackage[work]{MCthesis}            % you can select this to work
 
 \usepackage[final]{MCthesis}            % this is for the final submission
@@ -6,6 +6,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage[utf8]{inputenc}         % allow utf-8 input
+% ------------------------------------------
 \usepackage[T1]{fontenc}            % use 8-bit T1 fonts
 \usepackage{hyperref}               % hyperlinks
 
@@ -62,15 +63,25 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% --- Better Float Parameters ---
+\setcounter{topnumber}{2}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.15}
+\renewcommand{\floatpagefraction}{0.8}
+% -------------------------------
+
 \begin{document}
 
 % The \maketitle command in your MCthesis package automatically handles 
 % the title page, declaration, \frontmatter, \tableofcontents, and \mainmatter.
 \maketitle
 
-\cleardoublepage
+\clearpage
 \listoffigures
-\cleardoublepage
+\clearpage
 \listoftables
 \cleardoublepage
 
@@ -228,7 +239,7 @@ Following the perspective introduced by Cardoso \citeyear{cardoso2022}, ICA can 
 which contains all distributions where the components are strictly independent. The second is the Gaussian manifold $\mathcal{G}$, which encompasses all multivariate Gaussian distributions with zero mean and a fixed covariance structure. 
 Standard decorrelation merely ensures that the covariance is diagonal, but full ICA operates at the intersection of these manifolds to find a linear transform that projects the empirical data as closely as possible onto the Product manifold \cite{cardoso2022}.
 
-\begin{figure}[H]
+\begin{figure}[tbp]
     \centering
     \includegraphics[width=0.85\textwidth]{pythagorean_ig_ica.png}
     \caption[Information Geometry of ICA]{The Pythagorean geometry of Independent Component Analysis. 
@@ -505,7 +516,7 @@ For strong non-Gaussian signals ($\nu=2$), both metrics successfully identify th
 However, the $W_2^2$ metric consistently exhibits significantly higher curvature (strict concavity) around these optima, providing a stronger, 
 more directional gradient for optimization solvers to climb. 
 
-\begin{figure}[H]
+\begin{figure}[tbp]
     \centering
     \includegraphics[width=1.0\textwidth]{w1_vs_w2_landscape.png}
     \caption[Optimization Landscapes of $W_1$ and $W_2^2$]{Comparison of the optimization landscapes for the $W_1$ and $W_2^2$ metrics across 
@@ -578,7 +589,7 @@ executing these random restarts sequentially via standard iterative loops is com
 Rather than maintaining a single weight matrix, we aggregate $B$ random restarts into a single high-dimensional tensor $\mathbf{W}_{\text{batch}} \in \mathbb{R}^{B \times d \times d}$. 
 
 This formulation allows the projection $\mathbf{Y} = \mathbf{W}_{\text{batch}} \widetilde{\mathbf{X}}$ to be computed simultaneously for all $B$ trajectories. 
-Modern hardware accelerators (GPUs) can then sort the elements of the resulting batch tensor in parallel. 
+The elements of the resulting batch tensor can be sorted in parallel. 
 The pre-computed exact analytical target vector $\mathbf{T}$ is subsequently broadcast-subtracted across the entire batch to compute the distances and gradients in a single step.
 
 \section{Optimization on the Stiefel Manifold}
@@ -589,7 +600,17 @@ The geometric space of all such orthogonal matrices forms the Stiefel manifold, 
 $\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$, this vector points into the flat, unconstrained ambient space $\mathbb{R}^{d \times d}$. 
 Updating the matrix using this Euclidean gradient would immediately violate the orthogonality constraint.
 
-To navigate the curved geometry of the Stiefel manifold, we must project the Euclidean gradient onto the tangent space of the manifold at the current point $\mathbf{W}$. 
+To navigate the curved geometry of the Stiefel manifold, we must project the Euclidean gradient onto the tangent space of the manifold at the current point $\mathbf{W}$, as illustrated in Figure \ref{fig:stiefel_manifold}. 
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=0.75\textwidth]{stiefel_manifold_projection.png}
+    \caption[Riemannian Optimization on the Stiefel Manifold]{Geometric sketch of optimization on the Stiefel manifold $\mathcal{S}$. 
+    The Euclidean gradient $\mathbf{G}$ is projected onto the tangent space $T_{\mathbf{W}}\mathcal{S}$ to yield the Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$. Following a step along the tangent plane, 
+    a retraction maps the estimate back to the orthogonal manifold surface at $\mathbf{W}_{\text{new}}$.}
+    \label{fig:stiefel_manifold}
+\end{figure}
+
 The resulting Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$ is given by \cite{absil2008optimization}:
 \begin{equation}
     \nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}.
@@ -633,10 +654,25 @@ To restore the smooth gradients of the Stiefel manifold without resorting to com
 
 Adapted from classical signal processing techniques used to decorrelate quantization error \cite{schuchman1964dither}, we inject a microscopic amount of continuous, zero-mean Gaussian noise 
 ($\sigma_{\text{dither}} \approx 0.01$) into the projected components immediately prior to the sorting operation in the forward pass. 
-Mathematically, this operation convolves the discrete Dirac spikes of 
-the empirical distribution with a narrow Gaussian kernel. This effectively "melts" the rigid staircase of the discrete CDF into a strictly increasing, 
+Mathematically, this operation convolves the discrete Dirac spikes of the empirical distribution with a narrow Gaussian kernel, as illustrated in Figure \ref{fig:gaussian_dithering}.
+
+This deforms the rigid staircase of the discrete CDF into a strictly increasing, 
 smooth continuous curve. By eliminating non-differentiable sorting ties, Gaussian dithering restores stable, informative gradients while preserving 
 the high-speed $\mathcal{O}(N \log N)$ computational efficiency of the 1D Optimal Transport formulation.
+
+It is crucial to emphasize that this dithering process does not constitute the injection of restrictive prior knowledge regarding the source distributions. 
+Rather, it acts as a blind, universal mathematical regularizer applied uniformly to the 1D projections $\mathbf{w}^\top \mathbf{X}$. 
+For latent sources that are already continuous, the addition of microscopic variance ($\sigma_{\text{dither}} \approx 0.01$) is statistically negligible and preserves 
+the underlying Wasserstein geometry. For discrete sources, it prevents catastrophic sorting failures. Furthermore, 
+perfectly discrete probability masses exist almost exclusively in synthetic simulations; real-world digital signals inherently possess continuous baseline sensor noise or measurement inaccuracies. The Gaussian dithering step safely mimics this natural continuous noise floor, ensuring the optimization manifold remains globally differentiable across all data modalities.
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{gaussian_dithering_cdf.png}
+    \caption[Gaussian Dithering of Discrete CDFs]{The effect of algorithmic Gaussian Dithering. The rigid, non-differentiable staircase of a discrete empirical CDF (gray) is mathematically convolved with a narrow Gaussian kernel, 
+    yielding a strictly increasing, smooth continuous curve (black) that restores stable Wasserstein gradients.}
+    \label{fig:gaussian_dithering}
+\end{figure}
 
 \subsection{Escaping Traps with Stochastic Mini-Batching}
 Even with a smoothed CDF, the global optimization landscape of a discrete mixture remains highly non-convex. Evaluating the exact $W_2$ distance using the 
@@ -647,6 +683,48 @@ the Wasserstein gradients using a randomly sampled subset of the data (e.g., $N_
 acting as a form of simulated annealing. A geometric trap that exists for the full dataset may not exist, or may have a significantly different gradient profile, for a specific random subset. 
 This stochastic momentum allows the optimizer to "bounce" out of spurious local minima. The combination of Gaussian dithering to smooth 
 the discrete steps and stochastic mini-batching to navigate the non-convex topology allows W2-ICA to successfully separate mixed environments.
+
+\section{W2-ICA Algorithm Overview}
+The individual theoretical components and algorithmic enhancements detailed above are synthesized into the final W2-ICA training procedure. 
+Algorithm \ref{alg:w2_ica} outlines the complete pseudo-code for extracting independent non-Gaussian components from a mixed dataset using stochastic Riemannian optimization.
+
+\begin{algorithm}[H]
+\caption{The Squared Wasserstein-ICA (W2-ICA) Algorithm}
+\label{alg:w2_ica}
+\begin{algorithmic}[1]
+\Require Observed mixture $\mathbf{X} \in \mathbb{R}^{d \times N}$, iterations $K$, learning rate $\eta$, batch size $B$, dither noise $\sigma_{\text{dither}}$
+\Ensure Estimated unmixing matrix $\mathbf{W}_{\text{final}} \in \mathbb{R}^{d \times d}$
+\State \textbf{Phase 1: Preprocessing \& Target Generation}
+\State Center the data: $\mathbf{X} \gets \mathbf{X} - \mathbb{E}[\mathbf{X}]$
+\State Whiten the data: $\widetilde{\mathbf{X}} \gets (\mathbf{X}\mathbf{X}^\top)^{-1/2} \mathbf{X}$ \Comment{Yields unit variance, uncorrelated data}
+\State Compute analytical target $\mathbf{T} \in \mathbb{R}^{B}$ via exact Gaussian CDF integration
+\State \textbf{Phase 2: Initialization}
+\State Initialize $\mathbf{W} \in \mathbb{R}^{d \times d}$ randomly from $\mathcal{N}(0,1)$
+\State Apply symmetric decorrelation:
+\Statex \qquad $\mathbf{W} \gets (\mathbf{W}\mathbf{W}^\top)^{-1/2} \mathbf{W}$ \Comment{Initialize on Stiefel manifold}
+\State \textbf{Phase 3: Stochastic Riemannian Optimization}
+\For{$k = 1$ to $K$}
+    \State Sample stochastic mini-batch $\widetilde{\mathbf{X}}_{\text{batch}} \in \mathbb{R}^{d \times B}$ from $\widetilde{\mathbf{X}}$
+    \State Project data onto candidates: $\mathbf{Y} \gets \mathbf{W} \widetilde{\mathbf{X}}_{\text{batch}}$
+    \State Apply Gaussian Dithering: $\mathbf{Y}_{\text{dither}} \gets \mathbf{Y} + \mathcal{N}(0, \sigma_{\text{dither}}^2)$
+    \State Sort each row of $\mathbf{Y}_{\text{dither}}$ ascending to yield empirical quantiles $\mathbf{Y}_{\text{sorted}}$
+    \State Compute Wasserstein objective (maximize non-Gaussianity):
+    \Statex \qquad $\mathcal{L} = \frac{1}{B} \sum_{i=1}^{d} ||\mathbf{Y}_{\text{sorted}}^{(i)} - \mathbf{T}||_2^2$
+    \State Backpropagate to compute Euclidean gradient: $\mathbf{G} = \nabla_{\mathbf{W}} \mathcal{L}$
+    \State Project to tangent space (Riemannian Gradient): 
+    \Statex \qquad $\nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}$
+    \State Update matrix along tangent plane:
+    \Statex \qquad $\mathbf{W}_{\text{step}} = \mathbf{W} + \eta \nabla_{\mathcal{S}} \mathbf{W}$ \Comment{Gradient Ascent}
+    \State Retract to Stiefel manifold via symmetric decorrelation: 
+    \Statex \qquad $\mathbf{W} \gets (\mathbf{W}_{\text{step}}\mathbf{W}_{\text{step}}^\top)^{-1/2} \mathbf{W}_{\text{step}}$
+    \State Optional: Apply learning rate decay $\eta \gets \eta \cdot 0.99$
+\EndFor
+\State \textbf{Phase 4: Finalization}
+\State $\mathbf{W}_{\text{final}} \gets \mathbf{W} (\mathbf{X}\mathbf{X}^\top)^{-1/2}$ \Comment{Map back to original data space}
+\State \Return $\mathbf{W}_{\text{final}}$
+\end{algorithmic}
+\end{algorithm}
+
 
 \section{The Intractability of Fixed Point Algorithms for W2-ICA}
 The industry standard algorithm for ICA, FastICA \cite{hyvarinen2001}, achieves highly efficient, super-linear convergence by employing a Newton (second-order) fixed-point step. 
@@ -677,14 +755,14 @@ cumulative distribution function's boundary relies strictly on the underlying Pr
 
 This requirement fundamentally defeats the primary advantage of the W2-ICA formulation. 
 This advantage of 1D Optimal Transport stems from its reliance on sorting (empirical CDFs), completely circumventing the need for continuous density estimation. 
-Requiring the PDF to compute the Hessian forces the algorithm to rely on Kernel Density Estimation (KDE). 
-KDE introduces massive statistical noise and bandwidth-tuning dependencies. 
+Requiring the PDF to compute the Hessian forces the algorithm to rely on density approximation methods like Kernel Density Estimation (KDE) or Normalizing Flows. 
+These methods introduce statistical noise, hyperparameter tuning (e.g. bandwidth), and computational overhead.
 
 Because the exact Hessian requires continuous density estimation, computing a true Newton-based fixed-point step for exact W2-ICA is mathematically intractable. 
 Consequently, the optimal strategy for the W2-ICA framework is the utilization of Quasi-Newton methods, specifically 
 the Limited-memory BFGS (L-BFGS) algorithm \cite{liu1989limited} adapted for the Stiefel manifold \cite{absil2008optimization}. 
 L-BFGS intelligently approximates the inverse Hessian curvature strictly by observing the history of the highly stable, first-order Wasserstein gradients. 
-This approach bridges the gap, allowing the algorithm to achieve faster convergence rates while preserving the advantageous, sorting-based methodology of the Optimal Transport formulation.
+This approach bridges the gap, allowing the algorithm to achieve faster convergence by preserving the sorting-based methodology of the Optimal Transport formulation.
 
 % -----------------------------------------------------------------
 % CHAPTER 5: EXPERIMENTS AND ROBUSTNESS
@@ -692,17 +770,15 @@ This approach bridges the gap, allowing the algorithm to achieve faster converge
 \chapter{Experimental Evaluation and Applications}
 
 \section{Evaluation Metrics: The Amari Performance Index}
-To empirically evaluate the success of an Independent Component Analysis algorithm, we require a quantitative metric that measures the distance between 
-the estimated unmixing matrix $\mathbf{W}_{\text{est}}$ and the true generative mixing matrix $\mathbf{A}$. Because ICA is subject to inherent scaling and permutation ambiguities, 
-standard matrix distance metrics (such as the Frobenius norm) are entirely unsuitable. 
-
-Instead, we utilize the industry-standard Amari Performance Index, often referred to as the Amari error \cite{amari1996new}. 
-The Amari error measures how close the global transfer matrix $\mathbf{P} = \mathbf{W}_{\text{est}} \mathbf{A}$ is to a generalized permutation matrix 
-(a matrix containing exactly one non-zero element in each row and column). For a $d \times d$ matrix $\mathbf{P}$ with elements $p_{ij}$, the Amari error is defined as:
+To empirically evaluate the success of an Independent Component Analysis (ICA) algorithm, we require a quantitative metric that measures the distance between 
+the estimated unmixing matrix $\mathbf{W}_{\text{est}}$ and the true mixing matrix $\mathbf{A}$. Because ICA is subject to inherent scaling and permutation ambiguities,
+we utilize the Amari Performance Index, often referred to as the Amari error \cite{amari1996new}. 
+The Amari error measures how close the global transfer matrix $\mathbf{P} = \mathbf{W}_{\text{est}} \mathbf{A}$ is to a generalized permutation matrix, 
+a matrix containing exactly one non-zero element in each row and column. For a $d \times d$ matrix $\mathbf{P}$ with elements $p_{ij}$, the Amari error is defined as:
 \begin{equation}
     E(\mathbf{P}) = \frac{1}{2d} \sum_{i=1}^d \left( \sum_{j=1}^d \frac{|p_{ij}|}{\max_k |p_{ik}|} - 1 \right) + \frac{1}{2d} \sum_{j=1}^d \left( \sum_{i=1}^d \frac{|p_{ij}|}{\max_k |p_{kj}|} - 1 \right).
 \end{equation}
-This formulation normalizes each row and column by its maximum absolute value. If $\mathbf{P}$ is a perfect generalized permutation matrix (indicating perfect source separation), 
+This formulation normalizes each row and column by its maximum absolute value. If $\mathbf{P}$ is a perfect generalized permutation matrix, indicating perfect source separation, 
 the index evaluates exactly to zero. 
 
 Throughout our experimental evaluations, we employ the heuristic thresholds detailed in Table \ref{tab:amari_thresholds} to interpret the Amari error.
@@ -719,7 +795,7 @@ Throughout our experimental evaluations, we employ the heuristic thresholds deta
         \addlinespace
         $E \ge 0.5$ & Severe degradation; multiple sources remain significantly mixed. \\
         \addlinespace
-        $E \ge 1.0$ & Catastrophic algorithmic failure. The estimated matrix is effectively a random orthogonal projection with no meaningful relation to the true sources. \\
+        $E \ge 1.0$ & The estimated matrix is effectively a random orthogonal projection with no meaningful relation to the true sources. \\
         \bottomrule
     \end{tabular}
     \caption{Heuristic thresholds for interpreting the Amari Performance Index.}
@@ -727,7 +803,7 @@ Throughout our experimental evaluations, we employ the heuristic thresholds deta
 \end{table}
 
 \section{The Blind Spots of FastICA}
-While FastICA is widely considered the industry standard for independent component recovery, its reliance on fixed proxy contrast functions and a 
+While FastICA is widely considered the industry standard for independent component recovery, its reliance on proxy contrast functions and a 
 Newton-based fixed-point iteration introduces critical mathematical vulnerabilities. In this section, we expose two distinct mathematical blind spots 
 that cause FastICA to fail on perfectly valid, non-Gaussian independent components.
 
@@ -903,7 +979,7 @@ To validate the efficacy of our Optimal Transport-based identification strategy,
 
 For each simulation, the W2-ICA framework successfully recovered the independent structural shocks. Figure \ref{fig:shock_recovery} illustrates a representative run, demonstrating the high correlation between the true generative shocks and the empirical shocks estimated by W2-ICA. The tight alignment along the identity line confirms that the algorithm successfully unmixed the latent variables prior to any economic transformation.
 
-\begin{figure}[H]
+\begin{figure}[tbp]
     \centering
     \includegraphics[width=0.95\textwidth]{shock_recovery_scatter.png}
     \caption[Recovery of Structural Shocks via W2-ICA]{Pairplot demonstrating the recovery of true structural shocks versus the estimated shocks from W2-ICA for a single Monte Carlo run. \textbf{Takeaway:} The strong linear alignment indicates highly accurate unmixing of the latent non-Gaussian market innovations.}
@@ -914,7 +990,7 @@ By applying the economic identification constraints detailed in the previous sec
 
 Table \ref{tab:simulated_is_results} presents the aggregate results across all 500 simulations. The W2-ICA estimator, combined with our economic identification strategy, demonstrates exceptional accuracy. The mean estimated information shares converge almost exactly to their theoretical targets, with minimal standard deviations indicating a highly stable recovery process. 
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
     \begin{tabular}{@{}lccc@{}}
         \toprule
@@ -933,7 +1009,7 @@ Table \ref{tab:simulated_is_results} presents the aggregate results across all 5
 
 Furthermore, Figure \ref{fig:is_distribution} illustrates the empirical density of the estimated information shares across all simulation runs. The distributions are tightly centered around the true parameter values, empirically confirming that W2-ICA effectively resolves the orthogonal ambiguity and robustly recovers the structural drivers of price discovery.
 
-\begin{figure}[H]
+\begin{figure}[tbp]
     \centering
     \includegraphics[width=0.85\textwidth]{econ_applicatn_is_distribution.png} % Replace with your actual filename
     \caption[Empirical Distribution of Estimated Information Shares]{Empirical density distributions of the estimated Information Shares across 500 Monte Carlo simulations. The vertical dashed lines represent the true theoretical values. \textbf{Takeaway:} The tight, unimodal centering around the true values demonstrates the lack of structural oscillation in the Optimal Transport gradients.}
