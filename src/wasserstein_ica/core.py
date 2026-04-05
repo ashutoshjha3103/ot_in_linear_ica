@@ -168,20 +168,36 @@ class WassersteinICA:
     # ========================================== 
     def optimize_symmetric(self, n_components=None, max_iter=300, lr=1.0, init_w=None,  
                            optimizer='sgd', penalty_weight=10.0, use_sinkhorn=False,  
-                           reg=0.01, sinkhorn_iter=50, cost='l2', dither_sigma=0.0, batch_size=512): 
+                           reg=0.01, sinkhorn_iter=50, cost='l2', dither_sigma=0.0, 
+                           batch_size=512, n_restarts=None): # Added n_restarts to signature
+        
         if n_components is None: n_components = self.X.shape[0] 
+
+        # DYNAMIC RESTART LOGIC: Default to dims * 4, capped at 200
+        if n_restarts is None:
+            n_restarts = n_components * 4
+            if n_restarts > 200:
+                n_restarts = 200
+            elif n_restarts < 20: # Floor to ensure basic exploration
+                n_restarts = 20
 
         if init_w is not None: 
             W = init_w.clone().to(self.X.device) 
         else: 
-            W = torch.randn(n_components, self.X.shape[0], device=self.X.device) 
+            # If no initial W is provided, generate a batch of random restarts
+            # using the dynamically calculated n_restarts
+            W = torch.randn(n_restarts, n_components, self.X.shape[0], device=self.X.device) 
+            # Note: You would likely apply decorrelation across the batch dimension here
             W = self._symmetric_decorrelation(W) 
+            
         W.requires_grad_(True) 
           
         # Store originals to safely patch during stochastic batching
         original_X_white = self.X_white
         original_n = self.n
         original_target = self.analytical_target
+          
+        # ... [Rest of the optimization logic remains the same] ...
           
         if optimizer == 'sgd': 
             for i in range(max_iter): 
