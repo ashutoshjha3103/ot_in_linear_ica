@@ -1010,34 +1010,77 @@ In contrast, FastICA's performance is characterized by extreme instability. Even
 This confirms our hypothesis: FastICA's failure in hybrid environments is structural. When the Newton-Raphson solver is forced to simultaneously evaluate highly kurtotic signals (e.g., Laplace) and negatively kurtotic signals (e.g., Uniform), the fixed-point update steps generate contradictory gradient information. The solver becomes trapped in a state of permanent structural oscillation, perpetually overshooting the optimal projection because the "uniform curvature" assumed by the Newton step does not exist. Conversely, OT-ICA’s first-order global CDF matching bypasses these local curvature traps entirely, maintaining geometric stability where proxies fail.
 
 \section{Deep Dive: Isolating Discrete Failure Modes}
-To further understand the behavior of these algorithms in non-continuous environments, we isolated specific discrete distributions to observe their individual impact on 
-the optimization landscape. We generated mixtures containing one continuous Gaussian source and $(N-1)$ sources of a \textit{single} discrete type (Bernoulli, Poisson, or Binomial) 
-evaluated at 30 and 40 dimensions.
+To further understand the behavior of these algorithms in non-continuous environments, we isolated specific discrete distributions to observe their individual impact on the optimization landscape. We generated mixtures containing one continuous Gaussian source and $(d-1)$ sources of a \textit{single} discrete type (Bernoulli, Poisson, or Binomial).
 
 \subsection{Performance on Pure Discrete Pools}
-The empirical results revealed a nuanced performance profile for both algorithms depending on the specific statistical nature of the discrete distributions. 
-FastICA proved highly capable of separating purely binary Bernoulli mixtures, successfully converging with a low Amari error. 
-However, when faced with the multi-step, count-based geometries of Poisson and Binomial distributions, FastICA experienced complete algorithmic failure and could not separate 
-the underlying sources.
+The empirical results, visualized in Figure \ref{fig:discrete_isolation}, reveal a nuanced performance profile. FastICA proved highly capable of separating purely binary Bernoulli mixtures, successfully converging. However, when faced with the multi-step, count-based geometries of standard Poisson ($\lambda=3$) and Binomial ($n=10$) distributions, FastICA experienced catastrophic algorithmic failure, completely failing to separate the underlying sources.
 
-Interestingly, the OT-ICA framework exhibited an identical performance dichotomy. Like FastICA, OT-ICA successfully unmixed the pure Bernoulli sources. 
-The extreme bimodal geometry of the binary states, smoothed by the continuous Gaussian dithering step, provided a sufficient geometric signal for the optimal transport metric 
-to establish reliable gradients. Conversely, OT-ICA failed completely when applied to the pure Poisson and Binomial pools. In these environments, 
-the L-BFGS optimizer became predictably trapped in spurious local maxima, yielding catastrophic Amari errors ($> 1.0$). 
+Interestingly, the OT-ICA framework exhibited an identical performance dichotomy. OT-ICA successfully unmixed the pure Bernoulli sources, but failed completely on the pure Poisson and Binomial pools, yielding catastrophic Amari errors ($E > 1.0$). 
 
-This shared limitation suggests that the failure may not be caused simply by the data being discrete, but rather by the specific parameterizations of these count-based distributions. 
-The structural gaps within the Binomial and Poisson distributions under these parameters may fail to project a sufficiently strong non-Gaussian signal, 
-depriving both proxy-based and optimal transport-based solvers of the necessary gradient information to separate the mixtures.
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=1.0\textwidth]{isolated_discrete_test.png} 
+    \caption[Performance on Isolated Discrete Pools]{Amari error and convergence rates for mixtures composed entirely of a single discrete distribution type. Both FastICA and OT-ICA succeed on binary (Bernoulli) data but experience complete failure on multi-step count data (Poisson, Binomial).}
+    \label{fig:discrete_isolation}
+\end{figure}
 
-\subsection{The Necessity of Hybridization}
-The uniform failure of OT-ICA on purely discrete pools raises a critical question: why utilize it over FastICA? The answer lies in the nature of real-world data, 
-which is rarely purely discrete. As demonstrated by the preceding Generalized Hybrid experiment, FastICA fundamentally breaks when forced to navigate 
-a "Full Hybrid" pool combining continuous and discrete variables. 
+Note that convergence rates are only reported for FastICA. Because FastICA utilizes a second-order Newton solver, it is susceptible to mechanical non-convergence (infinite oscillation) when assumptions are violated. Conversely, OT-ICA relies on first-order L-BFGS gradient descent, which mechanically guarantees convergence to a minimum. For OT-ICA, algorithmic failure manifests not as a non-convergence warning, but as convergence to a spurious local minimum, which is fully captured by the Amari Error metric.
 
-Conversely, OT-ICA thrives in precisely this hybrid environment. The presence of continuous distributions within a mixed pool provides sufficient smooth geometric structure 
-to guide the $W_2$ metric. This continuous context allows the stochastic mini-batching and dithering mechanisms to effectively bridge the discrete gaps, 
-enabling Optimal Transport to successfully disentangle complex mixtures where static proxies fail entirely.
+\subsection{Geometric Tractability vs. Statistical Non-Gaussianity}
+To determine whether the shared failure on Poisson and Binomial distributions was due to a lack of statistical non-Gaussianity (i.e., the distributions appearing too "Gaussian-like") or due to the fundamental geometry of the optimization surface, we conducted a sensitivity analysis. We calculated the exact squared Wasserstein distance ($W_2^2$) between standard normal noise and various parameterizations of these discrete distributions.
 
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Distribution} & \textbf{$W_2^2$ Distance from Gaussian} \\
+        \midrule
+        Laplace (Continuous Baseline) & 0.0377 \\
+        Binomial (Standard, $n=10$) & 0.0339 \\
+        Poisson (Standard, $\lambda=3.0$) & 0.0519 \\
+        Binomial (Harsh, $n=2$) & 0.2024 \\
+        Poisson (Harsh, $\lambda=0.5$) & 0.3277 \\
+        \bottomrule
+    \end{tabular}
+    \caption[Non-Gaussianity Sensitivity Analysis]{The squared Wasserstein distance between standard normal noise and various independent distributions. The "Harsh" discrete parameterizations are statistically highly non-Gaussian, vastly exceeding the continuous Laplace baseline.}
+    \label{tab:w2_sensitivity}
+\end{table}
+
+As demonstrated in Table \ref{tab:w2_sensitivity}, by lowering the parameters (Poisson $\lambda=0.5$, Binomial $n=2$), we force the distributions to become drastically non-Gaussian—up to almost ten times further from a Gaussian baseline than the Laplace distribution, which both algorithms easily separated in earlier tests.
+
+To visually confirm why both algorithms struggle with these distributions under different conditions, we mapped the 1D optimization surfaces for both the $W_2^2$ distance (OT-ICA) and the \textit{logcosh} proxy (FastICA) across the standard and harsh parameterizations.
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=1.0\textwidth]{all_optimization_surfaces.png}
+    \caption[Optimization Surface of Discrete Mixtures]{The 1D optimization landscapes for discrete mixtures. The standard parameterizations (right column) exhibit relatively smooth objectives. The harsh parameterizations (left column) severely fracture the OT-ICA surface into non-convex geometric staircases, while simultaneously blunting or distorting the FastICA proxy approximation.}
+    \label{fig:optimization_surface}
+\end{figure}
+
+As illustrated in Figure \ref{fig:optimization_surface}, the discrete nature of the data fundamentally fractures the loss landscape, revealing the distinct weaknesses of each algorithm. 
+
+For FastICA (dashed blue line), the \textit{logcosh} proxy relies on an expected value approximation. While this successfully smooths over minor discrete gaps in the standard distributions, the approximation mathematically collapses when faced with the extreme, one-sided asymmetry of the Harsh Poisson. The objective function becomes distorted, causing the Newton solver to lose its convergence guarantees. 
+
+Conversely, for OT-ICA (solid orange line), the exact geometric matching of the Optimal Transport metric perfectly reflects the "staircase" nature of the empirical CDF. It does not approximate; it physically maps the gaps in the data. While this guarantees the true global optimum is preserved, it creates a geometrically intractable landscape littered with jagged, non-convex local minima traps that permanently stall the L-BFGS gradient solver.
+
+\subsection{Empirical Results on Harsh Discrete Environments}
+If the failure is purely geometric rather than statistical, evaluating the algorithms on the "Harsh" parameterizations should yield highly bifurcated results based on the shape of the specific discrete distribution. We executed a final evaluation using these extreme parameterizations.
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=1.0\textwidth]{binomial_poisson_fast_vs_ot_ica.png} 
+    \caption[Performance on Harsh Discrete Environments]{Amari Error and FastICA Convergence for "Harsh" discrete parameterizations. Despite possessing extreme statistical non-Gaussianity, FastICA fails mathematically, while OT-ICA's performance bifurcates based on geometric symmetry.}
+    \label{fig:harsh_discrete}
+\end{figure}
+
+The results, shown in Figure \ref{fig:harsh_discrete}, definitively prove that the failure is governed by geometric tractability. For the harsh Poisson mixture ($\lambda=0.5$), FastICA experienced catastrophic failure ($E > 1.5$), as its symmetric proxy solver choked on the extreme asymmetry of the data. Conversely, OT-ICA achieved excellent separation ($E \approx 0.15$). This success occurs because the harsh Poisson concentrates massive probability density at zero, effectively mimicking an asymmetric Bernoulli distribution. This creates a singular, massive geometric "cliff" in the empirical CDF, providing a strong, unambiguous gradient that allows OT-ICA to bypass smaller local minima.
+
+However, for the harsh Binomial mixture ($n=3$), OT-ICA completely failed, despite the distribution possessing a massive Wasserstein gap ($0.2024$). Unlike the skewed Poisson, the Binomial distribution remains perfectly symmetric. This symmetry creates a highly non-convex "staircase" in the loss landscape consisting of shallow, symmetric plateaus, permanently trapping the gradient solver. (FastICA also failed to achieve meaningful separation here, returning a severe error of $E > 0.5$).
+
+\subsection{Conclusion: The Necessity of Hybridization}
+This investigation reveals a fundamental insight into Optimal Transport for linear ICA: \textit{Statistical non-Gaussianity is necessary, but not sufficient, for global convergence.} Purely symmetric discrete distributions create intractable, terraced optimization landscapes that trap first-order gradients.
+
+This highlights precisely why OT-ICA must be utilized in hybrid environments. As demonstrated in Section 5.3, FastICA completely broke when forced to navigate a "Full Hybrid" pool combining continuous and discrete variables due to contradictory curvature. Conversely, OT-ICA thrived (Figure \ref{fig:hybrid_mixture_results}). The presence of continuous distributions within a mixed pool acts as a mathematical lubricant; it provides sufficient smooth geometric structure to bridge the discrete gaps, enabling Optimal Transport to successfully disentangle complex real-world mixtures where static proxies fail entirely.
 \section{Application: Price Discovery and Information Shares}
 
 \subsection{Non-Gaussianity in Econometric Market Microstructure}
