@@ -96,7 +96,7 @@ Blind Source Separation, specifically formulated as Independent Component Analys
 It has widespread applications across diverse fields, including machine learning, signal processing, econometrics, and neuroscience. 
 The primary objective of ICA is to recover hidden, statistically independent sources from an observed set of mixtures. 
 In this thesis, we focus on the linear mixture setting. ICA is frequently contrasted with Principal Component Analysis (PCA); 
-however, while PCA merely ensures that the resulting components are uncorrelated, ICA enforces the much stronger condition of full statistical independence \cite{hyvarinen2001}. 
+however, while PCA merely ensures that the resulting components are uncorrelated, ICA enforces the much stronger condition of full statistical independence \cite[Chapter 1]{hyvarinen2001}. 
 This rigorous criterion allows ICA to successfully disentangle complex latent variables that PCA cannot fully separate.
 
 \section{Intuition from Central Limit Theorem (CLT)}
@@ -163,7 +163,7 @@ The linear mixing model is formally defined as
 \begin{equation}
     \mathbf{X} = \mathbf{A} \mathbf{S}
 \end{equation}
-where $\mathbf{A} \in \mathbb{R}^{d \times d}$ is an unknown, invertible mixing matrix \cite{hyvarinen2001}. Expanded into vector notation, the model represents the observed variables as
+where $\mathbf{A} \in \mathbb{R}^{d \times d}$ is an unknown, invertible mixing matrix \cite[Chapter7]{hyvarinen2001}. Expanded into vector notation, the model represents the observed variables as
 \begin{equation}
     \begin{bmatrix}
     x_1 \\
@@ -297,7 +297,7 @@ location to be split and distributed across multiple targets. This relaxation tr
 making the computation of transport costs mathematically tractable.
 
 \subsection{The Earth Mover's Distance ($W_1$)}
-The minimal cost required to transform one probability distribution into another is formalized as the Wasserstein distance \cite{villani2003}. 
+The minimal cost required to transform one probability distribution into another is formalized as the Wasserstein distance \cite[Chapter 1]{villani2003}. 
 The $W_1$ distance, commonly referred to as the Earth Mover's Distance, 
 quantifies the absolute effort of this transformation. For one dimensional distributions with cumulative distribution functions $F$ and $G$, the $W_1$ distance is computed as the integral of the 
 absolute differences between the cumulative functions
@@ -307,7 +307,7 @@ absolute differences between the cumulative functions
 Intuitively, $W_1$ sums the vertical area between the two distribution curves. While this metric is robust to extreme outliers, it often underestimates structural deviations in variance.
 
 \subsection{The Squared Wasserstein Distance ($W_2$)}
-To better capture variations in spread and central location, the Squared Wasserstein distance is utilized. It is most conveniently defined using the quantile functions, 
+To better capture variations in spread and central location, the Squared Wasserstein distance is utilized \cite[Chapter 2]{villani2003}. It is most conveniently defined using the quantile functions, 
 which are the inverses of the cumulative distribution functions $F^{-1}$ and $G^{-1}$. The $W_2$ distance is formulated as
 \begin{equation}
     W_2(\mu, \nu) = \left( \int_0^1 |F^{-1}(t) - G^{-1}(t)|^2 \, dt \right)^{1/2}.
@@ -621,7 +621,7 @@ as illustrated in Figure \ref{fig:stiefel_manifold}.
     \label{fig:stiefel_manifold}
 \end{figure}
 
-The resulting Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$ is given by \cite{absil2008optimization}:
+The resulting Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$ is given by \cite[Chapter 3]{absil2008optimization}:
 \begin{equation}
     \nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}.
 \end{equation}
@@ -632,7 +632,7 @@ By subtracting this specific violation, we ensure that the update step perfectly
 Although the Riemannian gradient ensures the update step is tangential to the Stiefel manifold, 
 moving along this flat tangent plane for a finite step size $\eta$ will cause the new matrix $\mathbf{W}_{\text{step}} = \mathbf{W} - \eta \nabla_{\mathcal{S}} \mathbf{W}$ 
 to slightly lift off the curved manifold surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold 
-via a mathematical operation known as a retraction \cite{absil2008optimization}.
+via a mathematical operation known as a retraction \cite[Chapter 4]{absil2008optimization}.
 
 While the Gram-Schmidt orthogonalization process is a common approach, it is fundamentally asymmetric; 
 it permanently fixes the first vector and modifies subsequent vectors to fit, which inherently biases simultaneous optimization. 
@@ -642,6 +642,21 @@ Instead, we utilize symmetric decorrelation as our retraction mechanism:
 \end{equation}
 This operation computes the overlap covariance of the stepped matrix and applies a uniform, symmetric adjustment to all vectors simultaneously. 
 This ensures that no single independent component is arbitrarily prioritized during the retraction process, maintaining the stability of the batched optimization.
+
+\section{Total Complexity and Statistical Efficiency}
+Having detailed the sorting-based objective and the Riemannian optimization steps, we can now formalize the total computational cost of the OT-ICA framework. 
+For a dataset of dimension $d$ with $N$ samples, $K$ random restarts, and $T$ optimization iterations, the per-iteration complexity is dominated by:
+\begin{equation}
+    \mathcal{O}(K \cdot (d \cdot N \log N + d^3))
+\end{equation}
+The $N \log N$ term stems from the mandatory sorting of projections, while the $d^3$ term represents the cost of the symmetric decorrelation (matrix inverse square root) 
+used for retraction on the Stiefel manifold.
+
+Beyond temporal complexity, we must acknowledge the \textit{statistical sample complexity}. While our 1D projection approach maintains a robust 1D convergence rate 
+of $\mathcal{O}(N^{-1/2})$, the global identification of the mixing matrix is implicitly subject to the curse of dimensionality. Theoretical results in transport theory suggest 
+that the empirical Wasserstein distance in $d$ dimensions converges at a rate of $\mathcal{O}(N^{-1/d})$. In practice, as $d$ increases, the number of samples $N$ required to 
+accurately resolve the "peaks" of non-Gaussianity on the manifold surface grows. This necessitates a corresponding increase in the number of parallel restarts $K$, creating 
+a trade-off between statistical resolution and computational feasibility.
 
 \section{Navigating Discrete Optimization Landscapes}
 While the OT-ICA framework demonstrates robust convergence on continuous distributions, real-world data often contains discrete signals, such as binary states, 
@@ -685,6 +700,17 @@ perfectly discrete probability masses exist almost exclusively in synthetic simu
     yielding a strictly increasing, smooth continuous curve (black) that restores stable Wasserstein gradients.}
     \label{fig:gaussian_dithering}
 \end{figure}
+
+From a theoretical perspective, this dithering process is more than a heuristic; it represents a form of kernel density regularization. Mathematically, 
+adding Gaussian noise $\epsilon \sim \mathcal{N}(0, \sigma_{\text{dither}}^2)$ to the projection $Y$ is equivalent to convolving the empirical measure $\mu_N$ with 
+a Gaussian kernel $\phi_{\sigma}$:
+\begin{equation}
+    \hat{\mu}_{\sigma} = \mu_N * \phi_{\sigma}
+\end{equation}
+This operation transforms the discrete Dirac spikes into a smooth, strictly positive density. By Brenier's Theorem \cite{brenier1991} and Caffarelli's regularity \cite{caffarelli1992} results, 
+this ensures that the resulting Optimal Transport map is not only unique but continuously differentiable. Furthermore, this approach is functionally analogous 
+to \textit{Entropic Regularization} used in Sinkhorn distances, where a blur factor is introduced to make the Wasserstein distance differentiable and computationally tractable. 
+By utilizing 1D dithering, we gain the smoothness of Sinkhorn divergence while retaining the $O(N \log N)$ efficiency of sorted exact transport.
 
 \subsection{Escaping Traps with Stochastic Mini-Batching}
 Even with a smoothed CDF, the global optimization landscape of a discrete mixture remains highly non-convex. Evaluating the exact $W_2$ distance using the 
@@ -739,7 +765,7 @@ Algorithm \ref{alg:ot_ica} outlines the complete pseudo-code for extracting inde
 
 
 \section{The Intractability of Fixed Point Algorithms for OT-ICA}
-The industry standard algorithm for ICA, FastICA \cite{hyvarinen2001}, achieves highly efficient, super-linear convergence by employing a Newton (second-order) fixed-point step. 
+The industry standard algorithm for ICA, FastICA \cite[Chapter 8]{hyvarinen2001}, achieves highly efficient, super-linear convergence by employing a Newton (second-order) fixed-point step. 
 FastICA is mathematically able to utilize this approach because it maximizes proxy contrast functions (such as the \textit{logcosh} function) that are static and easily differentiable. 
 A natural question arises: can we formulate a "Fast-OT-ICA" by deriving an exact Newton step for the $W_2^2$ objective? 
 
@@ -772,7 +798,7 @@ These methods introduce statistical noise, hyperparameter tuning (e.g. bandwidth
 
 Because the exact Hessian requires continuous density estimation, computing a true Newton-based fixed-point step for exact OT-ICA is mathematically intractable. 
 Consequently, the optimal strategy for the OT-ICA framework is the utilization of Quasi-Newton methods, specifically 
-the Limited-memory BFGS (L-BFGS) algorithm \cite{liu1989limited} adapted for the Stiefel manifold \cite{absil2008optimization}. 
+the Limited-memory BFGS (L-BFGS) algorithm \cite{liu1989limited} adapted for the Stiefel manifold \cite[Chapter 6]{absil2008optimization}. 
 L-BFGS intelligently approximates the inverse Hessian curvature strictly by observing the history of the highly stable, first-order Wasserstein gradients. 
 This approach bridges the gap, allowing the algorithm to achieve faster convergence by preserving the sorting-based methodology of the Optimal Transport formulation.
 
@@ -1365,25 +1391,51 @@ the structural drivers of price discovery.
 \chapter{Conclusion}
 
 \section{Summary of Contributions}
-This thesis proposed and rigorously evaluated the Optimal Transport Independent Component Analysis (OT-ICA) framework, shifting the paradigm of linear source separation from local proxy approximations to global geometric matching. By formulating the search for independent components as a minimization of the squared Wasserstein distance ($W_2^2$) to a standard normal distribution on the Stiefel manifold, we addressed critical mathematical vulnerabilities inherent in industry-standard proxy algorithms.
+This thesis proposed and rigorously evaluated the Optimal Transport Independent Component Analysis (OT-ICA) framework, shifting the paradigm of linear source separation 
+from local proxy approximations to global geometric matching. By formulating the search for independent components as a minimization of the squared Wasserstein distance ($W_2^2$) 
+to a standard normal distribution on the Stiefel manifold, we addressed critical mathematical vulnerabilities inherent in industry-standard proxy algorithms.
 
-Our theoretical analysis established that the squared Wasserstein distance strictly bounds mixture non-Gaussianity, providing a mathematically sound objective for extracting latent sources. Empirically, we demonstrated that while algorithms like FastICA fail catastrophically in the presence of specific structural blind spots—such as zero-negentropy topologies and vanishing curvature—OT-ICA consistently maintains algorithmic stability. By mapping the full cumulative distribution function rather than relying on point-estimates of density, OT-ICA proved uniquely capable of resolving highly complex, generalized hybrid mixtures where proxy solvers infinitely oscillate.
+Our theoretical analysis established that the squared Wasserstein distance strictly bounds mixture non-Gaussianity, providing a mathematically sound objective for extracting latent sources. 
+Empirically, we demonstrated that while algorithms like FastICA fail in the presence of specific structural blind spots, such as zero-negentropy topologies 
+and vanishing curvature, OT-ICA consistently maintains algorithmic stability. By mapping the full cumulative distribution function rather than relying on point-estimates of density, 
+OT-ICA proved uniquely capable of resolving highly complex, generalized hybrid mixtures where proxy solvers infinitely oscillate.
 
-Furthermore, we introduced several critical algorithmic enhancements to make optimal transport computationally viable for ICA. These included the derivation of exact analytical Gaussian targets to eliminate discretization noise, batched vectorization for parallel hypothesis exploration, and the novel application of Gaussian dithering to prevent the piecewise linear shattering of discrete optimization landscapes. Finally, we demonstrated the practical utility of this framework in a financial econometrics setting, utilizing the robust non-Gaussian recovery of OT-ICA to uniquely resolve orthogonal ambiguities in market price discovery.
+Furthermore, we introduced several critical algorithmic enhancements to make optimal transport computationally viable for ICA. These included the derivation of exact analytical Gaussian 
+targets to eliminate discretization noise, batched vectorization for parallel hypothesis exploration, and the novel application of Gaussian dithering to prevent 
+the piecewise linear shattering of discrete optimization landscapes. Finally, we demonstrated the practical utility of this framework in a financial econometrics setting, 
+utilizing the robust non-Gaussian recovery of OT-ICA to uniquely resolve orthogonal ambiguities in market price discovery.
 
 \section{Limitations}
-Despite its geometric robustness, the OT-ICA framework is subject to specific limitations. The primary constraint is computational efficiency. Because calculating the exact Hessian of the Wasserstein distance requires continuous density estimation, OT-ICA cannot leverage the super-linear Newton-Raphson convergence that makes FastICA computationally instantaneous. Instead, OT-ICA relies on first-order Quasi-Newton methods (L-BFGS) combined with dense parallel random restarts. Consequently, the execution time scales exponentially with dimensionality. 
+Despite its geometric robustness, the OT-ICA framework is subject to specific constraints that delineate its operational boundaries. 
+The primary limitation is \textbf{computational efficiency}. Because the exact Hessian of the Wasserstein distance requires continuous density estimation, 
+OT-ICA cannot leverage the super-linear Newton-Raphson convergence that makes FastICA computationally instantaneous. Instead, the framework relies on first-order 
+Quasi-Newton methods (L-BFGS) combined with dense parallel random restarts to navigate the non-convex objective. This results in a significant temporal overhead, 
+where the execution time scales exponentially with the dimensionality of the search space.
 
-As a result, OT-ICA encounters a strict performance ceiling bounded by the curse of dimensionality. In our empirical evaluations with a fixed sample size of $N=10,000$, the expanding surface area of the Stiefel manifold caused the framework's separation accuracy to degrade severely beyond 40 dimensions, matching the universal statistical limits of linear ICA. 
+Furthermore, the framework encounters a strict \textbf{statistical performance ceiling} dictated by the curse of dimensionality. While 1D Optimal Transport is statistically robust, 
+the global search for the unmixing matrix is bound by the statistical resolution of the joint distribution. As the dimensionality of the Stiefel manifold expands, 
+the 'volume' of the search space increases, and the $O(N \log N)$ sorting cost is compounded by the necessity for $K$ restarts to avoid local minima. 
+In our empirical evaluations, a fixed sample size of $N=10,000$ became insufficient for $d > 40$, as the surface area of the manifold became too vast for stable recovery, 
+matching the universal statistical limits of linear ICA.
 
-Additionally, while Gaussian dithering successfully smooths step-wise empirical CDFs, purely symmetric discrete distributions (such as a sparse Binomial distribution) still yield intractable, terraced optimization landscapes. While OT-ICA excels in hybrid environments where continuous variables provide geometric lubrication, isolating pure, symmetrically discrete pools remains a significant hurdle for first-order gradients.
+Finally, there remains a \textbf{geometric bottleneck} regarding purely discrete distributions. While Gaussian dithering successfully smooths step-wise empirical CDFs, 
+purely symmetric and sparse discrete distributions (such as a low-$n$ Binomial distribution) still yield intractable, "terraced" optimization landscapes with zero-gradient plateaus. 
+While OT-ICA excels in hybrid environments where continuous variables act as mathematical smoothers, isolating purely discrete, symmetrically clustered sources remains 
+a significant hurdle for first-order gradient solvers. Consequently, OT-ICA should be viewed as a high-precision tool for complex, heterogeneous mixtures rather than 
+a general-purpose substitute for high-speed, high-dimensional applications.
 
 \section{Future Work}
-The findings of this thesis open several promising avenues for future research. A natural progression is the integration of entropic regularization (Sinkhorn distances) to replace the Gaussian dithering step. While exact 1D Optimal Transport requires strict sorting, Sinkhorn divergence provides a naturally differentiable, smooth approximation of the Wasserstein metric that inherently handles discrete combinatorial traps without altering the underlying data.
+The findings of this thesis open several promising avenues for future research. A natural progression is the integration of entropic regularization (Sinkhorn distances) 
+to replace the Gaussian dithering step. While exact 1D Optimal Transport requires strict sorting, Sinkhorn divergence provides a naturally differentiable, 
+smooth approximation of the Wasserstein metric that inherently handles discrete combinatorial traps without altering the underlying data.
 
-Another critical direction involves improving the computational scaling of the framework. Investigating stochastic second-order methods, or utilizing neural-based transport map approximations (such as Normalizing Flows or optimal transport parameterized by neural networks), could drastically reduce the execution time required to search the Stiefel manifold. 
+Another critical direction involves improving the computational scaling of the framework. Investigating stochastic second-order methods, 
+or utilizing neural-based transport map approximations (such as Normalizing Flows or optimal transport parameterized by neural networks), 
+could drastically reduce the execution time required to search the Stiefel manifold. 
 
-Finally, extending the geometric principles of $W_2$-based contrast functions into the realm of nonlinear Independent Component Analysis represents a highly compelling frontier. Because the Optimal Transport metric captures global structural deformations perfectly, it is uniquely positioned to regularize the highly unconstrained function spaces encountered when unmixing deep nonlinear representations.
+Finally, extending the geometric principles of $W_2$-based contrast functions into the realm of nonlinear Independent Component Analysis represents 
+a highly compelling frontier. Because the Optimal Transport metric captures global structural deformations perfectly, it is uniquely positioned to regularize 
+the highly unconstrained function spaces encountered when unmixing deep nonlinear representations.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % BACK MATTER
