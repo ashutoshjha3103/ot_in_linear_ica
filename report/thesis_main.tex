@@ -142,7 +142,7 @@ it evaluates the true global geometry of the empirical distribution using order 
 
 \section{Structure of the Thesis}
 The remainder of this thesis is structured as follows. Chapter 2 establishes the theoretical foundations of linear ICA, information geometry, and Optimal Transport. 
-Chapter 3 formalizes the squared Wasserstein-ICA (W2-ICA) framework, proving that the squared Wasserstein (W2) distance rigorously bounds mixture non-Gaussianity. 
+Chapter 3 formalizes the Optimal Transport ICA (OT-ICA) framework, proving that the squared Wasserstein ($W_2^2$) distance rigorously bounds mixture non-Gaussianity. 
 Chapter 4 details the algorithmic enhancements required to optimize this metric on the Stiefel manifold efficiently. 
 Chapter 5 presents our experimental evaluation, demonstrating the failure modes of standard proxy optimization (such as FastICA) and proposing a robust ground cost modification to handle outliers. 
 Finally, Chapter 6 concludes the thesis with a summary of findings and directions for future research.
@@ -296,7 +296,8 @@ location to be split and distributed across multiple targets. This relaxation tr
 making the computation of transport costs mathematically tractable.
 
 \subsection{The Earth Mover's Distance ($W_1$)}
-The minimal cost required to transform one probability distribution into another is formalized as the Wasserstein distance \cite{villani2003}. The $W_1$ distance, commonly referred to as the Earth Mover's Distance, 
+The minimal cost required to transform one probability distribution into another is formalized as the Wasserstein distance \cite{villani2003}. 
+The $W_1$ distance, commonly referred to as the Earth Mover's Distance, 
 quantifies the absolute effort of this transformation. For one dimensional distributions with cumulative distribution functions $F$ and $G$, the $W_1$ distance is computed as the integral of the 
 absolute differences between the cumulative functions
 \begin{equation}
@@ -320,16 +321,17 @@ Specifically, Brenier's Theorem establishes a direct link between the squared Wa
 The theorem states that if the source measure $\mu$ is absolutely continuous with respect to the Lebesgue measure, the optimal transport plan is uniquely given by a deterministic Monge map $T$. 
 Crucially, Brenier proved that this optimal map is the gradient of a convex function $\phi$, such that $T = \nabla \phi$. 
 
-The analytical behavior of this transport map is governed by Caffarelli's regularity theory \cite{caffarelli1992}. Caffarelli demonstrated that if both the source and target probability densities are 
+The analytical behavior of this transport map is governed by Caffarelli's regularity theory \cite{caffarelli1992}. 
+Caffarelli demonstrated that if both the source and target probability densities are 
 smooth and bounded strictly away from zero on their supports, the convex potential $\phi$ is strictly convex and its gradient $T$ is continuously differentiable. 
 This regularity implies that the optimal transport map does not tear or fold the probability space abruptly. 
 In the context of linear ICA, the existence of a unique, smooth, and differentiable transport map mapping empirical projections to a Gaussian target provides the 
 necessary mathematical foundation to analyze optimization gradients and theoretically bound mixture non-Gaussianities.
 
 % -----------------------------------------------------------------
-% CHAPTER 3: THE SQUARED WASSERSTEIN-ICA (W2-ICA) FRAMEWORK
+% CHAPTER 3: THE OPTIMAL TRANSPORT ICA (OT-ICA) FRAMEWORK
 % -----------------------------------------------------------------
-\chapter{The Squared Wasserstein-ICA (W2-ICA) Framework}
+\chapter{The Optimal Transport ICA (OT-ICA) Framework}
 
 \section{Formulating ICA as an Optimal Transport Problem}
 As established in the preceding chapter, the process of centering and whitening restricts the search for independent 
@@ -343,7 +345,7 @@ This thesis proposes a paradigm shift by formulating ICA directly as an Optimal 
 proxy moments, we utilize the squared Wasserstein distance, $W_2^2$, as a direct, geometrically rigorous measure of non-Gaussianity. 
 Let $\mathbf{X}$ be the whitened observed mixture, and let $\mathbf{u} \in S_n$ be a candidate projection vector on the unit sphere. 
 The empirical distribution of the projected data is denoted by $\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}$. We formally define the 
-objective of the W2-ICA framework as finding the orthogonal rotation matrix whose column vectors $\mathbf{u}$ maximize the 
+objective of the OT-ICA framework as finding the orthogonal rotation matrix whose column vectors $\mathbf{u}$ maximize the 
 transport cost to a standard normal distribution $\mathcal{N}(0,1)$:
 \begin{equation}
     \hat{\mathbf{u}} = \arg\max_{\mathbf{u} \in S_n} W_2^2\big(\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}, \mathcal{N}(0,1)\big).
@@ -490,51 +492,45 @@ Because the condition for equality cannot be met, we conclude that for any valid
     W_2^2(\mathbf{w} \cdot \mathbf{Z}, \mathcal{N}(0,1)) < \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N}(0,1)).
 \end{equation}
 
-\section{Empirical Landscape: $W_1$ versus $W_2$}
+\section{Empirical Landscape: $W_1$ versus $W_2^2$}
 Having theoretically established that the squared Wasserstein distance successfully bounds mixture non-Gaussianity, 
-we now evaluate its practical suitability as an optimization landscape. In the context of ICA, the objective is to \textit{maximize} non-Gaussianity. 
-Therefore, gradient ascent algorithms must locate the peaks (maxima) of the distance metric to successfully isolate the independent sources. 
-We compare the empirical gradients of the squared $W_2$ distance (Mean Squared Error ground cost) against the $W_1$ distance 
-(Mean Absolute Error ground cost) to observe their behavior during rotational search.
+we must evaluate its practical suitability for manifold optimization. In the context of ICA, the objective is to \textit{maximize} non-Gaussianity. 
+Therefore, gradient ascent algorithms must climb the loss landscape to locate the peaks (maxima) of the distance metric to successfully isolate the independent sources. 
 
-\subsection{Student-t Distributions and Degrees of Freedom}
-To conduct this empirical comparison, we generated synthetic bivariate mixtures from Student-t distributions. 
-The Student-t distribution is ideal for this analysis because its non-Gaussianity can be precisely controlled by adjusting its degrees of freedom ($\nu$). 
-A low degrees of freedom parameter (e.g., $\nu=2$) produces heavy tails, representing a strong non-Gaussian signal. Conversely, 
-as $\nu$ approaches higher values (e.g., $\nu=10$), the tails become lighter, and the distribution closely approximates a standard normal, 
-representing a weak non-Gaussian signal. 
+While the $W_1$ distance (Earth Mover's Distance) is highly robust to outliers, its reliance on an $L_1$ absolute penalty introduces severe geometric pathologies 
+when applied to finite empirical samples. We demonstrate why the squared $L_2$ penalty of the $W_2^2$ metric is mathematically requisite for gradient-based convergence.
 
-We systematically evaluated the $W_1$ and $W_2^2$ distances from a standard normal distribution across a continuous range of 
-rotation angles $\theta \in [0, \pi]$. Because the whitened unmixing matrix restricts the search to orthogonal vectors, 
-the two true independent components in a bivariate mixture are geometrically separated by exactly $\pi/2$ radians ($90^\circ$). 
-Consequently, sweeping the projection vector across a $\pi$ interval should theoretically reveal exactly two distinct maxima, 
-corresponding to the two latent sources.
-
-\subsection{Robustness to Weak Non-Gaussian Signals}
-The empirical results, visualized in Figure \ref{fig:w1_vs_w2_landscape}, reveal a stark contrast in the optimization landscapes of the two metrics. 
-For strong non-Gaussian signals ($\nu=2$), both metrics successfully identify the global optima, exhibiting two distinct peaks separated by $\pi/2$. 
-However, the $W_2^2$ metric consistently exhibits significantly higher curvature (strict concavity) around these optima, providing a stronger, 
-more directional gradient for optimization solvers to climb. 
+\subsection{Empirical Gradients and Derivative Thrashing}
+To conduct this empirical comparison, we generated a synthetic bivariate mixture of Student-t distributions ($\nu=4$) and systematically evaluated 
+both the raw distances and their first-order numerical gradients across a continuous sweep of rotation angles $\theta \in [0, \pi]$. 
+Because the unmixing matrix restricts the search to orthogonal vectors, the two true independent components are geometrically separated by exactly $\pi/2$ radians ($90^\circ$).
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{w1_vs_w2_landscape.png}
-    \caption[Optimization Landscapes of $W_1$ and $W_2^2$]{Comparison of the optimization landscapes for the $W_1$ and $W_2^2$ metrics across 
-    varying signal strengths. Distances are normalized to a $[0, 1]$ scale for direct shape comparison. The two peaks represent the maximum 
-    non-Gaussianity locations of the two independent components, separated by $\pi/2$ radians. While both metrics perform well 
-    for strong signals, the $W_1$ landscape deteriorates into flat plateaus for weak signals, whereas $W_2^2$ maintains smooth, strictly guiding gradients.}
-    \label{fig:w1_vs_w2_landscape}
+    \includegraphics[width=1.0\textwidth]{w1_vs_w2_derivatives.png} 
+    \caption[Gradient Landscapes of $W_1$ and $W_2^2$]{The empirical optimization landscapes (top) and their normalized first derivatives (bottom). 
+    While both metrics peak near the true independent components ($\theta \approx 0, \pi/2, \pi$), their gradient behaviors are fundamentally opposed. 
+    The $W_2^2$ gradient smoothly decelerates to zero, whereas the $W_1$ gradient is highly volatile and jagged, demonstrating severe instability on finite samples.}
+    \label{fig:w1_vs_w2_derivatives}
 \end{figure}
 
-The critical divergence in algorithmic stability occurs in the presence of weak signals ($\nu=10$). As the underlying distribution approaches Gaussian noise, 
-the structural deviations are confined almost entirely to the extreme tails. The $W_1$ metric, relying on absolute error, 
-fails to sufficiently penalize these tail deviations. Consequently, the $W_1$ landscape degrades into a flat, jagged plateau around the true sources. 
-This flatness causes gradients to vanish prematurely, virtually guaranteeing that optimization solvers will stall or become trapped in spurious local noise. 
+The empirical results, visualized in Figure \ref{fig:w1_vs_w2_derivatives}, reveal a fundamental mathematical incompatibility between 
+the $W_1$ metric and continuous gradient ascent. In Optimal Transport, because the $W_1$ cost scales strictly linearly with distance, 
+the resulting optimization landscape lacks the strict convexity required to smooth out finite sample noise. This is visually evident in the top panel, 
+where the $W_1$ distance (blue curve) exhibits micro-level jaggedness compared to the smooth $W_2^2$ curve (orange).
 
-In contrast, the squared penalty inherent to the $W_2^2$ metric heavily magnifies these subtle tail deviations. 
-The $W_2^2$ metric remains remarkably smooth and unimodal around the optimum, maintaining a strict concavity that guides the solver to 
-the true peak despite the weak signal strength. This robust gradient retention justifies the computational expense of selecting 
-the squared Wasserstein distance as the core objective function for the proposed W2-ICA framework.
+The consequence of this lack of curvature is catastrophic for numerical solvers, as clearly illustrated in the bottom gradient profile. 
+Because $W_1$ relies on piecewise linear sorting mechanics without a squaring penalty to dampen local permutations, its empirical derivative is extremely noisy and volatile. 
+It thrashes wildly as the projection angle rotates. Consequently, any first-order gradient ascent solver will suffer from uneven derivative surface, 
+perpetually bouncing across local noise spikes and infinitely oscillating without ever cleanly converging on the true peak. 
+Furthermore, this extreme volatility renders second-order Quasi-Newton approximations (such as L-BFGS) completely useless, 
+as no stable Hessian can be approximated from such a shattered gradient.
+
+In contrast, the squared penalty inherent to the $W_2^2$ metric heavily penalizes local geometric distortions, acting as a natural mathematical smoother. 
+As shown in the gradient profile, the $W_2^2$ derivative acts as a highly stable, continuous sinusoidal wave. 
+It gracefully and predictably decelerates precisely to zero as it reaches the global optimum. 
+This robust retention of curvature allows gradient solvers to safely navigate the Stiefel manifold and settle into the true independent components, 
+strictly justifying the selection of the squared Wasserstein distance for the OT-ICA framework.
 
 
 % -----------------------------------------------------------------
@@ -542,9 +538,9 @@ the squared Wasserstein distance as the core objective function for the proposed
 % -----------------------------------------------------------------
 \chapter{Algorithmic Enhancements}
 
-\section{The Baseline W2-ICA Algorithm}
+\section{The Baseline OT-ICA Algorithm}
 Having established the theoretical optimality of the squared Wasserstein distance ($W_2^2$) for Independent Component Analysis, 
-the challenge transitions to computationally minimizing this cost function. The baseline W2-ICA algorithm proceeds by first centering and whitening 
+the challenge transitions to computationally minimizing this cost function. The baseline OT-ICA algorithm proceeds by first centering and whitening 
 the observed mixture $\mathbf{X} \in \mathbb{R}^{d \times N}$, yielding the whitened data $\widetilde{\mathbf{X}}$. The algorithm then initializes 
 an orthogonal unmixing matrix $\mathbf{W} \in \mathbb{R}^{d \times d}$. In the forward pass, the data is projected onto the candidate components, 
 $\mathbf{Y} = \mathbf{W}\widetilde{\mathbf{X}}$. For each row (component) of $\mathbf{Y}$, the empirical cumulative distribution function is 
@@ -553,7 +549,7 @@ constructed by sorting the $N$ observations. The $W_2^2$ distance is then comput
 While theoretically sound, the naive implementation of this gradient descent loop faces severe computational and geometric hurdles. 
 The exact Optimal Transport matching requires sorting at every iteration, presenting a significant computational bottleneck. 
 Furthermore, standard gradient updates do not inherently respect the strict orthogonality constraint of the mixing matrix, 
-and discrete approximations of the target Gaussian introduce gradient noise. To make W2-ICA computationally competitive with existing methods, 
+and discrete approximations of the target Gaussian introduce gradient noise. To make OT-ICA computationally competitive with existing methods, 
 several specific algorithmic and geometric enhancements are required.
 
 \section{Computational Bottlenecks and Solutions}
@@ -600,13 +596,15 @@ The geometric space of all such orthogonal matrices forms the Stiefel manifold, 
 $\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$, this vector points into the flat, unconstrained ambient space $\mathbb{R}^{d \times d}$. 
 Updating the matrix using this Euclidean gradient would immediately violate the orthogonality constraint.
 
-To navigate the curved geometry of the Stiefel manifold, we must project the Euclidean gradient onto the tangent space of the manifold at the current point $\mathbf{W}$, as illustrated in Figure \ref{fig:stiefel_manifold}. 
+To navigate the curved geometry of the Stiefel manifold, we must project the Euclidean gradient onto the tangent space of the manifold at the current point $\mathbf{W}$, 
+as illustrated in Figure \ref{fig:stiefel_manifold}. 
 
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=0.75\textwidth]{stiefel_manifold_projection.png}
     \caption[Riemannian Optimization on the Stiefel Manifold]{Geometric sketch of optimization on the Stiefel manifold $\mathcal{S}$. 
-    The Euclidean gradient $\mathbf{G}$ is projected onto the tangent space $T_{\mathbf{W}}\mathcal{S}$ to yield the Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$. Following a step along the tangent plane, 
+    The Euclidean gradient $\mathbf{G}$ is projected onto the tangent space $T_{\mathbf{W}}\mathcal{S}$ to yield the Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$. 
+    Following a step along the tangent plane, 
     a retraction maps the estimate back to the orthogonal manifold surface at $\mathbf{W}_{\text{new}}$.}
     \label{fig:stiefel_manifold}
 \end{figure}
@@ -621,7 +619,8 @@ By subtracting this specific violation, we ensure that the update step perfectly
 \subsection{Retraction via Symmetric Decorrelation}
 Although the Riemannian gradient ensures the update step is tangential to the Stiefel manifold, 
 moving along this flat tangent plane for a finite step size $\eta$ will cause the new matrix $\mathbf{W}_{\text{step}} = \mathbf{W} - \eta \nabla_{\mathcal{S}} \mathbf{W}$ 
-to slightly lift off the curved manifold surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold via a mathematical operation known as a retraction \cite{absil2008optimization}.
+to slightly lift off the curved manifold surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold 
+via a mathematical operation known as a retraction \cite{absil2008optimization}.
 
 While the Gram-Schmidt orthogonalization process is a common approach, it is fundamentally asymmetric; 
 it permanently fixes the first vector and modifies subsequent vectors to fit, which inherently biases simultaneous optimization. 
@@ -633,7 +632,7 @@ This operation computes the overlap covariance of the stepped matrix and applies
 This ensures that no single independent component is arbitrarily prioritized during the retraction process, maintaining the stability of the batched optimization.
 
 \section{Navigating Discrete Optimization Landscapes}
-While the W2-ICA framework demonstrates robust convergence on continuous distributions, real-world data often contains discrete signals, such as binary states, 
+While the OT-ICA framework demonstrates robust convergence on continuous distributions, real-world data often contains discrete signals, such as binary states, 
 digital communications, or count-based market events. Applying continuous Optimal Transport directly to discrete mixtures introduces severe geometric pathologies 
 that fracture the optimization landscape.
 
@@ -669,7 +668,8 @@ perfectly discrete probability masses exist almost exclusively in synthetic simu
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=0.85\textwidth]{gaussian_dithering_cdf.png}
-    \caption[Gaussian Dithering of Discrete CDFs]{The effect of algorithmic Gaussian Dithering. The rigid, non-differentiable staircase of a discrete empirical CDF (gray) is mathematically convolved with a narrow Gaussian kernel, 
+    \caption[Gaussian Dithering of Discrete CDFs]{The effect of algorithmic Gaussian Dithering. The rigid, non-differentiable staircase of a discrete empirical CDF (gray) is 
+    mathematically convolved with a narrow Gaussian kernel, 
     yielding a strictly increasing, smooth continuous curve (black) that restores stable Wasserstein gradients.}
     \label{fig:gaussian_dithering}
 \end{figure}
@@ -682,15 +682,15 @@ To counter this, we transition from full-batch evaluation to Stochastic Mini-Bat
 the Wasserstein gradients using a randomly sampled subset of the data (e.g., $N_{\text{batch}} = 512$ or $1024$). This stochastic subsampling introduces calculated gradient noise, 
 acting as a form of simulated annealing. A geometric trap that exists for the full dataset may not exist, or may have a significantly different gradient profile, for a specific random subset. 
 This stochastic momentum allows the optimizer to "bounce" out of spurious local minima. The combination of Gaussian dithering to smooth 
-the discrete steps and stochastic mini-batching to navigate the non-convex topology allows W2-ICA to successfully separate mixed environments.
+the discrete steps and stochastic mini-batching to navigate the non-convex topology allows OT-ICA to successfully separate mixed environments.
 
-\section{W2-ICA Algorithm Overview}
-The individual theoretical components and algorithmic enhancements detailed above are synthesized into the final W2-ICA training procedure. 
-Algorithm \ref{alg:w2_ica} outlines the complete pseudo-code for extracting independent non-Gaussian components from a mixed dataset using stochastic Riemannian optimization.
+\section{OT-ICA Algorithm Overview}
+The individual theoretical components and algorithmic enhancements detailed above are synthesized into the final OT-ICA training procedure. 
+Algorithm \ref{alg:ot_ica} outlines the complete pseudo-code for extracting independent non-Gaussian components from a mixed dataset using stochastic Riemannian optimization.
 
 \begin{algorithm}[H]
-\caption{The Squared Wasserstein-ICA (W2-ICA) Algorithm}
-\label{alg:w2_ica}
+\caption{The Optimal Transport ICA (OT-ICA) Algorithm}
+\label{alg:ot_ica}
 \begin{algorithmic}[1]
 \Require Observed mixture $\mathbf{X} \in \mathbb{R}^{d \times N}$, iterations $K$, learning rate $\eta$, batch size $B$, dither noise $\sigma_{\text{dither}}$
 \Ensure Estimated unmixing matrix $\mathbf{W}_{\text{final}} \in \mathbb{R}^{d \times d}$
@@ -726,10 +726,10 @@ Algorithm \ref{alg:w2_ica} outlines the complete pseudo-code for extracting inde
 \end{algorithm}
 
 
-\section{The Intractability of Fixed Point Algorithms for W2-ICA}
+\section{The Intractability of Fixed Point Algorithms for OT-ICA}
 The industry standard algorithm for ICA, FastICA \cite{hyvarinen2001}, achieves highly efficient, super-linear convergence by employing a Newton (second-order) fixed-point step. 
 FastICA is mathematically able to utilize this approach because it maximizes proxy contrast functions (such as the \textit{logcosh} function) that are static and easily differentiable. 
-A natural question arises: can we formulate a "Fast-Wasserstein-ICA" by deriving an exact Newton step for the $W_2^2$ objective? 
+A natural question arises: can we formulate a "Fast-OT-ICA" by deriving an exact Newton step for the $W_2^2$ objective? 
 
 To implement a Newton step, we would require the exact Hessian matrix of the squared Wasserstein distance, $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$. 
 The first derivative (the gradient) of the objective with respect to the weight vector $\mathbf{w}$ utilizes the Optimal Transport map $T_{\mathbf{w}}$:
@@ -753,13 +753,13 @@ This introduces a severe mathematical pitfall. The term $\nabla_{\mathbf{w}} F_{
 cumulative probability mass as the projection plane $\mathbf{w}$ is rotated. Conceptually and mathematically, the derivative of a 
 cumulative distribution function's boundary relies strictly on the underlying Probability Density Function (PDF) evaluated exactly at that boundary. 
 
-This requirement fundamentally defeats the primary advantage of the W2-ICA formulation. 
+This requirement fundamentally defeats the primary advantage of the OT-ICA formulation. 
 This advantage of 1D Optimal Transport stems from its reliance on sorting (empirical CDFs), completely circumventing the need for continuous density estimation. 
 Requiring the PDF to compute the Hessian forces the algorithm to rely on density approximation methods like Kernel Density Estimation (KDE) or Normalizing Flows. 
 These methods introduce statistical noise, hyperparameter tuning (e.g. bandwidth), and computational overhead.
 
-Because the exact Hessian requires continuous density estimation, computing a true Newton-based fixed-point step for exact W2-ICA is mathematically intractable. 
-Consequently, the optimal strategy for the W2-ICA framework is the utilization of Quasi-Newton methods, specifically 
+Because the exact Hessian requires continuous density estimation, computing a true Newton-based fixed-point step for exact OT-ICA is mathematically intractable. 
+Consequently, the optimal strategy for the OT-ICA framework is the utilization of Quasi-Newton methods, specifically 
 the Limited-memory BFGS (L-BFGS) algorithm \cite{liu1989limited} adapted for the Stiefel manifold \cite{absil2008optimization}. 
 L-BFGS intelligently approximates the inverse Hessian curvature strictly by observing the history of the highly stable, first-order Wasserstein gradients. 
 This approach bridges the gap, allowing the algorithm to achieve faster convergence by preserving the sorting-based methodology of the Optimal Transport formulation.
@@ -802,26 +802,35 @@ Throughout our experimental evaluations, we employ the heuristic thresholds deta
     \label{tab:amari_thresholds}
 \end{table}
 
-\section{Baseline Validation: Low-Dimensional Source Separation}
-Before investigating algorithmic edge cases and mathematical failure modes, we must establish a baseline validation for the proposed OT-ICA framework. We verify that OT-ICA successfully recovers a mixed set of fundamentally different distributions in a standard, low-dimensional environment without requiring algorithmic proxies or approximations.
-
-We generated $N=10,000$ samples from four distinct continuous independent sources representing highly diverse statistical topologies: Laplace (sharp, super-Gaussian), Uniform (flat, sub-Gaussian), Student-t (continuous heavy-tailed), and a Beta distribution parameterized at $(0.5, 0.5)$ (a U-shaped, bimodal arcsine distribution). These sources were linearly combined using a randomly generated, well-conditioned $4 \times 4$ mixing matrix $\mathbf{A}$. 
+\section{OT-ICA Methodology Validation}
+We first verify that OT-ICA successfully recovers a mixture of non-gaussian distributions in a standard, 
+low-dimensional environment. We generated $N=10,000$ samples from four distinct continuous independent sources: 
+Laplace (super-Gaussian), Uniform (sub-Gaussian), Student-t (continuous heavy-tailed), and a Beta distribution parameterized at $(0.5, 0.5)$ 
+(bimodal arcsine distribution). These sources were linearly combined using a $4 \times 4$ mixing matrix $\mathbf{A}$. 
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{otica_baseline_recovery.png} 
-    \caption[Baseline Source Recovery via OT-ICA]{Empirical probability distributions of the 4D baseline validation. The original generated sources are represented by gray histograms, overlaid with the sources extracted by the OT-ICA algorithm (orange curves). The framework successfully reconstructs a diverse array of continuous non-Gaussian structures, easily navigating both super-Gaussian peaks and sub-Gaussian bimodality.}
+    \includegraphics[width=1.0\textwidth]{otica_baseline_recovery.png} 
+    \caption[Baseline Source Recovery via OT-ICA]{Empirical probability distributions of the 4D baseline validation. 
+    The original generated sources are represented by gray histograms, overlaid with the sources extracted by the OT-ICA algorithm (orange curves). 
+    The framework successfully reconstructs a diverse array of continuous non-Gaussian structures, easily navigating both super-Gaussian peaks and sub-Gaussian bimodality.}
     \label{fig:otica_baseline_recovery}
 \end{figure}
 
-As visualized in Figure \ref{fig:otica_baseline_recovery}, the OT-ICA algorithm flawlessly extracted all four structural signals from the mixture. To quantify this separation numerically, we extracted the true mixing matrix $\mathbf{A}$, the estimated unmixing matrix $\mathbf{W}_{\text{est}}$, and the resulting global transfer matrix $\mathbf{P} = \mathbf{W}_{\text{est}}\mathbf{A}$. 
+As visualized in Figure \ref{fig:otica_baseline_recovery}, the OT-ICA algorithm flawlessly extracted all four structural signals from the mixture. 
+To quantify this separation numerically, we compare the true mixing matrix $\mathbf{A}$, the estimated unmixing matrix $\mathbf{W}_{\text{est}}$, 
+and the resulting global transfer matrix $\mathbf{P} = \mathbf{W}_{\text{est}}\mathbf{A}$. Because ICA is subject to inherent permutation and sign ambiguities, 
+directly inferring the quality of separation by visually comparing the estimated unmixing matrix 
+to the true mixing matrix is difficult, as the recovered components will be scrambled and randomly sign-flipped. 
+To definitively prove the unmixing succeeded, we rely on the global transfer matrix $\mathbf{P}$. If the algorithm successfully inverted the mixing process, 
+$\mathbf{P}$ collapses into a generalized permutation matrix, containing exactly one dominant absolute value near $1.0$ per row and column, with all other cross-mixing elements near zero.
 
 \begin{table}[tbp]
     \centering
     \small
-    \begin{tabular}{c}
+    \begin{tabular}{cc}
         \toprule
-        \textbf{True Mixing Matrix ($\mathbf{A}$)} \\
+        \textbf{True Mixing Matrix ($\mathbf{A}$)} & \textbf{Estimated Unmixing Matrix ($\mathbf{W}_{\text{est}}$)} \\
         \midrule
         $
         \begin{bmatrix}
@@ -830,10 +839,8 @@ As visualized in Figure \ref{fig:otica_baseline_recovery}, the OT-ICA algorithm 
         -0.154 & -1.572 & -0.304 & -1.234 \\
         -0.006 &  0.503 &  0.053 &  0.928 
         \end{bmatrix}
-        $ \\
-        \toprule
-        \textbf{Estimated Unmixing Matrix ($\mathbf{W}_{\text{est}}$)} \\
-        \midrule
+        $ 
+        & 
         $
         \begin{bmatrix}
          0.154 & -1.943 &  0.608 & -0.456 \\
@@ -842,9 +849,10 @@ As visualized in Figure \ref{fig:otica_baseline_recovery}, the OT-ICA algorithm 
          1.021 &  1.204 &  0.828 &  0.677 
         \end{bmatrix}
         $ \\
-        \toprule
-        \textbf{Global Transfer Matrix ($\mathbf{P}$)} \\
         \midrule
+        \multicolumn{2}{c}{\textbf{Global Transfer Matrix ($\mathbf{P} = \mathbf{W}_{\text{est}}\mathbf{A}$)}} \\
+        \midrule
+        \multicolumn{2}{c}{
         $
         \begin{bmatrix}
         -0.010 & -0.007 & -1.000 & -0.002 \\
@@ -852,21 +860,31 @@ As visualized in Figure \ref{fig:otica_baseline_recovery}, the OT-ICA algorithm 
          0.006 & -1.000 & -0.002 & -0.012 \\
          1.000 &  0.006 & -0.003 &  0.010 
         \end{bmatrix}
-        $ \\
+        $
+        } \\
+        \midrule
+        \multicolumn{2}{c}{\textbf{Amari Performance Index}} \\
+        \midrule
+        \multicolumn{2}{c}{OT-ICA Error: \textbf{0.0155} \quad | \quad FastICA Error: \textbf{0.0188}} \\
         \bottomrule
     \end{tabular}
-    \caption[Baseline Matrices and Amari Error]{The ground truth, estimated, and transfer matrices for the 4D baseline validation. The global transfer matrix closely approximates a generalized permutation matrix, yielding an excellent Amari error of \textbf{0.0155}.}
+    \caption[Baseline Matrices and Amari Error]{The ground truth mixing matrix, estimated unmixing matrix, and resulting global transfer matrix for the OT-ICA baseline validation. 
+    The transfer matrix closely approximates a generalized permutation matrix, visually proving successful separation alongside the comparable Amari error to FastICA.}
     \label{tab:baseline_matrices}
 \end{table}
 
-As demonstrated in Table \ref{tab:baseline_matrices}, the global transfer matrix $\mathbf{P}$ forms a near-perfect generalized permutation matrix, containing exactly one dominant absolute value per row and column. This confirms that OT-ICA successfully inverted the mixing process on diverse standard distributions, achieving an excellent Amari error well below the critical $0.1$ threshold.
-
-For comparative baseline validation, we evaluated the industry-standard FastICA algorithm (utilizing the parallel deflation approach with a \textit{logcosh} contrast function) on the exact same 4D mixture. FastICA also successfully separated the sources, achieving a highly comparable Amari error of \textbf{0.0188}. Having empirically established that both the proxy-based FastICA and the globally-aware OT-ICA frameworks perform exceptionally well in standard continuous environments, we can now proceed to stress-test their mathematical limits and computational scaling properties.
+As demonstrated in Table \ref{tab:baseline_matrices}, the global transfer matrix $\mathbf{P}$ forms a near-perfect generalized permutation matrix, 
+containing exactly one dominant absolute value per row and column. This confirms that OT-ICA successfully extracted the original independent sources, 
+achieving an excellent Amari error well below the critical $0.1$ threshold. For comparison, we evaluated the industry-standard FastICA algorithm 
+(with a \textit{logcosh} contrast function) on the exact same 4D mixture. FastICA also successfully separated the sources, achieving a highly comparable Amari error.
 
 \section{Computational Scaling and Algorithmic Efficiency}
-Having established that OT-ICA successfully recovers mixtures in low dimensions, we must evaluate its computational scaling in high-dimensional environments. To do so, we benchmarked OT-ICA against the industry standard, FastICA, utilizing an ideal, standard statistical environment: a pure mixture of super-Gaussian Laplacian sources. 
-
-We evaluated both algorithms across increasing dimensions with a fixed sample size of $N=10,000$. Because OT-ICA relies on gradient-based optimization over the Stiefel manifold, its capacity to find global optima depends heavily on search density. Therefore, we evaluated the algorithms under two regimes: a "Low Compute" baseline (restricted random restarts and iterations) and a "High Compute" regime (dense parallel restarts to combat manifold non-convexity).
+Having established that OT-ICA successfully recovers independent sources from linear mixtures in low dimensions, we must evaluate its computational scaling in high-dimensional cases. 
+We benchmarked OT-ICA against FastICA, utilizing a linear mixture of continuous super-Gaussian Laplacian sources. 
+We evaluated both algorithms across increasing dimensions with a fixed sample size of $N=10,000$. Because OT-ICA relies on gradient-based optimization over the Stiefel manifold, 
+its capacity to find global optima depends on computational resources in higher dimensions. Therefore, we evaluated both algorithms under two regimes: 
+a "Low Compute" baseline (restricted random restarts for OT-ICA, and standard iteration limits for FastICA) and 
+a "High Compute" regime (dense parallel restarts for OT-ICA, and higher convergence iterations allowed for FastICA).
 
 \begin{figure}[tbp]
     \centering
@@ -875,29 +893,39 @@ We evaluated both algorithms across increasing dimensions with a fixed sample si
     \label{fig:laplace_amari_scaling}
 \end{figure}
 
-As shown in Figure \ref{fig:laplace_amari_scaling}, FastICA performs exceptionally well in this standard environment for lower dimensions, maintaining near-perfect separation regardless of the compute regime. This is expected, as the Laplacian distribution perfectly aligns with FastICA's default \textit{logcosh} proxy contrast function. Conversely, while OT-ICA successfully scales alongside FastICA, it strictly requires the High Compute regime to overcome the expanding complexity of the optimization landscape. 
-
-However, this experiment also reveals a fundamental absolute ceiling. As the dimensionality approaches and exceeds $d=40$, the curse of dimensionality overtakes the fixed sample size ($N=10,000$). At this extreme, the statistical resolution of the joint distribution degrades so severely that both algorithms—regardless of the computational power applied—fail to maintain the "Good Separation" threshold ($E < 0.3$). This shared degradation highlights a universal statistical limit of linear ICA rather than an isolated algorithmic defect.
+As shown in Figure \ref{fig:laplace_amari_scaling}, FastICA performs exceptionally well in this standard environment for lower dimensions, 
+maintaining near-perfect separation regardless of the compute regime. This is expected, as the Laplacian distribution perfectly aligns with FastICA's 
+default \textit{logcosh} proxy contrast function. Conversely, while OT-ICA successfully scales alongside FastICA, 
+it strictly requires the High Compute regime to overcome the expanding complexity of the high dimension optimization landscape. 
+However, this experiment also reveals a fundamental absolute ceiling. As the dimensionality approaches and exceeds $d=40$, 
+the curse of dimensionality overtakes the fixed sample size ($N=10,000$). At this extreme, the statistical resolution of the joint distribution degrades so severely 
+that both algorithms, regardless of the computational power, fail to maintain the "Good Separation" threshold ($E < 0.3$). 
+This shared degradation highlights the fundamental trade-off between sample size and dimensionality, demonstrating a statistical limit of the data rather than an isolated algorithmic defect.
 
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=1.0\textwidth]{laplace_time_ot_ica_scaling.png} 
-    \caption[Execution Time Scaling]{Total execution time (in seconds) for FastICA and OT-ICA as dimensions increase, separated by compute regime. OT-ICA exhibits exponentially higher computational costs, particularly in the High Compute regime (right) where dense parallel restarts are required to maintain accuracy.}
+    \caption[Execution Time Scaling]{Total execution time (in seconds) for FastICA and OT-ICA as dimensions increase, separated by compute regime. 
+    OT-ICA exhibits exponentially higher computational costs, particularly in the High Compute regime (right) where dense parallel restarts are required to maintain performance.}
     \label{fig:laplace_time_scaling}
 \end{figure}
 
-Crucially, as illustrated in Figure \ref{fig:laplace_time_scaling}, the computational cost required for OT-ICA to remain competitive before hitting that dimensionality ceiling is orders of magnitude higher than FastICA. FastICA's Newton-based fixed-point iteration allows it to converge in fractions of a second. In contrast, OT-ICA's first-order gradient descent and required parallel restarts cause execution times to scale steeply, taking significantly longer to achieve the same result.
+Crucially, as illustrated in Figure \ref{fig:laplace_time_scaling}, the computational cost required for OT-ICA to remain competitive before hitting 
+the dimensionality ceiling is orders of magnitude higher than FastICA. FastICA's Newton-based fixed-point iteration allows it to converge in fractions of a second. 
+In contrast, OT-ICA's first-order gradient descent and required parallel restarts cause execution times to scale steeply, taking significantly longer to achieve the same result.
+This stark disparity in algorithmic efficiency poses a critical question: 
+\textit{If FastICA is computationally instantaneous, and mathematically highly accurate up to the exact same statistical ceiling on standard distributions, 
+why develop and utilize a computationally expensive gradient based framework like OT-ICA?}
 
-This stark disparity in algorithmic efficiency poses a critical question: \textit{If FastICA is computationally instantaneous, and mathematically highly accurate up to the exact same statistical ceiling on standard distributions, why develop and utilize a computationally expensive gradient framework like OT-ICA?}
-
-The answer lies in the fundamental fragility of proxy-based Newton solvers. While FastICA performs flawlessly on standard, expected distributions, real-world data is rarely perfectly standard. In the following sections, we will demonstrate how FastICA's rigid mathematical assumptions cause it to catastrophically fail on perfectly valid independent components, and how the global, geometry-aware nature of OT-ICA uniquely equips it to survive these structural blind spots.
+The answer lies in the fragility of proxy-based Newton solvers. While FastICA perfectly separates the homogeneous mixture of continuous distributions shown above, 
+real-world data is frequently heterogeneous in nature. In the following sections, we demonstrate how agorithmic assumptions trigger failures for FastICA in generalized mixtures, 
+and how the global geometry of OT-ICA natively bypasses these blind spots.
 
 \section{The Blind Spots of FastICA}
-While FastICA is widely considered the industry standard for independent component recovery, its reliance on proxy contrast functions and a 
-Newton-based fixed-point iteration introduces critical mathematical vulnerabilities. In this section, we expose two distinct mathematical blind spots 
-that cause FastICA to fail on perfectly valid, non-Gaussian independent components.
+In this section, we present two distinct mathematical blind spots that cause FastICA to fail on perfectly valid, non-Gaussian independent components. 
+It's reliance on proxy contrast functions and Newton-based Fixed point iteration method.
 
-\subsection{The Zero-Negentropy Pitfall}
+\subsection{The Zero Negentropy Pitfall}
 FastICA does not measure true negentropy; instead, it relies on a computationally efficient approximation. For a whitened random variable $x$, 
 the negentropy $J(x)$ is approximated using a non-quadratic contrast function $G(\cdot)$, most commonly the \textit{logcosh} function $G(x) = \frac{1}{a} \log \cosh(ax)$. 
 The approximation is given by:
@@ -908,10 +936,10 @@ where $\nu$ is a standard Gaussian random variable. The algorithm searches for p
 
 The first failure mode occurs if a latent independent source possesses a specific structural shape such that its expected value under the 
 contrast function exactly equals that of a Gaussian, i.e., $\mathbb{E}[G(x)] = \mathbb{E}[G(\nu)]$. When this equality holds, 
-the approximated negentropy evaluates identically to zero. In this scenario, the objective function completely collapses. 
-FastICA becomes entirely blind to the non-Gaussianity of the source, falsely perceiving it as Gaussian noise, and consequently fails to extract it.
+the approximated negentropy evaluates to zero. In this scenario, the objective function collapses. 
+FastICA becomes entirely blind to the non-Gaussianity of the source, failing to extract it.
 
-\subsection{Empirical Results: The Zero-Negentropy Pitfall}
+\subsection{Empirical Results: The Zero Negentropy Pitfall}
 To empirically demonstrate this vulnerability, we constructed a specific non-Gaussian distribution—a "Phantom Gaussian"—designed to deliberately trigger the zero-negentropy condition. Using a symmetric Trimodal Gaussian Mixture parameterized by peak locations $\{-b, 0, b\}$ and variance $\sigma^2$, we computationally root-solved for the peak locations and probability mass such that the expected value of the \textit{logcosh} function exactly matched the theoretical baseline of a standard normal distribution ($\mathbb{E}[G(x)] = \mathbb{E}[G(\nu)]$). Because this engineered distribution strictly maintains unit variance, it represents a valid, independent non-Gaussian source that is theoretically invisible to the FastICA contrast function.
 
 To evaluate the algorithmic resilience of both FastICA and OT-ICA, we generated linear mixtures of this Phantom Gaussian source across increasing dimensions ($d \in [5, 25]$) with a fixed sample size of $N=10,000$. To cleanly isolate fundamental mathematical blindness from standard non-convex optimization difficulty, we separated the evaluation into a "Low Compute" baseline and a "High Compute" regime (utilizing massive parallel random restarts and extended convergence limits).
@@ -971,7 +999,7 @@ we determined the exact probability masses required to perfectly balance the neg
 This carefully engineered distribution remains strictly non-Gaussian and perfectly valid under the linear ICA assumptions, 
 yet its algorithmic curvature is exactly zero, rendering it mathematically invisible to FastICA's fixed-point solver, as illustrated in Figure \ref{fig:vanishing_curvature}.
 
-\subsubsection{Algorithmic Failure vs. Optimization Complexity}
+\subsection{Algorithmic Failure vs. Optimization Complexity}
 To isolate fundamental mathematical failures from standard optimization difficulties, we evaluated both FastICA and OT-ICA across increasing dimensions ($d \in [5, 25]$) at a fixed sample size of $N=10,000$. The experiment was conducted under two distinct computational regimes: a "Low Compute" baseline and a "High Compute" environment (characterized by maximum iterations extended to $10,000$ for FastICA, and massive parallel random restarts spanning up to $600$ vectors for OT-ICA).
 
 \begin{figure}[tbp]
@@ -995,12 +1023,12 @@ We generated linear mixtures spanning $10$ to $70$ dimensions, maintaining a fix
 
 To isolate structural failures from computational ones, we evaluated the algorithms under both \textit{Low Compute} and \textit{High Compute} regimes. In the High Compute regime, FastICA was provided with $10,000$ iterations—ten times the standard limit—to ensure that any failure to converge was due to mathematical oscillation rather than insufficient time.
 
-\subsection{Results: Structural Oscillation vs. Geometric Stability}
+\subsection{Structural Oscillation vs. Geometric Stability}
 The results, visualized in Figure \ref{fig:hybrid_mixture_results}, reveal a stark divergence in the stability of the two algorithms. The OT-ICA framework successfully maintained "Good Separation" ($E < 0.3$) up to approximately $35$ dimensions in the Low Compute regime, and extended this performance to nearly $45$ dimensions in the High Compute regime. This validates that the globally-aware $W_2$ metric, smoothed via dithering and regularized via stochastic mini-batching, generalizes robustly across contradictory topological landscapes.
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{hybrid_mixture_amari_compute.png} 
+    \includegraphics[width=1.0\textwidth]{general_hybrid_test.png} 
     \caption[General Hybrid Mixture Stress Test]{Amari error comparison for the Generalized Hybrid Mixture. FastICA exhibits erratic behavior and high mean error regardless of the compute regime, signaling a failure of its underlying curvature assumptions. OT-ICA maintains stability across a much broader range of dimensions, with the High Compute regime successfully navigating the complex non-convex landscape up to $d=45$.}
     \label{fig:hybrid_mixture_results}
 \end{figure}
@@ -1153,9 +1181,27 @@ Furthermore, Figure \ref{fig:is_distribution} illustrates the empirical density 
 % CHAPTER 6: CONCLUSION
 % -----------------------------------------------------------------
 \chapter{Conclusion}
+
 \section{Summary of Contributions}
+This thesis proposed and rigorously evaluated the Optimal Transport Independent Component Analysis (OT-ICA) framework, shifting the paradigm of linear source separation from local proxy approximations to global geometric matching. By formulating the search for independent components as a minimization of the squared Wasserstein distance ($W_2^2$) to a standard normal distribution on the Stiefel manifold, we addressed critical mathematical vulnerabilities inherent in industry-standard proxy algorithms.
+
+Our theoretical analysis established that the squared Wasserstein distance strictly bounds mixture non-Gaussianity, providing a mathematically sound objective for extracting latent sources. Empirically, we demonstrated that while algorithms like FastICA fail catastrophically in the presence of specific structural blind spots—such as zero-negentropy topologies and vanishing curvature—OT-ICA consistently maintains algorithmic stability. By mapping the full cumulative distribution function rather than relying on point-estimates of density, OT-ICA proved uniquely capable of resolving highly complex, generalized hybrid mixtures where proxy solvers infinitely oscillate.
+
+Furthermore, we introduced several critical algorithmic enhancements to make optimal transport computationally viable for ICA. These included the derivation of exact analytical Gaussian targets to eliminate discretization noise, batched vectorization for parallel hypothesis exploration, and the novel application of Gaussian dithering to prevent the piecewise linear shattering of discrete optimization landscapes. Finally, we demonstrated the practical utility of this framework in a financial econometrics setting, utilizing the robust non-Gaussian recovery of OT-ICA to uniquely resolve orthogonal ambiguities in market price discovery.
+
 \section{Limitations}
+Despite its geometric robustness, the OT-ICA framework is subject to specific limitations. The primary constraint is computational efficiency. Because calculating the exact Hessian of the Wasserstein distance requires continuous density estimation, OT-ICA cannot leverage the super-linear Newton-Raphson convergence that makes FastICA computationally instantaneous. Instead, OT-ICA relies on first-order Quasi-Newton methods (L-BFGS) combined with dense parallel random restarts. Consequently, the execution time scales exponentially with dimensionality. 
+
+As a result, OT-ICA encounters a strict performance ceiling bounded by the curse of dimensionality. In our empirical evaluations with a fixed sample size of $N=10,000$, the expanding surface area of the Stiefel manifold caused the framework's separation accuracy to degrade severely beyond 40 dimensions, matching the universal statistical limits of linear ICA. 
+
+Additionally, while Gaussian dithering successfully smooths step-wise empirical CDFs, purely symmetric discrete distributions (such as a sparse Binomial distribution) still yield intractable, terraced optimization landscapes. While OT-ICA excels in hybrid environments where continuous variables provide geometric lubrication, isolating pure, symmetrically discrete pools remains a significant hurdle for first-order gradients.
+
 \section{Future Work}
+The findings of this thesis open several promising avenues for future research. A natural progression is the integration of entropic regularization (Sinkhorn distances) to replace the Gaussian dithering step. While exact 1D Optimal Transport requires strict sorting, Sinkhorn divergence provides a naturally differentiable, smooth approximation of the Wasserstein metric that inherently handles discrete combinatorial traps without altering the underlying data.
+
+Another critical direction involves improving the computational scaling of the framework. Investigating stochastic second-order methods, or utilizing neural-based transport map approximations (such as Normalizing Flows or optimal transport parameterized by neural networks), could drastically reduce the execution time required to search the Stiefel manifold. 
+
+Finally, extending the geometric principles of $W_2$-based contrast functions into the realm of nonlinear Independent Component Analysis represents a highly compelling frontier. Because the Optimal Transport metric captures global structural deformations perfectly, it is uniquely positioned to regularize the highly unconstrained function spaces encountered when unmixing deep nonlinear representations.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % BACK MATTER
@@ -1167,9 +1213,70 @@ Furthermore, Figure \ref{fig:is_distribution} illustrates the empirical density 
 
 \begin{appendices}
     \chapter{Mathematical Proofs and Derivations}
+    
     \section{Derivation of the FastICA Fixed-Point Failure Condition}
     
-    \chapter{Additional Algorithms and Code}
+    \textbf{Proof of Theorem 8.1} Denote by $H(\mathbf{w})$ the function to be minimized/maximized, $E\{G(\mathbf{w}^T \mathbf{z})\}$. Make the orthogonal change of coordinates $\mathbf{q} = \mathbf{A}^T \mathbf{V}^T \mathbf{w}$. Then we can calculate the gradient as $\frac{\partial H(\mathbf{q})}{\partial \mathbf{q}} = E\{\mathbf{s}g(\mathbf{q}^T \mathbf{s})\}$ and the Hessian as $\frac{\partial^2 H(\mathbf{q})}{\partial \mathbf{q}^2} = E\{\mathbf{s}\mathbf{s}^T g'(\mathbf{q}^T \mathbf{s})\}$. Without loss of generality, it is enough to analyze the stability of the point $\mathbf{q} = \mathbf{e}_1$, where $\mathbf{e}_1 = (1, 0, 0, 0, \dots)$. Evaluating the gradient and the Hessian at point $\mathbf{q} = \mathbf{e}_1$, we get using the independence of the $s_i$,
+    \begin{equation}
+        \frac{\partial H(\mathbf{e}_1)}{\partial \mathbf{q}} = \mathbf{e}_1 E\{s_1 g(s_1)\} \tag{A.1}
+    \end{equation}
+    and
+    \begin{equation}
+        \frac{\partial^2 H(\mathbf{e}_1)}{\partial \mathbf{q}^2} = \text{diag}(E\{s_1^2 g'(s_1)\}, E\{g'(s_1)\}, E\{g'(s_1)\}, \dots). \tag{A.2}
+    \end{equation}
+    Making a small perturbation $\epsilon = (\epsilon_1, \epsilon_2, \dots)$, we obtain
+    \begin{equation}
+    \begin{aligned}
+        H(\mathbf{e}_1 + \epsilon) &= H(\mathbf{e}_1) + \epsilon^T \frac{\partial H(\mathbf{e}_1)}{\partial \mathbf{q}} + \frac{1}{2} \epsilon^T \frac{\partial^2 H(\mathbf{e}_1)}{\partial \mathbf{q}^2} \epsilon + o(\|\epsilon\|^2) \\
+        &= H(\mathbf{e}_1) + E\{s_1 g(s_1)\} \epsilon_1 + \frac{1}{2} \Big[ E\{s_1^2 g'(s_1)\} \epsilon_1^2 + E\{g'(s_1)\} \sum_{i>1} \epsilon_i^2 \Big] + o(\|\epsilon\|^2)
+    \end{aligned} \tag{A.3}
+    \end{equation}
+    Due to the constraint $\|\mathbf{w}\| = 1$ we get $\epsilon_1 = \sqrt{1 - \epsilon_2^2 - \epsilon_3^2 - \dots} - 1$. Due to the fact that $\sqrt{1 - \gamma} = 1 - \gamma/2 + o(\gamma)$, the term of order $\epsilon_1^2$ in (A.3) is $o(\|\epsilon\|^2)$, i.e., of higher order, and can be neglected. Using the aforementioned first-order approximation for $\epsilon_1$ we obtain $\epsilon_1 = - \sum_{i>1} \epsilon_i^2 / 2 + o(\|\epsilon\|^2)$, which finally gives
+    \begin{equation}
+        H(\mathbf{e}_1 + \epsilon) = H(\mathbf{e}_1) + \frac{1}{2} \Big[ E\{g'(s_1) - s_1 g(s_1)\} \Big] \sum_{i>1} \epsilon_i^2 + o(\|\epsilon\|^2) \tag{A.4}
+    \end{equation}
+    which clearly proves $\mathbf{q} = \mathbf{e}_1$ is an extremum, and of the type implied by the condition of the theorem.
+
+    \vspace{1em}
+    \noindent\textbf{Proof of convergence of FastICA} The convergence is proven under the assumptions that first, the data follows the ICA data model (8.1) and second, that the expectations are evaluated exactly.
+    
+    Let $g$ be the nonlinearity used in the algorithm. In the case of the kurtosis-based algorithm in Section 8.2.3, this is the cubic function, so we obtain that algorithm as a special case of the following proof for a general $g$. We must also make the following technical assumption:
+    \begin{equation}
+        E\{s_i g(s_i) - g'(s_i)\} \neq 0, \quad \text{for any } i \tag{A.5}
+    \end{equation}
+    which can be considered a generalization of the condition valid when we use kurtosis, that the kurtosis of the independent components must be nonzero. If (A.5) is true for a subset of independent components, we can estimate just those independent components.
+    
+    To begin with, make the change of variable $\mathbf{q} = \mathbf{A}^T \mathbf{V}^T \mathbf{w}$, as earlier, and assume that $\mathbf{q}$ is in the neighborhood of a solution (say, $q_1 \approx 1$ as before). As shown in the proof of Theorem 8.1, the change in $q_1$ is then of a lower order than the change in the other coordinates, due to the constraint $\|\mathbf{q}\| = 1$. Then we can expand the terms in (8.43) using a Taylor approximation for $g$ and $g'$, first obtaining
+    \begin{equation}
+    \begin{aligned}
+        g(\mathbf{q}^T \mathbf{s}) &= g(q_1 s_1) + g'(q_1 s_1)\mathbf{q}_{-1}^T \mathbf{s}_{-1} + \frac{1}{2} g''(q_1 s_1)(\mathbf{q}_{-1}^T \mathbf{s}_{-1})^2 \\
+        &\quad + \frac{1}{6} g'''(q_1 s_1)(\mathbf{q}_{-1}^T \mathbf{s}_{-1})^3 + O(\|\mathbf{q}_{-1}\|^4)
+    \end{aligned} \tag{A.6}
+    \end{equation}
+    and then
+    \begin{equation}
+    \begin{aligned}
+        g'(\mathbf{q}^T \mathbf{s}) &= g'(q_1 s_1) + g''(q_1 s_1)\mathbf{q}_{-1}^T \mathbf{s}_{-1} \\
+        &\quad + \frac{1}{2} g'''(q_1 s_1)(\mathbf{q}_{-1}^T \mathbf{s}_{-1})^2 + O(\|\mathbf{q}_{-1}\|^3)
+    \end{aligned} \tag{A.7}
+    \end{equation}
+    where $\mathbf{q}_{-1}$ and $\mathbf{s}_{-1}$ are the vectors $\mathbf{q}$ and $\mathbf{s}$ without their first components. Denote by $\mathbf{q}^+$ the new value of $\mathbf{q}$ (after one iteration). Thus we obtain, using the independence of the $s_i$ and doing some tedious but straightforward algebraic manipulations,
+    \begin{equation}
+        q_1^+ = E\{s_1 g(q_1 s_1) - g'(q_1 s_1)\} + O(\|\mathbf{q}_{-1}\|^2) \tag{A.8}
+    \end{equation}
+    \begin{equation}
+    \begin{aligned}
+        q_i^+ &= \frac{1}{2} E\{s_i^3\} E\{g''(s_1)\} q_i^2 \\
+        &\quad + \frac{1}{6} \text{kurt}(s_i) E\{g'''(s_1)\} q_i^3 + O(\|\mathbf{q}_{-1}\|^4), \quad \text{for } i > 1
+    \end{aligned} \tag{A.9}
+    \end{equation}
+    We obtain also
+    \begin{equation}
+        \mathbf{q}^* = \mathbf{q}^+ / \|\mathbf{q}^+\| \tag{A.10}
+    \end{equation}
+    This shows clearly that under assumption (A.5), the algorithm converges (locally) to such a vector $\mathbf{q}$ that $q_1 = \pm 1$ and $q_i = 0$ for $i > 1$. This means that $\mathbf{w} = ((\mathbf{V}\mathbf{A})^T)^{-1}\mathbf{q}$ converges, up to the sign, to one of the rows of the inverse of the mixing matrix $\mathbf{V}\mathbf{A}$, which implies that $\mathbf{w}^T\mathbf{z}$ converges to one of the $s_i$. Moreover, if $E\{g''(s_1)\} = 0$, i.e., if the $s_i$ has a symmetric distribution, as is usually the case, (A.9) shows that the convergence is cubic. In other cases, the convergence is quadratic. If kurtosis is used, however, we always have $E\{g''(s_1)\} = 0$ and thus cubic convergence. In addition, if $G(y) = y^4$, the local approximations are exact, and the convergence is global.
+    
+    %\chapter{Additional Algorithms and Code}
 \end{appendices}
 
 \end{document}

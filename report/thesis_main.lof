@@ -2,23 +2,22 @@
 \addvspace {10\p@ }
 \contentsline {figure}{\numberline {2.1}{\ignorespaces Information Geometry of ICA}}{9}{figure.2.1}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {3.1}{\ignorespaces Optimization Landscapes of $W_1$ and $W_2^2$}}{19}{figure.3.1}%
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Gradient Landscapes of $W_1$ and $W_2^2$}}{19}{figure.3.1}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {4.1}{\ignorespaces Riemannian Optimization on the Stiefel Manifold}}{22}{figure.4.1}%
-\contentsline {figure}{\numberline {4.2}{\ignorespaces Gaussian Dithering of Discrete CDFs}}{25}{figure.4.2}%
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Riemannian Optimization on the Stiefel Manifold}}{23}{figure.4.1}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Gaussian Dithering of Discrete CDFs}}{26}{figure.4.2}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {5.1}{\ignorespaces Baseline Source Recovery via OT-ICA}}{31}{figure.5.1}%
-\contentsline {figure}{\numberline {5.2}{\ignorespaces Separation Accuracy on Laplacian Sources}}{32}{figure.5.2}%
-\contentsline {figure}{\numberline {5.3}{\ignorespaces Execution Time Scaling}}{33}{figure.5.3}%
-\contentsline {figure}{\numberline {5.4}{\ignorespaces Performance on Zero-Negentropy Failure Mode}}{35}{figure.5.4}%
-\contentsline {figure}{\numberline {5.5}{\ignorespaces The Vanishing Curvature Counterexample}}{37}{figure.5.5}%
-\contentsline {figure}{\numberline {5.6}{\ignorespaces Performance on Trimodal Failure Mode}}{38}{figure.5.6}%
-\contentsline {figure}{\numberline {5.7}{\ignorespaces General Hybrid Mixture Stress Test}}{40}{figure.5.7}%
-\contentsline {figure}{\numberline {5.8}{\ignorespaces Performance on Isolated Discrete Pools}}{41}{figure.5.8}%
-\contentsline {figure}{\numberline {5.9}{\ignorespaces Optimization Surface of Discrete Mixtures}}{42}{figure.5.9}%
-\contentsline {figure}{\numberline {5.10}{\ignorespaces Performance on Harsh Discrete Environments}}{43}{figure.5.10}%
-\contentsline {figure}{\numberline {5.11}{\ignorespaces Recovery of Structural Shocks via OT-ICA}}{46}{figure.5.11}%
-\contentsline {figure}{\numberline {5.12}{\ignorespaces Empirical Distribution of Estimated Information Shares}}{47}{figure.5.12}%
-\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Baseline Source Recovery via OT-ICA}}{32}{figure.5.1}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Separation Accuracy on Laplacian Sources}}{33}{figure.5.2}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces Execution Time Scaling}}{34}{figure.5.3}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces Performance on Zero-Negentropy Failure Mode}}{36}{figure.5.4}%
+\contentsline {figure}{\numberline {5.5}{\ignorespaces The Vanishing Curvature Counterexample}}{38}{figure.5.5}%
+\contentsline {figure}{\numberline {5.6}{\ignorespaces Performance on Trimodal Failure Mode}}{39}{figure.5.6}%
+\contentsline {figure}{\numberline {5.7}{\ignorespaces General Hybrid Mixture Stress Test}}{41}{figure.5.7}%
+\contentsline {figure}{\numberline {5.8}{\ignorespaces Performance on Isolated Discrete Pools}}{42}{figure.5.8}%
+\contentsline {figure}{\numberline {5.9}{\ignorespaces Optimization Surface of Discrete Mixtures}}{43}{figure.5.9}%
+\contentsline {figure}{\numberline {5.10}{\ignorespaces Performance on Harsh Discrete Environments}}{44}{figure.5.10}%
+\contentsline {figure}{\numberline {5.11}{\ignorespaces Recovery of Structural Shocks via OT-ICA}}{47}{figure.5.11}%
+\contentsline {figure}{\numberline {5.12}{\ignorespaces Empirical Distribution of Estimated Information Shares}}{48}{figure.5.12}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
