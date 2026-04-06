@@ -31,6 +31,7 @@
 \usepackage{float}
 \usepackage{algorithm}              % For your pseudo-code
 \usepackage{algpseudocode}          % For your pseudo-code
+\usepackage[font=small, labelfont=bf, textfont=it]{caption}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{blindtext}
@@ -769,7 +770,8 @@ This approach bridges the gap, allowing the algorithm to achieve faster converge
 % -----------------------------------------------------------------
 \chapter{Experimental Evaluation and Applications}
 
-\section{Evaluation Metrics: The Amari Performance Index}
+\section{Evaluation Metrics And Methodology}
+\subsection{The Amari Performance Index}
 To empirically evaluate the success of an Independent Component Analysis (ICA) algorithm, we require a quantitative metric that measures the distance between 
 the estimated unmixing matrix $\mathbf{W}_{\text{est}}$ and the true mixing matrix $\mathbf{A}$. Because ICA is subject to inherent scaling and permutation ambiguities,
 we utilize the Amari Performance Index, often referred to as the Amari error \cite{amari1996new}. 
@@ -800,6 +802,46 @@ Throughout our experimental evaluations, we employ the heuristic thresholds deta
     \end{tabular}
     \caption{Heuristic thresholds for interpreting the Amari Performance Index.}
     \label{tab:amari_thresholds}
+\end{table}
+
+\subsection{Computational Resource Regimes}
+Because OT-ICA relies on first-order gradient descent over the highly non-convex Stiefel manifold, its capacity to find 
+the true global optimum depends on the computational resources allocated to search the space, particularly as dimensionality increases. 
+Conversely, FastICA utilizes a Newton-based fixed-point iteration that typically converges almost instantaneously. 
+FastICA only requires extended computational limits in specific edge cases or mathematical blind spots where its structural assumptions are violated, 
+causing the solver to oscillate. 
+
+To accommodate OT-ICA's scaling requirements, and to definitively prove whether FastICA's failures in edge cases are due 
+to fundamental mathematical breakdowns rather than standard optimization timeouts, all high-dimensional stress tests in 
+this chapter are evaluated under two standardized computational regimes. The exact hyperparameter configurations extracted 
+from our experimental framework are detailed in Table \ref{tab:compute_regimes}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \begin{tabular}{@{} p{4.0cm} p{5.5cm} p{4.5cm} @{}}
+        \toprule
+        \textbf{Regime \& Objective} & \textbf{OT-ICA Configuration} & \textbf{FastICA Configuration} \\
+        \midrule
+        \textbf{Low Compute Baseline} \newline \textit{Represents standard, efficient execution.} & 
+        \textbf{Restarts:} $\min(4d, 150)$ \newline
+        \textbf{Deflation Phase:} 150 iterations \newline
+        \textbf{Symmetric Phase:} 200 iterations & 
+        \textbf{Max Iterations:} 1,000 \newline 
+        \textit{Standard limit for fixed-point convergence.} \\
+        \addlinespace
+        \addlinespace
+        \textbf{High Compute Regime} \newline \textit{Provides maximal opportunity to isolate structural failure from timeouts.} & 
+        \textbf{Restarts:} $\min(15d, 600)$ \newline
+        \textbf{Deflation Phase:} 300 iterations \newline
+        \textbf{Symmetric Phase:} 500 iterations & 
+        \textbf{Max Iterations:} 5,000 \newline 
+        \textit{Extended to ensure non-convergence is strictly structural.} \\
+        \bottomrule
+    \end{tabular}
+    \caption[Standardized Computational Regimes]{Summary of the computational regimes used to evaluate algorithmic scaling. 
+    These specific iteration limits and restart thresholds cleanly separate standard optimization timeouts from fundamental mathematical failures.}
+    \label{tab:compute_regimes}
 \end{table}
 
 \section{OT-ICA Methodology Validation}
@@ -878,13 +920,11 @@ containing exactly one dominant absolute value per row and column. This confirms
 achieving an excellent Amari error well below the critical $0.1$ threshold. For comparison, we evaluated the industry-standard FastICA algorithm 
 (with a \textit{logcosh} contrast function) on the exact same 4D mixture. FastICA also successfully separated the sources, achieving a highly comparable Amari error.
 
-\section{Computational Scaling and Algorithmic Efficiency}
+\section{Computational \& Temporal Scaling}
 Having established that OT-ICA successfully recovers independent sources from linear mixtures in low dimensions, we must evaluate its computational scaling in high-dimensional cases. 
 We benchmarked OT-ICA against FastICA, utilizing a linear mixture of continuous super-Gaussian Laplacian sources. 
 We evaluated both algorithms across increasing dimensions with a fixed sample size of $N=10,000$. Because OT-ICA relies on gradient-based optimization over the Stiefel manifold, 
-its capacity to find global optima depends on computational resources in higher dimensions. Therefore, we evaluated both algorithms under two regimes: 
-a "Low Compute" baseline (restricted random restarts for OT-ICA, and standard iteration limits for FastICA) and 
-a "High Compute" regime (dense parallel restarts for OT-ICA, and higher convergence iterations allowed for FastICA).
+its capacity to find global optima depends on computational resources in higher dimensions. Therefore, we evaluated both algorithms under the predefined Low Compute and High Compute regimes (defined in Table \ref{tab:compute_regimes}).
 
 \begin{figure}[tbp]
     \centering
@@ -922,8 +962,8 @@ real-world data is frequently heterogeneous in nature. In the following sections
 and how the global geometry of OT-ICA natively bypasses these blind spots.
 
 \section{The Blind Spots of FastICA}
-In this section, we present two distinct mathematical blind spots that cause FastICA to fail on perfectly valid, non-Gaussian independent components. 
-It's reliance on proxy contrast functions and Newton-based Fixed point iteration method.
+In this section, we present two distinct mathematical blind spots that cause FastICA to fail on non-Gaussian independent components due to 
+it's reliance on proxy contrast functions and Newton-based Fixed point iteration method.
 
 \subsection{The Zero Negentropy Pitfall}
 FastICA does not measure true negentropy; instead, it relies on a computationally efficient approximation. For a whitened random variable $x$, 
@@ -940,31 +980,53 @@ the approximated negentropy evaluates to zero. In this scenario, the objective f
 FastICA becomes entirely blind to the non-Gaussianity of the source, failing to extract it.
 
 \subsection{Empirical Results: The Zero Negentropy Pitfall}
-To empirically demonstrate this vulnerability, we constructed a specific non-Gaussian distribution—a "Phantom Gaussian"—designed to deliberately trigger the zero-negentropy condition. Using a symmetric Trimodal Gaussian Mixture parameterized by peak locations $\{-b, 0, b\}$ and variance $\sigma^2$, we computationally root-solved for the peak locations and probability mass such that the expected value of the \textit{logcosh} function exactly matched the theoretical baseline of a standard normal distribution ($\mathbb{E}[G(x)] = \mathbb{E}[G(\nu)]$). Because this engineered distribution strictly maintains unit variance, it represents a valid, independent non-Gaussian source that is theoretically invisible to the FastICA contrast function.
+To empirically demonstrate this pitfall, we constructed a specific non-Gaussian distribution to trigger 
+the zero-negentropy condition. Utilizing a symmetric Trimodal Gaussian Mixture parameterized by peak locations $\{-b, 0, b\}$ and 
+variance $\sigma^2$, we solved for the peak locations and probability mass such that the expected value of 
+the \textit{logcosh} function exactly matched the theoretical baseline of a standard normal distribution ($\mathbb{E}[G(x)] = \mathbb{E}[G(\nu)]$). 
+Because this engineered distribution strictly maintains unit variance, it represents a valid, independent non-Gaussian source 
+that is theoretically invisible to the FastICA contrast function.
 
-To evaluate the algorithmic resilience of both FastICA and OT-ICA, we generated linear mixtures of this Phantom Gaussian source across increasing dimensions ($d \in [5, 25]$) with a fixed sample size of $N=10,000$. To cleanly isolate fundamental mathematical blindness from standard non-convex optimization difficulty, we separated the evaluation into a "Low Compute" baseline and a "High Compute" regime (utilizing massive parallel random restarts and extended convergence limits).
+To evaluate the algorithmic resilience of both FastICA and OT-ICA, we generated linear mixtures of this engineered Trimodal Gaussian source 
+across increasing dimensions ($d \in [5, 25]$) with a fixed sample size of $N=10,000$. 
+To cleanly isolate fundamental mathematical blindness from standard non-convex optimization difficulty, 
+we separated the evaluation into the predefined Low Compute and High Compute regimes (see Table \ref{tab:compute_regimes}).
 
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=1.0\textwidth]{zero_negentropy_amari_compute.png} 
-    \caption[Performance on Zero-Negentropy Failure Mode]{Amari error comparison between FastICA and OT-ICA for the engineered "Phantom Gaussian" distribution. FastICA experiences catastrophic failure ($E > 1.0$) across all regimes due to algorithmic blindness. OT-ICA successfully unmixes the sources, with the High Compute regime completely overcoming the Stiefel manifold's search space complexity at higher dimensions.}
+    \caption[Performance on Zero-Negentropy Failure Mode]{Amari error comparison between FastICA and OT-ICA for the engineered 
+    zero-negentropy Trimodal Gaussian distribution. FastICA experiences failure ($E > 0.5$) across all regimes due to algorithmic blindness. 
+    OT-ICA successfully unmixes the sources, but depends on high compute regime for higher dimension cases.}
     \label{fig:zero_negentropy_amari}
 \end{figure}
 
-As illustrated in Figure \ref{fig:zero_negentropy_amari}, the empirical results validate the mathematical collapse of FastICA. Because the Phantom Gaussian generates a proxy negentropy of exactly zero, FastICA perceives the independent source as indistinguishable from standard Gaussian noise. Consequently, the algorithm completely fails to separate the mixtures, consistently returning catastrophically high Amari errors ($E > 1.0$). Providing FastICA with High Compute resources yields absolutely no improvement; it definitively proves that the failure is deeply structural—a fundamental mathematical blind spot inherent to proxy-based methodologies.
+As illustrated in Figure \ref{fig:zero_negentropy_amari}, the empirical results validate the mathematical collapse of FastICA. 
+Because this engineered Trimodal Gaussian generates a proxy negentropy of exactly zero, FastICA falsely perceives 
+the independent source as indistinguishable from standard Gaussian noise. Consequently, the algorithm completely fails to separate the mixtures, 
+consistently returning high Amari errors ($E>0.5$). Providing FastICA with High Compute resources yields no improvement; 
+this confirms that the failure is strictly structural, a fundamental mathematical blind spot inherent to the proxy-based solver.
 
-In stark contrast, the OT-ICA framework demonstrates robust source separation. By completely bypassing parametric approximations and instead mapping the full global geometry of the empirical Cumulative Distribution Function (CDF) via Optimal Transport, OT-ICA easily detects the non-Gaussian structure of the Phantom Gaussian. 
+In contrast, the OT-ICA framework demonstrates robust source separation until the trade-off between a fixed sample size 
+and dimensional complexity emerges. This stability is achieved by completely bypassing parametric approximations and instead mapping 
+the full global geometry of the empirical Cumulative Distribution Function (CDF) via Optimal Transport.
 
-While OT-ICA experiences minor performance degradation in the Low Compute regime at $d=25$, this is a symptom of the exponentially expanding, highly non-convex surface area of the Stiefel manifold, not a failure of the objective function. When provided with dense parallel restarts in the High Compute regime, OT-ICA successfully navigates the complex search space and fully restores accurate unmixing ($E < 0.3$). This empirically reaffirms that while OT-ICA is bound by computational search complexity, it fundamentally resolves the catastrophic mathematical blind spots that plague FastICA.
+While OT-ICA experiences performance degradation in the Low Compute regime at $d>15$, this is a symptom of the exponentially expanding, 
+highly non-convex surface area of the Stiefel manifold, not a failure of the objective function. When provided with dense parallel restarts in 
+the High Compute regime, OT-ICA successfully navigates the complex search space and restores accurate unmixing ($E<0.3$) untill $d=20$. 
+This empirically reaffirms that while OT-ICA is bound by computational search complexity, it fundamentally resolves 
+the zero-negentropy mathematical blind spot of FastICA.
 
 \subsection{The Vanishing Curvature Pitfall}
-Even if a source successfully bypasses the zero-negentropy pitfall (meaning $J(x) > 0$), the actual \textit{optimization algorithm} used by FastICA can still fail. 
-To achieve super-linear convergence, FastICA utilizes a Newton (second-order) fixed-point iteration step. 
-However, the mathematical stability of this convergence relies explicitly on a foundational technical condition governing the algorithmic curvature of the optimization landscape. 
-As formalized in the FastICA convergence proofs by Hyv{\"a}rinen, Karhunen, and Oja \cite[Chapter 8]{hyvarinen2001}, this requirement is dictated by the following expectation:
+The \textit{optimization algorithm} used by FastICA utilizes a Newton (second-order) fixed-point iteration step to achieve super-linear convergence. 
+However, the mathematical stability of this convergence relies explicitly on a foundational technical assumption governing 
+the algorithmic curvature of the optimization landscape. As formalized in the FastICA convergence proofs 
+by Hyv{\"a}rinen, Karhunen, and Oja \cite[Chapter 8]{hyvarinen2001} (reproduced in Appendix \ref{app:fastica_proof}), 
+this requirement is dictated by the following expectation:
 
-The theorem states that for the fixed-point iteration to converge to a true independent component $s_i$, 
-the expected value governing the second-order Taylor expansion of the iteration must not vanish. Specifically, defining $g(x) = G'(x)$ and $g'(x) = G''(x)$, the convergence requires:
+The proof states that for the fixed-point iteration to converge to a true independent component $s_i$, 
+the expected value governing the second-order Taylor expansion of the iteration must not vanish. 
+Specifically, defining $g(x) = G'(x)$ and $g'(x) = G''(x)$, where $G$ is the contrast function, the convergence requires:
 \begin{equation}
     \mathbb{E}\big[s_i g(s_i) - g'(s_i)\big] \neq 0
 \end{equation}
@@ -973,11 +1035,11 @@ For the standard \textit{logcosh} contrast function (with $a=1$), this equates t
 
 If a specific non-Gaussian source distribution naturally causes this specific expectation to evaluate precisely to zero, 
 the algorithmic curvature vanishes. When this condition fails, the denominator of the FastICA update rule collapses, 
-destroying the local quadratic (or cubic) convergence guarantees. The fixed-point iteration fails to converge, 
+negating the local quadratic (or cubic) convergence guarantees. The fixed-point iteration fails to converge, 
 even though the component is strictly independent and non-Gaussian.
 
 \subsection{Empirical Results: The Vanishing Curvature Pitfall}
-To empirically demonstrate the severity of the vanishing curvature limitation, we engineered a continuous source distribution specifically designed to trigger the assumption 
+To empirically demonstrate the vanishing curvature limitation, we engineered a continuous source distribution specifically designed to trigger the assumption 
 described in the previous section. 
 We analyzed the target function representing the curvature condition: 
 \begin{equation}
@@ -992,15 +1054,21 @@ we determined the exact probability masses required to perfectly balance the neg
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=0.85\textwidth]{vanishing_curvature_trimodal_pdf.png} 
-    \caption[The Vanishing Curvature Counterexample]{The engineered Trimodal Gaussian Mixture designed to break FastICA. The central mass generates negative algorithmic curvature, while the side peaks (marked by red dotted lines at $\pm b$) generate positive algorithmic curvature. The parameters $b$ and $p$ are computationally root-solved such that these regions perfectly cancel out ($\int h(x) \text{PDF}(x) dx = 0$) while strictly maintaining unit variance, effectively hiding the non-Gaussian signal from the Newton-step solver.}
+    \caption[The Vanishing Curvature Counterexample]{The engineered Trimodal Gaussian Mixture designed to illustrate 
+    the vanishing curvature pitfall in FastICA. The central mass generates negative algorithmic curvature, while 
+    the side peaks (marked by red dotted lines at $\pm b$) generate positive algorithmic curvature. 
+    The parameters $b$ and $p$ are computationally root-solved such that these regions perfectly cancel out ($\int h(x) \text{PDF}(x) dx = 0$) 
+    while strictly maintaining unit variance, effectively hiding the non-Gaussian signal from the Newton-step solver.}
     \label{fig:vanishing_curvature}
 \end{figure}
 
-This carefully engineered distribution remains strictly non-Gaussian and perfectly valid under the linear ICA assumptions, 
-yet its algorithmic curvature is exactly zero, rendering it mathematically invisible to FastICA's fixed-point solver, as illustrated in Figure \ref{fig:vanishing_curvature}.
+This carefully engineered distribution, illustrated in Figure \ref{fig:vanishing_curvature}, 
+remains strictly non-Gaussian and perfectly valid under the linear ICA assumptions, 
+yet its algorithmic curvature is exactly zero, which should render it mathematically invisible to FastICA's fixed-point solver.
 
-\subsection{Algorithmic Failure vs. Optimization Complexity}
-To isolate fundamental mathematical failures from standard optimization difficulties, we evaluated both FastICA and OT-ICA across increasing dimensions ($d \in [5, 25]$) at a fixed sample size of $N=10,000$. The experiment was conducted under two distinct computational regimes: a "Low Compute" baseline and a "High Compute" environment (characterized by maximum iterations extended to $10,000$ for FastICA, and massive parallel random restarts spanning up to $600$ vectors for OT-ICA).
+To isolate fundamental mathematical failures from standard optimization difficulties, we evaluated both FastICA and OT-ICA 
+across increasing dimensions ($d \in [5, 25]$) at a fixed sample size of $N=10,000$. The experiment was conducted under the 
+predefined Low Compute and High Compute regimes (Table \ref{tab:compute_regimes}).
 
 \begin{figure}[tbp]
     \centering
@@ -1009,34 +1077,48 @@ To isolate fundamental mathematical failures from standard optimization difficul
     \label{fig:amari_trimodal_failure}
 \end{figure}
 
-The empirical results, visualized in Figure \ref{fig:amari_trimodal_failure}, confirm a stark structural divergence between the two algorithms. As mathematically predicted, FastICA consistently returned unmixing matrices with catastrophically high Amari errors ($E > 1.0$) for $d \ge 15$. Crucially, injecting massive computational power (High Compute) did nothing to improve FastICA's performance. This confirms that its failure is not a matter of search space exploration or iteration limits, but a fundamental algorithmic breakdown; the vanishing curvature permanently destroys the Newton solver's convergence mechanism, causing it to oscillate infinitely.
+The empirical results, visualized in Figure \ref{fig:amari_trimodal_failure}, confirm a stark structural divergence between the two algorithms. 
+As mathematically predicted, FastICA consistently returned unmixing matrices with high Amari errors ($E > 0.3$) for all dimensions. 
+Crucially, the High Compute Regime did nothing to improve FastICA's performance. This confirms that its failure is not a matter 
+of search space exploration or iteration limits, but a fundamental algorithmic breakdown; the vanishing curvature blind spot ensures that
+it's Newton Solver does not converge.
 
-Conversely, OT-ICA's behavior reveals a completely different limitation. Under the Low Compute regime, OT-ICA successfully unmixed lower dimensions but degraded as $d$ increased. However, when shifted to the High Compute regime, OT-ICA's performance recovered, maintaining a "Good Separation" Amari error ($E < 0.3$) up through 25 dimensions. 
-
-This proves that OT-ICA does not suffer from the curvature trap. Because it evaluates the entire global geometry of the empirical CDF via Optimal Transport, it is mathematically immune to local density blind spots. Its performance ceiling is instead dictated purely by the \textit{Curse of Dimensionality} and non-convexity. As dimensions increase, the surface area of the Stiefel manifold expands exponentially, becoming littered with shallow local maxima. OT-ICA succeeds mathematically, but extracting that success requires sufficient computational power (dense random restarts) to thoroughly search the highly non-convex optimization landscape.
+Conversely, OT-ICA's behavior reveals a completely different limitation. Under the Low Compute regime, OT-ICA successfully unmixed 
+lower dimensions ($d < 20$) but degraded as $d$ increased with fixed sample size of $N=10,000$. However, when shifted to the High Compute regime, 
+OT-ICA's performance recovered, maintaining a good separation, Amari error ($E < 0.3$) up through 20 dimensions. This proves that OT-ICA does not 
+suffer from the curvature trap. Because it evaluates the entire global geometry of the empirical CDF via Optimal Transport, 
+it is mathematically immune to local density blind spots. Its performance ceiling is instead dictated by the 
+\textit{Curse of Dimensionality} and non-convexity. As dimensions increase, the surface area of the Stiefel manifold expands exponentially, 
+becoming littered with shallow local maxima. OT-ICA succeeds mathematically, but requires sufficient computational power (dense random restarts) 
+to thoroughly search the highly non-convex optimization landscape.
 
 \section{The Generalized Hybrid Mixture Stress Test}
-Real-world signals rarely belong to a single statistical family. To test the true algorithmic robustness of both OT-ICA and FastICA, we designed a highly complex, generalized hybrid mixture. This stress test evaluates the capacity of the algorithms to separate sources drawn from fundamentally contradictory geometric landscapes.
+Real-world signals rarely belong to a single statistical family. To test the algorithmic robustness of both OT-ICA and FastICA, 
+we designed a generalized hybrid mixture.
 
 \subsection{Experimental Setup}
-We generated linear mixtures spanning $10$ to $70$ dimensions, maintaining a fixed sample size of $N=10,000$. To satisfy the ICA identifiability constraint, exactly one source was fixed as a standard Gaussian distribution, $\mathcal{N}(0,1)$. The remaining $(d-1)$ independent sources were randomly drawn from a diverse pool of eight distinct distributions: Laplace, Bernoulli, Uniform, Student-t, Poisson, Binomial, Chi-squared, and Exponential. 
+We generated linear mixtures at standard high-dimensional benchmarks ($d=30$ and $d=40$), maintaining a fixed sample size of $N=10,000$. 
+To satisfy the ICA identifiability constraint, exactly one source was fixed as a standard Gaussian distribution, $\mathcal{N}(0,1)$. 
+The remaining $(d-1)$ independent sources were randomly drawn from a diverse pool of eight distinct distributions: 
+Laplace, Bernoulli, Uniform, Student-t, Poisson, Binomial, Chi-squared, and Exponential. 
 
-To isolate structural failures from computational ones, we evaluated the algorithms under both \textit{Low Compute} and \textit{High Compute} regimes. In the High Compute regime, FastICA was provided with $10,000$ iterations—ten times the standard limit—to ensure that any failure to converge was due to mathematical oscillation rather than insufficient time.
+To definitively isolate structural mathematical failures from optimization timeouts, FastICA was granted an 
+extended convergence limit of $10,000$ iterations for these trials, while OT-ICA utilized its standard baseline parameters (\ref{tab:compute_regimes}).
 
 \subsection{Structural Oscillation vs. Geometric Stability}
-The results, visualized in Figure \ref{fig:hybrid_mixture_results}, reveal a stark divergence in the stability of the two algorithms. The OT-ICA framework successfully maintained "Good Separation" ($E < 0.3$) up to approximately $35$ dimensions in the Low Compute regime, and extended this performance to nearly $45$ dimensions in the High Compute regime. This validates that the globally-aware $W_2$ metric, smoothed via dithering and regularized via stochastic mini-batching, generalizes robustly across contradictory topological landscapes.
+The results, visualized in Figure \ref{fig:hybrid_mixture_results}, reveal a stark divergence in the stability of the two algorithms. 
+The OT-ICA framework successfully maintained Good Separation ($E < 0.3$) across the tested dimensions. This validates that the globally-aware $W_2$ metric, smoothed via dithering and regularized via stochastic mini-batching, generalizes robustly across contradictory topological landscapes even without relying on massive parallel restarts.
 
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=1.0\textwidth]{general_hybrid_test.png} 
-    \caption[General Hybrid Mixture Stress Test]{Amari error comparison for the Generalized Hybrid Mixture. FastICA exhibits erratic behavior and high mean error regardless of the compute regime, signaling a failure of its underlying curvature assumptions. OT-ICA maintains stability across a much broader range of dimensions, with the High Compute regime successfully navigating the complex non-convex landscape up to $d=45$.}
+    \caption[General Hybrid Mixture Stress Test]{Amari error comparison for the Generalized Hybrid Mixture. FastICA exhibits erratic behavior and high mean error, signaling a failure of its underlying curvature assumptions. OT-ICA maintains stability across the tested dimensions, successfully navigating the complex non-convex landscape.}
     \label{fig:hybrid_mixture_results}
 \end{figure}
 
-In contrast, FastICA's performance is characterized by extreme instability. Even at low dimensions ($d=20$), FastICA consistently triggered non-convergence warnings. Crucially, the High Compute regime (right panel) provided no salvation for FastICA; the Amari error remains high and the variance remains large. 
+In contrast, FastICA's performance is characterized by extreme instability. Even at the baseline of $d=30$, FastICA consistently triggered non-convergence warnings. Crucially, providing FastICA with a massive $10,000$ iteration limit provided no salvation; the Amari error remains catastrophically high and the variance remains large. 
 
 This confirms our hypothesis: FastICA's failure in hybrid environments is structural. When the Newton-Raphson solver is forced to simultaneously evaluate highly kurtotic signals (e.g., Laplace) and negatively kurtotic signals (e.g., Uniform), the fixed-point update steps generate contradictory gradient information. The solver becomes trapped in a state of permanent structural oscillation, perpetually overshooting the optimal projection because the "uniform curvature" assumed by the Newton step does not exist. Conversely, OT-ICA’s first-order global CDF matching bypasses these local curvature traps entirely, maintaining geometric stability where proxies fail.
-
 \section{Deep Dive: Isolating Discrete Failure Modes}
 To further understand the behavior of these algorithms in non-continuous environments, we isolated specific discrete distributions to observe their individual impact on the optimization landscape. We generated mixtures containing one continuous Gaussian source and $(d-1)$ sources of a \textit{single} discrete type (Bernoulli, Poisson, or Binomial).
 
@@ -1103,12 +1185,13 @@ If the failure is purely geometric rather than statistical, evaluating the algor
 
 The results, shown in Figure \ref{fig:harsh_discrete}, definitively prove that the failure is governed by geometric tractability. For the harsh Poisson mixture ($\lambda=0.5$), FastICA experienced catastrophic failure ($E > 1.5$), as its symmetric proxy solver choked on the extreme asymmetry of the data. Conversely, OT-ICA achieved excellent separation ($E \approx 0.15$). This success occurs because the harsh Poisson concentrates massive probability density at zero, effectively mimicking an asymmetric Bernoulli distribution. This creates a singular, massive geometric "cliff" in the empirical CDF, providing a strong, unambiguous gradient that allows OT-ICA to bypass smaller local minima.
 
-However, for the harsh Binomial mixture ($n=3$), OT-ICA completely failed, despite the distribution possessing a massive Wasserstein gap ($0.2024$). Unlike the skewed Poisson, the Binomial distribution remains perfectly symmetric. This symmetry creates a highly non-convex "staircase" in the loss landscape consisting of shallow, symmetric plateaus, permanently trapping the gradient solver. (FastICA also failed to achieve meaningful separation here, returning a severe error of $E > 0.5$).
+However, for the harsh Binomial mixture ($n=3$), OT-ICA completely failed, despite the distribution possessing a massive Wasserstein gap. Unlike the skewed Poisson, the Binomial distribution remains perfectly symmetric. This symmetry creates a highly non-convex "staircase" in the loss landscape consisting of shallow, symmetric plateaus, permanently trapping the gradient solver. (FastICA also failed to achieve meaningful separation here, returning a severe error of $E > 0.5$).
 
 \subsection{Conclusion: The Necessity of Hybridization}
 This investigation reveals a fundamental insight into Optimal Transport for linear ICA: \textit{Statistical non-Gaussianity is necessary, but not sufficient, for global convergence.} Purely symmetric discrete distributions create intractable, terraced optimization landscapes that trap first-order gradients.
 
 This highlights precisely why OT-ICA must be utilized in hybrid environments. As demonstrated in Section 5.3, FastICA completely broke when forced to navigate a "Full Hybrid" pool combining continuous and discrete variables due to contradictory curvature. Conversely, OT-ICA thrived (Figure \ref{fig:hybrid_mixture_results}). The presence of continuous distributions within a mixed pool acts as a mathematical lubricant; it provides sufficient smooth geometric structure to bridge the discrete gaps, enabling Optimal Transport to successfully disentangle complex real-world mixtures where static proxies fail entirely.
+
 \section{Application: Price Discovery and Information Shares}
 
 \subsection{Non-Gaussianity in Econometric Market Microstructure}
@@ -1215,6 +1298,7 @@ Finally, extending the geometric principles of $W_2$-based contrast functions in
     \chapter{Mathematical Proofs and Derivations}
     
     \section{Derivation of the FastICA Fixed-Point Failure Condition}
+    \label{app:fastica_proof}
     
     \textbf{Proof of Theorem 8.1} Denote by $H(\mathbf{w})$ the function to be minimized/maximized, $E\{G(\mathbf{w}^T \mathbf{z})\}$. Make the orthogonal change of coordinates $\mathbf{q} = \mathbf{A}^T \mathbf{V}^T \mathbf{w}$. Then we can calculate the gradient as $\frac{\partial H(\mathbf{q})}{\partial \mathbf{q}} = E\{\mathbf{s}g(\mathbf{q}^T \mathbf{s})\}$ and the Hessian as $\frac{\partial^2 H(\mathbf{q})}{\partial \mathbf{q}^2} = E\{\mathbf{s}\mathbf{s}^T g'(\mathbf{q}^T \mathbf{s})\}$. Without loss of generality, it is enough to analyze the stability of the point $\mathbf{q} = \mathbf{e}_1$, where $\mathbf{e}_1 = (1, 0, 0, 0, \dots)$. Evaluating the gradient and the Hessian at point $\mathbf{q} = \mathbf{e}_1$, we get using the independence of the $s_i$,
     \begin{equation}
