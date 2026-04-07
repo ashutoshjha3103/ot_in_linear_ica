@@ -124,7 +124,7 @@ inherently increases the overall entropy of the system, inevitably driving the j
 the high-entropy Gaussian state. 
 
 Recovering the underlying independent components, then, is conceptually equivalent to reversing this 
-thermodynamic process. It requires projecting the empirical data away from the "disordered" high-entropy 
+thermodynamic process. It requires projecting the empirical data away from the 'disordered' high-entropy 
 Gaussian manifold, intentionally guiding it back toward the highly structured, lower-entropy state of the 
 original independent signals.
 
@@ -139,13 +139,13 @@ The primary novelty of this research lies in proposing and investigating Optimal
 Our objective is to find the orthogonal candidates on the unit sphere that maximize the Wasserstein distance to a standard normal distribution. 
 While traditional ICA algorithms often rely on sample approximations of population moments (such as kurtosis) or surrogate information-theoretic measures (such as negentropy approximations), 
 the Wasserstein metric offers a distinct advantage: 
-it evaluates the true global geometry of the empirical distribution using order statistics (sorted data), providing a highly robust, non-parametric measure of distance to Gaussianity. 
+it evaluates the true global geometry of the empirical distribution using order statistics (sorted data), providing a non-parametric measure of distance to Gaussianity. 
 
 \section{Structure of the Thesis}
 The remainder of this thesis is structured as follows. Chapter 2 establishes the theoretical foundations of linear ICA, information geometry, and Optimal Transport. 
 Chapter 3 formalizes the Optimal Transport ICA (OT-ICA) framework, proving that the squared Wasserstein ($W_2^2$) distance rigorously bounds mixture non-Gaussianity. 
 Chapter 4 details the algorithmic enhancements required to optimize this metric on the Stiefel manifold efficiently. 
-Chapter 5 presents our experimental evaluation, demonstrating the failure modes of standard proxy optimization (such as FastICA) and proposing a robust ground cost modification to handle outliers. 
+Chapter 5 presents our experimental evaluation, demonstrating the failure modes of standard proxy optimization (such as FastICA) and how OT-ICA addresses these limitations. 
 Finally, Chapter 6 concludes the thesis with a summary of findings and directions for future research.
 
 
@@ -163,7 +163,7 @@ The linear mixing model is formally defined as
 \begin{equation}
     \mathbf{X} = \mathbf{A} \mathbf{S}
 \end{equation}
-where $\mathbf{A} \in \mathbb{R}^{d \times d}$ is an unknown, invertible mixing matrix \cite[Chapter7]{hyvarinen2001}. Expanded into vector notation, the model represents the observed variables as
+where $\mathbf{A} \in \mathbb{R}^{d \times d}$ is an unknown, invertible mixing matrix \cite[Chapter 7]{hyvarinen2001}. Expanded into vector notation, the model represents the observed variables as
 \begin{equation}
     \begin{bmatrix}
     x_1 \\
@@ -511,7 +511,7 @@ Having established the theoretical foundations of the $W_2^2$ metric, specifical
 we must evaluate its practical suitability for manifold optimization. In the context of ICA, the objective is to \textit{maximize} non-Gaussianity. 
 Therefore, gradient ascent algorithms must climb the loss landscape to locate the peaks (maxima) of the distance metric to successfully isolate the independent sources.
 
-While the $W_1$ distance (Earth Mover's Distance) is highly robust to outliers, its reliance on an $L_1$ absolute penalty introduces severe geometric pathologies 
+While the $W_1$ distance (Earth Mover's Distance) is not highly sensitive to outliers, its reliance on an $L_1$ absolute penalty introduces severe geometric pathologies 
 when applied to finite empirical samples. We demonstrate why the squared $L_2$ penalty of the $W_2^2$ metric is better for gradient-based convergence.
 
 \subsection{Empirical Gradients and Derivative Volatility}
@@ -652,14 +652,14 @@ For a dataset of dimension $d$ with $N$ samples, $K$ random restarts, and $T$ op
 The $N \log N$ term stems from the mandatory sorting of projections, while the $d^3$ term represents the cost of the symmetric decorrelation (matrix inverse square root) 
 used for retraction on the Stiefel manifold.
 
-Beyond temporal complexity, we must acknowledge the \textit{statistical sample complexity}. While our 1D projection approach maintains a robust 1D convergence rate 
+Beyond temporal complexity, we must acknowledge the \textit{statistical sample complexity}. While our 1D projection approach maintains a good 1D convergence rate 
 of $\mathcal{O}(N^{-1/2})$, the global identification of the mixing matrix is implicitly subject to the curse of dimensionality. Theoretical results in transport theory suggest 
 that the empirical Wasserstein distance in $d$ dimensions converges at a rate of $\mathcal{O}(N^{-1/d})$. In practice, as $d$ increases, the number of samples $N$ required to 
 accurately resolve the 'peaks' of non-Gaussianity on the manifold surface grows. This necessitates a corresponding increase in the number of parallel restarts $K$, creating 
 a trade-off between statistical resolution and computational feasibility.
 
 \section{Navigating Discrete Optimization Landscapes}
-While the OT-ICA framework demonstrates robust convergence on continuous distributions, real-world data often contains discrete signals, such as binary states, 
+While the OT-ICA framework demonstrates excellent convergence on continuous distributions, real-world data often contains discrete signals, such as binary states, 
 digital communications, or count-based market events. Applying continuous Optimal Transport directly to discrete mixtures introduces severe geometric pathologies 
 that fracture the optimization landscape.
 
@@ -802,7 +802,7 @@ L-BFGS intelligently approximates the inverse Hessian curvature strictly by obse
 This approach bridges the gap, allowing the algorithm to achieve faster convergence by preserving the sorting-based methodology of the Optimal Transport formulation.
 
 % -----------------------------------------------------------------
-% CHAPTER 5: EXPERIMENTS AND ROBUSTNESS
+% CHAPTER 5: EXPERIMENTS AND Application
 % -----------------------------------------------------------------
 \chapter{Experimental Evaluation and Applications}
 
@@ -1045,7 +1045,7 @@ the independent source as indistinguishable from standard Gaussian noise. Conseq
 consistently returning high Amari errors ($E>0.5$). Providing FastICA with High Compute resources yields no improvement; 
 this confirms that the failure is strictly structural, a fundamental mathematical blind spot inherent to the proxy-based solver.
 
-In contrast, the OT-ICA framework demonstrates robust source separation until the trade-off between a fixed sample size 
+In contrast, the OT-ICA framework demonstrates good source separation until the trade-off between a fixed sample size 
 and dimensional complexity emerges. This stability is achieved by completely bypassing parametric approximations and instead mapping 
 the full global geometry of the empirical Cumulative Distribution Function (CDF) via Optimal Transport.
 
@@ -1134,7 +1134,7 @@ becoming littered with shallow local maxima. OT-ICA succeeds mathematically, but
 to thoroughly search the highly non-convex optimization landscape.
 
 \section{The Generalized Hybrid Mixture Stress Test}
-Real-world signals rarely belong to a single statistical family. To test the algorithmic robustness of both OT-ICA and FastICA, 
+Real-world signals rarely belong to a single statistical family. To test the algorithmic faculties of both OT-ICA and FastICA, 
 we designed a generalized hybrid mixture.
 
 \subsection{Experimental Setup}
@@ -1300,7 +1300,7 @@ regimes where FastICA permanently stalls.
 Ultimately, FastICA retains a massive advantage in computational efficiency, making it the strictly superior choice for homogeneous mixtures of standard, 
 well-behaved continuous distributions where its convergence is practically instantaneous. However, real-world data is rarely pristine. 
 In heterogeneous, hybrid environments where structural assumptions are routinely violated, computational speed becomes irrelevant if the algorithm fundamentally cannot converge. 
-By trading temporal efficiency for global geometric awareness, OT-ICA provides a robust alternative capable of disentangling complex mixtures where traditional proxies fail.
+By trading temporal efficiency for global geometric awareness, OT-ICA provides an excellent alternative capable of disentangling complex mixtures where traditional proxies fail.
 
 \section{Application: Price Discovery and Information Shares}
 
@@ -1366,12 +1366,12 @@ a highly stable recovery process.
         \bottomrule
     \end{tabular}
     \caption[Simulation Results for Information Share Recovery]{Monte Carlo simulation results comparing true Information Shares (IS) against the estimated IS recovered 
-    via the OT-ICA framework over 500 runs. \textbf{Takeaway:} OT-ICA robustly and accurately recovers the true structural parameters of the market.}
+    via the OT-ICA framework over 500 runs. \textbf{Takeaway:} OT-ICA accurately recovers the true structural parameters of the market.}
     \label{tab:simulated_is_results}
 \end{table}
 
 Furthermore, Figure \ref{fig:is_distribution} illustrates the empirical density of the estimated information shares across all simulation runs. 
-The distributions are tightly centered around the true parameter values, empirically confirming that OT-ICA effectively resolves the orthogonal ambiguity and robustly recovers 
+The distributions are tightly centered around the true parameter values, empirically confirming that OT-ICA effectively resolves the orthogonal ambiguity and recovers 
 the structural drivers of price discovery.
 
 \begin{figure}[tbp]
@@ -1402,10 +1402,10 @@ OT-ICA proved uniquely capable of resolving highly complex, generalized hybrid m
 Furthermore, we introduced several critical algorithmic enhancements to make optimal transport computationally viable for ICA. These included the derivation of exact analytical Gaussian 
 targets to eliminate discretization noise, batched vectorization for parallel hypothesis exploration, and the novel application of Gaussian dithering to prevent 
 the piecewise linear shattering of discrete optimization landscapes. Finally, we demonstrated the practical utility of this framework in a financial econometrics setting, 
-utilizing the robust non-Gaussian recovery of OT-ICA to uniquely resolve orthogonal ambiguities in market price discovery. Ultimately, this framework establishes a new baseline for handling structurally heterogeneous data across the broader fields of signal processing and machine learning.
+utilizing the excellent non-Gaussian recovery of OT-ICA to uniquely resolve orthogonal ambiguities in market price discovery. Ultimately, this framework establishes a new baseline for handling structurally heterogeneous data across the broader fields of signal processing and machine learning.
 
 \section{Limitations}
-Despite its geometric robustness, the OT-ICA framework is subject to specific constraints that delineate its operational boundaries. 
+Despite its geometric awareness, the OT-ICA framework is subject to specific constraints that delineate its operational boundaries. 
 The primary limitation is computational efficiency. Because the exact Hessian of the Wasserstein distance requires continuous density estimation, 
 OT-ICA cannot leverage the quadratic or cubic convergence guarantees of FastICA's fixed-point iteration. Instead, the framework relies on first-order 
 Quasi-Newton methods (L-BFGS) combined with dense parallel random restarts to navigate the non-convex objective. This results in a significant temporal overhead, 
