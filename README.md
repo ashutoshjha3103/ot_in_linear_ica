@@ -65,32 +65,6 @@ python -c "from wasserstein_ica import WassersteinICA; print('OK')"
 
 ---
 
-## Run the experimental notebooks
-
-Start Jupyter from an environment where `wasserstein-ica` is installed.
-
-**Recommended:** launch Jupyter with the **`exp/`** directory as the working directory so notebook-relative paths (for example data files next to notebooks) resolve correctly:
-
-```bash
-cd exp
-jupyter lab
-# or: jupyter notebook
-```
-
-The table lists notebooks in the top level of `exp/` in a **recommended reading order** (core validation and comparisons first, then applications). Additional exploratory notebooks live under `exp/other/`.
-
-| Notebook | What it does |
-| --- | --- |
-| [OT-ICA_Methodology_Validation.ipynb](exp/OT-ICA_Methodology_Validation.ipynb) | End-to-end sanity check of the OT-ICA pipeline in a manageable **4-dimensional** linear ICA instance, with plots and comparison to FastICA.<br>Run this first to confirm installs, whitening, and optimization behave as expected. |
-| [OT-ICA_W1_vs_W2.ipynb](exp/OT-ICA_W1_vs_W2.ipynb) | Rotates a whitened 2D mixture through angles and compares **Wasserstein-1 vs Wasserstein-2** as ICA objectives via landscapes and numerical gradients.<br>Makes the case for W₂ here through smoother objectives and more reliable gradient structure for optimization. |
-| [OT-ICA_stiefel_vs_FastICA_scaling.ipynb](exp/OT-ICA_stiefel_vs_FastICA_scaling.ipynb) | Benchmarks **scaling with dimension** for Stiefel-constrained OT-ICA versus FastICA on continuous Laplace mixtures, including accuracy (e.g. Amari error) and compute or wall-clock style summaries.<br>Documents how the transport-based approach trades off against the classical solver as problem size grows. |
-| [FastICA_failure_modes.ipynb](exp/FastICA_failure_modes.ipynb) | Builds distributions that trigger **vanishing curvature** and related FastICA pitfalls (e.g. negentropy collapse), then measures unmixing quality (e.g. Amari error) versus OT-ICA across settings and dimensions.<br>Shows failures rooted in the contrast objective rather than iteration limits, and how OT-ICA behaves on the same data. |
-| [OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb](exp/OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb) | **Experiment 1** stresses OT-ICA and FastICA on a high-dimensional mixture of many source types (heavy tails, bounded, skewed, and discrete marginals). **Experiment 2** targets discrete-source failure modes.<br>Together they test robustness when source statistics are heterogeneous rather than drawn from a single parametric family. |
-| [causal_comp_analysis_application.ipynb](exp/causal_comp_analysis_application.ipynb) | Simulates a small linear SCM with location–scale (heteroskedastic) noise, mixes the latent variables orthogonally, and uses OT-ICA as a robust route to LiNGAM-style causal ordering where contrast-based ICA can fail.<br>Compares recovery of structure to illustrate when geometry-based separation helps causal component analysis. |
-| [econometrics_application.ipynb](exp/econometrics_application.ipynb) | Applies OT-ICA to a simulated multi-market **price discovery** setting: observed prices are mixtures of latent shocks, and the notebook checks whether recovered components align with the underlying economic structure.<br>Use it as a stylized econometrics example beyond toy ICA benchmarks. |
-
----
-
 ## Repository layout
 
 ```text
@@ -127,6 +101,32 @@ w_est, distance = ica.optimize_wasserstein2(continuous=True)
 print("Recovered direction:", w_est)
 print("Wasserstein objective:", float(distance))
 ```
+
+---
+
+## Run the experimental notebooks
+
+Start Jupyter from an environment where `wasserstein-ica` is installed.
+
+**Recommended:** launch Jupyter with the **`exp/`** directory as the working directory so notebook-relative paths (for example data files next to notebooks) resolve correctly:
+
+```bash
+cd exp
+jupyter lab
+# or: jupyter notebook
+```
+
+The table lists notebooks in the top level of `exp/` in a **recommended reading order** (core validation and comparisons first, then applications). Additional exploratory notebooks live under `exp/other/`.
+
+| Notebook | What it does |
+| --- | --- |
+| [OT-ICA_Methodology_Validation.ipynb](exp/OT-ICA_Methodology_Validation.ipynb) | End-to-end sanity check of the OT-ICA pipeline in a manageable **4-dimensional** linear ICA instance, with plots and comparison to FastICA.<br>Run this first to confirm installs, whitening, and optimization behave as expected. |
+| [OT-ICA_W1_vs_W2.ipynb](exp/OT-ICA_W1_vs_W2.ipynb) | Rotates a whitened 2D mixture through angles and compares **Wasserstein-1 vs Wasserstein-2** as ICA objectives via landscapes and numerical gradients.<br>Makes the case for W₂ here through smoother objectives and more reliable gradient structure for optimization. |
+| [OT-ICA_stiefel_vs_FastICA_scaling.ipynb](exp/OT-ICA_stiefel_vs_FastICA_scaling.ipynb) | Benchmarks **scaling with dimension** for Stiefel-constrained OT-ICA versus FastICA on continuous Laplace mixtures, including accuracy (e.g. Amari error) and compute or wall-clock style summaries.<br>Documents how the transport-based approach trades off against the classical solver as problem size grows. |
+| [FastICA_failure_modes.ipynb](exp/FastICA_failure_modes.ipynb) | Builds distributions that trigger **vanishing curvature** and related FastICA pitfalls (e.g. negentropy collapse), then measures unmixing quality (e.g. Amari error) versus OT-ICA across settings and dimensions.<br>Shows failures rooted in the contrast objective rather than iteration limits, and how OT-ICA behaves on the same data. |
+| [OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb](exp/OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb) | **Experiment 1** stresses OT-ICA and FastICA on a high-dimensional mixture of many source types (heavy tails, bounded, skewed, and discrete marginals). **Experiment 2** targets discrete-source failure modes.<br>Together they test robustness when source statistics are heterogeneous rather than drawn from a single parametric family. |
+| [causal_comp_analysis_application.ipynb](exp/causal_comp_analysis_application.ipynb) | Simulates a small linear SCM with location–scale (heteroskedastic) noise, mixes the latent variables orthogonally, and uses OT-ICA as a robust route to LiNGAM-style causal ordering where contrast-based ICA can fail.<br>Compares recovery of structure to illustrate when geometry-based separation helps causal component analysis. |
+| [econometrics_application.ipynb](exp/econometrics_application.ipynb) | Applies OT-ICA to a simulated multi-market **price discovery** setting: observed prices are mixtures of latent shocks, and the notebook checks whether recovered components align with the underlying economic structure.<br>Use it as a stylized econometrics example beyond toy ICA benchmarks. |
 
 ---
 
