@@ -1,115 +1,133 @@
 # Optimal Transport for Linear Independent Component Analysis
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.10+-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Master's Thesis Project**
+**Master's thesis project**  
 **Author:** Ashutosh Jha  
 **Program:** M.Sc. Quantitative Data Science Methods  
 **Affiliations:** Eberhard Karls University of Tübingen & Empirical Inference Dept., Max Planck Institute for Intelligent Systems
 
 ---
 
-## Abstract
+## About this project
 
-This project investigates the application of **Optimal Transport (Wasserstein Distance)** for the task of **Independent Component Analysis (ICA)** in a linear mixture setting.
+In **linear independent component analysis (ICA)**, the goal is to recover unknown non-Gaussian sources from observed mixtures. Classical algorithms such as FastICA typically rely on contrast functions or moment-based proxies for non-Gaussianity.
 
-Standard ICA algorithms, such as FastICA, typically maximize statistical approximations of negentropy or kurtosis to identify non-Gaussian sources. This project implements a geometric approach: recovering independent sources by maximizing the **Squared Wasserstein-2 Distance ($W_2^2$)** between the projected data and a standard Normal distribution.
+This repository implements a **Wasserstein / optimal-transport–based linear ICA** approach implemented in PyTorch: sources are sought by comparing projected data to a reference distribution in a transport-aware way, with optimization on the constraint set appropriate for ICA (e.g., normalized directions or orthogonal unmixing). The core library lives under `src/wasserstein_ica/`; `exp/` holds the main experimental notebooks that compare methods, validate behavior, and illustrate applications. The written thesis and LaTeX sources are under `report/`.
 
-By leveraging **PyTorch Autograd** for Riemannian optimization on the unit sphere, this implementation provides a robust method for blind source seperation.
+---
 
-## Key Features
+## Requirements
 
-* **Metric:** Implements **Squared Wasserstein-2 ($W_2^2$)** distance using efficient 1D sorting and Hazen plotting positions for robust quantile estimation.
-* **Optimization:** Utilizes **Projected Gradient Ascent** (via PyTorch Autograd) to maximize non-Gaussianity directly on the unit hypersphere.
-Analysis (PCA) baselines.
+- **Python** 3.8 or newer  
+- **pip** (recommended: recent `pip`, `setuptools`, and `wheel`)
 
-## Repository Structure
+Runtime dependencies are declared in [`pyproject.toml`](pyproject.toml). They include **NumPy**, **SciPy**, **PyTorch** (≥ 1.10), **POT** (Python Optimal Transport), **scikit-learn**, **pandas**, **matplotlib**, **seaborn**, **tqdm**, **joblib**, and **Jupyter** tooling (`jupyter`, `ipykernel`).
 
-```text
-OT_IN_LINEAR_ICA/
-├── src/
-│   └── wasserstein_ica/   # Core package implementation
-│       ├── __init__.py
-│       └── core.py        # Main WassersteinICA class
-├── examples/              # Jupyter notebooks and reproduction scripts
-├── assets/                # Plots and diagrams generated for the thesis
-├── pyproject.toml         # Build configuration
-└── README.md
-```
+If you need a **GPU build of PyTorch** or a specific CUDA version, install PyTorch from the [official install matrix](https://pytorch.org/get-started/locally/) before or after the editable install (see below), so it matches your system.
 
-## Installation
+---
 
-To install the package in editable mode (allowing for code modifications and immediate testing):
+## Set up a Python environment
+
+From the repository root:
 
 ```bash
-git clone [https://github.com/ashutoshjha3103/OT_IN_LINEAR_ICA.git](https://github.com/ashutoshjha3103/OT_IN_LINEAR_ICA.git)
+# Create and activate a virtual environment (example with venv)
+python3 -m venv .venv
+source .venv/bin/activate   # Linux / macOS
+# .venv\Scripts\activate    # Windows (cmd/PowerShell)
+
+python -m pip install --upgrade pip setuptools wheel
+```
+
+---
+
+## Install `wasserstein-ica`
+
+Clone the repository, enter it, then install in **editable** mode so changes under `src/` are picked up immediately:
+
+```bash
+git clone https://github.com/ashutoshjha3103/OT_IN_LINEAR_ICA.git
 cd OT_IN_LINEAR_ICA
 pip install -e .
 ```
 
-## Quick Start
+This installs the package name **`wasserstein-ica`** (import as `wasserstein_ica`) and pulls in all dependencies from `pyproject.toml`.
 
-The following example demonstrates how to recover sources from a mixed signal using the `WassersteinICA` class.
+Verify the install:
 
-```python
-import torch
-import numpy as np
-from wasserstein_ica import WassersteinICA
-
-# 1. Simulate Data (2 Sources, 1000 Samples)
-# Using Laplace sources as an example of non-Gaussian data
-S = np.random.laplace(0, 1, (2, 1000))
-A = np.array([[0.8, 0.2], [0.3, 0.7]])  # Mixing Matrix
-X = torch.tensor(np.dot(A, S), dtype=torch.float32)
-
-# 2. Initialize and Whiten
-# Whitening is a necessary preprocessing step to decorrelate the data
-ica = WassersteinICA(X)
-ica.whiten()
-
-# 3. Optimize
-# Finds the projection direction that maximizes the distance to Gaussianity
-w_est, distance = ica.optimize_wasserstein2(continuous=True)
-
-print(f"Recovered Source Direction: {w_est}")
-print(f"Max Wasserstein Distance: {distance:.4f}")
+```bash
+python -c "from wasserstein_ica import WassersteinICA; print('OK')"
 ```
 
-## Methodology
+---
 
-### The Objective Function
+## Run the experimental notebooks
 
-We formulate ICA as a projection pursuit problem. The goal is to find a projection vector $w$ (where $\|w\|=1$) such that the projected data $Y = w^T X$ is maximally distant from a standard Gaussian distribution.
+Start Jupyter from an environment where `wasserstein-ica` is installed.
 
-$$\underset{w \in \mathbb{R}^d, \|w\|=1}{\text{maximize}} \quad W_2^2(P_{w^TX}, \mathcal{N}(0, 1))$$
+**Recommended:** launch Jupyter with the **`exp/`** directory as the working directory so notebook-relative paths (for example data files next to notebooks) resolve correctly:
 
-Here, $W_2^2$ denotes the Squared Wasserstein-2 distance, calculated empirically via the quantile function:
+```bash
+cd exp
+jupyter lab
+# or: jupyter notebook
+```
 
-$$W_2^2 = \frac{1}{n} \sum_{i=1}^{n} (y_{(i)} - \Phi^{-1}(q_i))^2$$
+Open notebooks at the top level of `exp/` for the main experiments (methodology validation, comparisons with FastICA, scaling, applications, etc.). Additional exploratory notebooks are under `exp/other/`.
 
-* $y_{(i)}$: The sorted projected samples.
-* $q_i$: Hazen plotting positions, defined as $\frac{i - 0.5}{n}$.
-* $\Phi^{-1}$: The inverse CDF (quantile function) of the standard normal distribution.
+If a notebook loads local files by name (e.g. tab-separated data in the same folder as the notebook), keep the kernel’s current working directory aligned with that notebook’s location.
 
-### Optimization Landscape
+---
 
-Unlike $W_1$ (Mean Absolute Error), the Squared $W_2$ metric provides a smoother optimization landscape. This allows for more stable gradients, particularly when separating heavy-tailed distributions where standard moments might produce erratic optimization surfaces.
+## Repository layout
 
-## Roadmap
+```text
+OT_IN_LINEAR_ICA/
+├── src/
+│   └── wasserstein_ica/    # Installable package (WassersteinICA, core logic)
+├── exp/                    # Main experiment notebooks (+ optional data next to notebooks)
+│   └── other/              # Extra / exploratory notebooks
+├── report/                 # Thesis text and LaTeX sources
+├── pyproject.toml          # Package metadata and dependencies
+├── LICENSE
+└── README.md
+```
 
-- [x] Implement robust $W_2^2$ calculation.
-- [x] Implement Autograd-based Projected Gradient Ascent.
-- [x] Verify recovery on Laplace, Student-t, and Bernoulli sources.
-- [ ] Extend to Multi-Source extraction (Deflationary or Symmetric approach).
-- [ ] Compare performance benchmarks vs FastICA and InfoMax.
-- [ ] Finalize Thesis manuscript.
+---
+
+## Quick start (code)
+
+```python
+import numpy as np
+import torch
+from wasserstein_ica import WassersteinICA
+
+# Example: 2 sources, 1000 samples (Laplace sources)
+rng = np.random.default_rng(0)
+S = rng.laplace(0, 1, size=(2, 1000))
+A = np.array([[0.8, 0.2], [0.3, 0.7]])
+X = torch.tensor(A @ S, dtype=torch.float32)
+
+ica = WassersteinICA(X)
+ica.whiten()
+w_est, distance = ica.optimize_wasserstein2(continuous=True)
+
+print("Recovered direction:", w_est)
+print("Wasserstein objective:", float(distance))
+```
+
+---
 
 ## Contact
 
-Ashutosh Jha ([ashutosh.jha@student.uni-tuebingen.de](mailto:ashutosh.jha@student.uni-tuebingen.de))
+Ashutosh Jha — [ashutosh.jha@student.uni-tuebingen.de](mailto:ashutosh.jha@student.uni-tuebingen.de)
+
+---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
