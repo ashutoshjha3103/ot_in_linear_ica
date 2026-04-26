@@ -29,7 +29,8 @@ dependencies = [
     "tqdm",
     "joblib",
     "jupyter",
-    "ipykernel"
+    "ipykernel",
+    "mne"
 ]
 
 [project.urls]

@@ -72,6 +72,7 @@ OT_IN_LINEAR_ICA/
 ├── src/
 │   └── wasserstein_ica/    # Installable package (WassersteinICA, core logic)
 ├── exp/                    # Main experiment notebooks (+ optional data next to notebooks)
+│   ├── requirements.txt    # Notebook-specific dependencies (e.g., mne for EEG)
 │   └── other/              # Extra / exploratory notebooks
 ├── report/                 # Thesis text and LaTeX sources
 ├── pyproject.toml          # Package metadata and dependencies
@@ -108,9 +109,12 @@ print("Wasserstein objective:", float(distance))
 
 Start Jupyter from an environment where `wasserstein-ica` is installed.
 
-**Recommended:** launch Jupyter with the **`exp/`** directory as the working directory so notebook-relative paths (for example data files next to notebooks) resolve correctly:
+**Recommended:** launch Jupyter with the **`exp/`** directory as the working directory so notebook-relative paths (for example data files next to notebooks) resolve correctly.
+
+To run the experimental notebooks (which require additional data-fetching libraries like mne for the clinical EEG application and Jupyter itself), install the experiment-specific requirements.
 
 ```bash
+pip install -r exp/requirements.txt
 cd exp
 jupyter lab
 # or: jupyter notebook
@@ -127,6 +131,7 @@ The table lists notebooks in the top level of `exp/` in a **recommended reading 
 | [OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb](exp/OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb) | **Experiment 1** stresses OT-ICA and FastICA on a high-dimensional mixture of many source types (heavy tails, bounded, skewed, and discrete marginals). **Experiment 2** targets discrete-source failure modes.<br>Together they test robustness when source statistics are heterogeneous rather than drawn from a single parametric family. |
 | [causal_comp_analysis_application.ipynb](exp/causal_comp_analysis_application.ipynb) | Simulates a small linear SCM with location–scale (heteroskedastic) noise, mixes the latent variables orthogonally, and uses OT-ICA as a robust route to LiNGAM-style causal ordering where contrast-based ICA can fail.<br>Compares recovery of structure to illustrate when geometry-based separation helps causal component analysis. |
 | [econometrics_application.ipynb](exp/econometrics_application.ipynb) | Applies OT-ICA to a simulated multi-market **price discovery** setting: observed prices are mixtures of latent shocks, and the notebook checks whether recovered components align with the underlying economic structure.<br>Use it as a stylized econometrics example beyond toy ICA benchmarks. |
+| [OT-ICA_EEG_Artifact_application.ipynb](exp/OT-ICA_EEG_Artifact_application.ipynb) | Applies OT-ICA to real-world clinical MEG/EEG sensor data (fetched via the mne library) to demonstrate its ability to isolate and remove massive, sparse super-Gaussian ocular artifacts (eye-blinks) from continuous brain wave recordings.|
 
 ---
 

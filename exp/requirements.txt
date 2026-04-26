@@ -1,0 +1,12 @@
+numpy
+torch>=1.10.0
+scipy
+matplotlib
+pot
+scikit-learn
+pandas
+seaborn
+tqdm
+joblib
+jupyter
+mne
