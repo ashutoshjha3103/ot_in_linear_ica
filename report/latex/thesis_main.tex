@@ -56,8 +56,8 @@
          {Prof. Dr. Augustin Kelava\textsuperscript{4}
           \\[1.5cm] % Adds space before the affiliations
           \multicolumn{2}{l}{\small \textsuperscript{1} Chair of Statistics, Econometrics and Empirical Economics, University of Tübingen} \\
-          \multicolumn{2}{l}{\small \textsuperscript{2} Empirical Inference, Max Planck Institute for Intelligent Systems, Tübingen} \\
-          \multicolumn{2}{l}{\small \textsuperscript{3} Institute for Machine Learning and AI, TU Braunschweig} \\
+          \multicolumn{2}{l}{\small \textsuperscript{2} Empirical Inference Group, Max Planck Institute for Intelligent Systems, Tübingen} \\
+          \multicolumn{2}{l}{\small \textsuperscript{3} Institute of Artificial Intelligence, TU Braunschweig} \\
           \multicolumn{2}{l}{\small \textsuperscript{4} Methods Center, University of Tübingen}
          }
          {}
@@ -114,7 +114,7 @@ These classical methods rely on surrogate information-theoretic measures, such a
 to quantify the non-Gaussianity of the unmixed components \cite{amari1996new}. 
 
 While computationally efficient, these parametric approximations evaluate specific statistical moments rather than the full probability density. 
-Consequently, we find them to fail to capture the complete geometric structure of the underlying empirical distributions, 
+Consequently, we find that they fail to capture the complete geometric structure of the underlying empirical distributions, 
 leading to optimization failures in heterogeneous mixtures.
 
 \section{Applications}
@@ -137,18 +137,19 @@ reliable mathematical convergence of the underlying ICA optimization algorithm.
 \section{Main Contribution}
 
 The primary methodological contribution of this thesis is the formulation and investigation of an optimal transport framework for independent component analysis (OT-ICA). 
-The core objective reduces to searching the Stiefel manifold for the rotation matrix that maximizes the non-Gaussianity of the projected data.
+The core objective of the OT-ICA framework reduces to searching the Stiefel manifold for the rotation matrix that maximizes the non-Gaussianity of the projected data.
 
-To achieve this, we propose utilizing the Wasserstein distance as the objective function for the rotational search. 
+To achieve this, we propose utilizing the Wasserstein distance as the objective function for the rotational search.
+\footnote{The complete implementation of the OT-ICA framework is publicly available at: \url{https://gitfront.io/r/ashutosh-jha/4gwwN1sPeeAD/ot-in-linear-ica/}} 
 Our objective is to find the orthogonal candidates that maximize the Wasserstein distance to a standard normal distribution. 
 Because the Wasserstein metric evaluates the true global geometry of the empirical distribution using order statistics \cite{villani2003}, 
 it provides a non-parametric and highly sensitive measure of distance to Gaussianity. 
-We find that this helps in successfully circumventing the structural blind spots of standard surrogate measures.
+We find that this helps in circumvent the structural blind spots of standard surrogate measures.
 
 \section{Structure of the Thesis}
 
 The remainder of this thesis is structured as follows. Chapter 2 establishes the theoretical foundations of linear ICA, information geometry, 
-and optimal transport. Chapter 3 formalizes the OT-ICA framework, proving that the squared Wasserstein ($W_2^2$) distance reliably bounds mixture non-Gaussianity. 
+and optimal transport. Chapter 3 formalizes the OT-ICA framework, and proves that the squared Wasserstein ($W_2^2$) distance reliably bounds mixture non-Gaussianity. 
 Chapter 4 details the algorithmic enhancements required to optimize this metric efficiently on the Stiefel manifold. 
 Chapter 5 presents our empirical evaluation, demonstrating the failure modes of standard proxy optimization and how OT-ICA addresses these limitations. 
 Finally, Chapter 6 concludes the thesis with a summary of findings and directions for future research.
@@ -212,7 +213,7 @@ the data's covariance matrix. However, rendering a sample strictly decorrelated 
 achieving blind source separation when the underlying data is non-Gaussian. 
 
 As noted by MacKay \citeyear{mackay2003}, PCA is fundamentally an $L_2$-norm variance maximization technique; 
-it is inherently sensitive to the scaling of the variables and heavily influenced by outliers. More critically, 
+it is inherently sensitive to variable scaling and heavily influenced by outliers. More critically, 
 PCA relies exclusively on second-order statistics. Once the data is decorrelated and scaled (whitened) such that $\mathbb{E}[\mathbf{X}\mathbf{X}^\top] = \mathbf{I}_d$, 
 the PCA criterion is satisfied for any arbitrary orthogonal rotation. While decorrelation implies strict independence 
 for multivariate Gaussian distributions, higher-order dependencies remain intact for non-Gaussian data. Consequently, 
@@ -224,7 +225,7 @@ The non-Gaussianity constraint defined in Theorem 2.1 is a strict mathematical r
 any orthogonal transformation of those specific sources yields another set of strictly independent Gaussian variables, 
 rendering the mixing matrix $\mathbf{A}$ impossible to determine uniquely. 
 
-Furthermore, even when the non-Gaussianity assumption is satisfied, the model contains two inherent ambiguities. 
+Furthermore, even when the non-Gaussianity assumption holds, the model has two inherent ambiguities. 
 The first is a scaling ambiguity: because both $\mathbf{A}$ and $\mathbf{S}$ are unknown, any scalar multiplier assigned 
 to a source $s_i$ can be perfectly cancelled by dividing the corresponding column of $\mathbf{A}$ by the same scalar. 
 Therefore, the exact variances of the unobserved sources cannot be inferred. The second is a permutation ambiguity: 
@@ -265,7 +266,7 @@ While Theorem 2.2 formally applies to limits of sums, its consequence in ICA is 
 linear mixture of independent, non-Gaussian sources will inherently appear more Gaussian than the underlying sources themselves. \cite[Chapter 1]{hyvarinen2001}.
 Therefore, by extracting the unmixed components that are the least Gaussian, the algorithm effectively isolates the original independent signals.
 
-The use of non-Gaussianity as a proxy for independence is further understood by an information theory and statistical mechanics perspective. 
+The use of non-Gaussianity as a proxy for independence is further understood from information-theoretic and statistical-mechanics perspectives. 
 For any continuous random variable with a fixed finite variance, it is a foundational mathematical result that the Gaussian distribution 
 uniquely possesses the maximum possible Shannon entropy \cite[Chapter 8]{cover2006elements}. In thermodynamics, 
 isolated physical systems naturally evolve toward states of maximum entropy. Viewed through this interdisciplinary lens, 
@@ -374,7 +375,7 @@ A measure $\nu$ is the push-forward of $\mu$ by a map $T$, denoted $\nu = T_{\#}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.6\textwidth]{ot_pushforward_concept.png}
+    \includegraphics[width=1.0\textwidth]{ot_pushforward_concept.png}
     \caption[Optimal Transport Push-Forward]{The Monge transport map $T$ pushes forward the probability mass from 
     the source measure $\mu$ to construct the target measure $\nu$, strictly conserving total mass during the transformation.}
     \label{fig:ot_pushforward}
@@ -382,8 +383,8 @@ A measure $\nu$ is the push-forward of $\mu$ by a map $T$, denoted $\nu = T_{\#}
 
 As illustrated in Figure \ref{fig:ot_pushforward}, the push-forward operator acts on measures, effectively 
 pushing mass forward along the map $T$. It is conceptually distinct from the \textit{pull-back} operator $T^{\#}$, which acts on functions. 
-For a continuous, bounded test function $g: \mathcal{Y} \rightarrow \mathbb{R}$, the pull-back evaluates the function via 
-the composition mapping ($T^{\#} g = g \circ T$). Because push-forward and pull-back are adjoint operators, 
+For a continuous, bounded test function $h: \mathcal{Y} \rightarrow \mathbb{R}$, the pull-back evaluates the function via 
+the composition mapping ($T^{\#} h = h \circ T$). Because push-forward and pull-back are adjoint operators, 
 the Monge problem seeks to minimize a transportation cost function $c(x,y)$ subject to the strict constraint that $T_{\#}\mu = \nu$:
 \begin{equation}
     \min_{T} \left\{ \int_{\mathcal{X}} c(x, T(x)) d\mu(x) \quad : \quad T_{\#}\mu = \nu \right\}.
@@ -431,16 +432,16 @@ universal ordering of coordinates in $\mathbb{R}^d$ ($d > 1$).
 
 However, in the specific one-dimensional setting, the geometry of optimal transport drastically simplifies \cite[Chapter 2]{villani2003}. 
 Because the data can be unambiguously sorted, the $W_1$ distance analytically collapses to the integral of 
-the absolute difference between the univariate cumulative distribution functions $F$ and $G$:
+the absolute difference between the univariate cumulative distribution functions $F_\mu$ and $F_\nu$:
 \begin{equation}
-    W_1(\mu, \nu) = \int_{-\infty}^\infty |F(x) - G(x)| \, dx.
+    W_1(\mu, \nu) = \int_{-\infty}^\infty |F_\mu(x) - F_\nu(x)| \, dx.
 \end{equation}
 
 Similarly, the squared Wasserstein distance ($p=2$), which heavily penalizes local geometric distortions, 
 takes on a highly efficient analytical form in one dimension. It is most conveniently expressed using the quantile functions, 
-which are the exact inverses of the cumulative distributions ($F^{-1}$ and $G^{-1}$):
+which are the exact inverses of the cumulative distributions ($F_\mu^{-1}$ and $F_\nu^{-1}$):
 \begin{equation}
-    W_2^2(\mu, \nu) = \int_0^1 |F^{-1}(t) - G^{-1}(t)|^2 \, dt.
+    W_2^2(\mu, \nu) = \int_0^1 |F_\mu^{-1}(t) - F_\nu^{-1}(t)|^2 \, dt.
 \end{equation}
 
 By circumventing the need to construct multi-dimensional couplings, the 1D $W_2^2$ metric provides an extremely 
@@ -467,7 +468,7 @@ as a direct measure of non-Gaussianity. We formalize this framework as follows:
 \noindent\textbf{Definition 3.1 The OT-ICA Optimization Objective.} \textit{Let $\mathbf{X}$ be the whitened observed mixture, and 
 let $\mathbf{u} \in S_n$ be a candidate projection vector on the unit sphere. Let the empirical distribution of the projected data be 
 denoted by $\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}$, and let the standard normal distribution be defined as $\Gamma \equiv \mathcal{N}(0,1)$. 
-The Optimal Transport ICA (OT-ICA) objective is to find the orthogonal rotation matrix whose column vectors $\mathbf{u}$ maximize the transport cost to $\Gamma$:}
+The Optimal Transport ICA (OT-ICA) objective is to find the orthogonal rotation matrix whose column vectors $\mathbf{u}$ maximize the distance to $\Gamma$ (maximize non-gaussianity):}
 \begin{equation}
     \hat{\mathbf{u}} = \arg\max_{\mathbf{u} \in S_n} W_2^2\big(\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}, \Gamma\big).
 \end{equation}
@@ -526,8 +527,8 @@ Squaring the summation produces diagonal terms ($i=j$) and cross terms ($i \neq 
 \begin{equation}
     |X - Y|^2 = \sum_{i=1}^d w_i^2 \big(T_i(N_i) - N_i\big)^2 + \sum_{i \neq j} w_i w_j \big(T_i(N_i) - N_i\big)\big(T_j(N_j) - N_j\big).
 \end{equation}
-Taking the expectation simplifies the expression. Because the underlying noise variables $N_i$ and $N_j$ are independent, 
-and the functions evaluate to a mean of zero, all cross terms vanish. We are left with the expectation of the diagonal terms:
+Because the underlying noise variables $N_i$ and $N_j$ are independent, 
+and the functions evaluate to a mean of zero, when we take the expectation, all cross terms vanish. We are left with the expectation of the diagonal terms:
 \begin{equation}
     \mathbb{E}\left[|X - Y|^2\right] = \sum_{i=1}^d w_i^2 \mathbb{E}\left[ \big(T_i(N_i) - N_i\big)^2 \right].
 \end{equation}
@@ -536,8 +537,11 @@ the individual source $Z_i$ and $\Gamma$, we arrive at the bound:
 \begin{equation}
     W_2^2(\mathbf{w} \cdot \mathbf{Z}, \Gamma) \le \sum_{i=1}^d w_i^2 W_2^2(Z_i, \Gamma). \quad \blacksquare
 \end{equation}
-This property demonstrates that mixing independent sources mathematically reduces the Wasserstein distance to Gaussianity. 
-Maximizing the left-hand side forces the weight vector $\mathbf{w}$ to collapse toward a canonical axis, isolating a single independent source.
+By constructing a valid joint coupling, we establish that cross-dimensional terms vanish under expectation, 
+proving that mixture non-Gaussianity is bounded by the weighted sum of the constituent sources. 
+This property acts as an optimal transport analogue to the Central Limit Theorem, demonstrating that linear mixing inherently 
+reduces the overall distance to Gaussianity. Consequently, maximizing this distance forces the weight vector $\mathbf{w}$ to collapse toward a canonical axis, 
+effectively isolating a single independent component.
 
 \subsection{Comonotonicity and the Proof of Strict Inequality}
 Optimizing ICA requires establishing that mixtures are strictly less non-Gaussian than the original sources. 
@@ -628,8 +632,8 @@ contradicts the non-Gaussianity of the sources. Because the condition for equali
 
 \section{Empirical Landscape: $W_1$ versus $W_2^2$}
 Having established the theoretical foundations of the $W_2^2$ metric, we evaluate its practical suitability for manifold optimization. 
-In the context of ICA, gradient ascent algorithms must climb the loss landscape to locate the maxima of the distance metric 
-to isolate the independent sources.
+In the context of ICA, gradient ascent algorithms must climb the loss landscape to locate the maxima of the distance metric, 
+thereby isolating the independent sources.
 
 While the $W_1$ distance (Earth Mover's Distance) is robust to outliers, its reliance on an $L_1$ absolute penalty 
 introduces geometric challenges when applied to finite empirical samples. We demonstrate why the squared $L_2$ 
@@ -652,7 +656,7 @@ the two true independent components are geometrically separated by exactly $\pi/
 
 The empirical results, visualized in Figure \ref{fig:w1_vs_w2_derivatives}, illustrate the behaviors of 
 the two metrics during continuous gradient ascent. In optimal transport, because the $W_1$ cost scales linearly with distance, 
-the resulting optimization landscape lacks the convexity required to smooth finite sample noise.
+the resulting optimization landscape lacks the convexity needed to smooth out finite sample noise.
 
 The consequence of this lack of curvature is evident in the bottom gradient profile. Because $W_1$ relies on 
 piecewise linear sorting mechanics without a squaring penalty, its empirical derivative fluctuates frequently 
@@ -660,9 +664,9 @@ as the projection angle rotates. Consequently, first-order gradient ascent solve
 which hinders convergence to the true peak. This instability is exacerbated in higher dimensions, where the $W_1$ 
 derivative surface becomes even more jagged and difficult to traverse. Furthermore, this volatility limits 
 the utility of second-order Quasi-Newton approximations (such as L-BFGS), as a stable Hessian cannot be reliably estimated 
-from such a jagged and difficult to traverse gradient.
+from such a jagged and difficult-to-traverse gradient.
 
-In contrast, the squared penalty of the $W_2^2$ metric acts as a natural smoother by penalizing local geometric distortions. 
+In contrast, the squared penalty in the $W_2^2$ metric acts as a natural smoother, penalizing local geometric distortions. 
 As seen in the gradient profiles, the $W_2^2$ derivative behaves continuously, decelerating predictably as it approaches the optimum. 
 This retention of curvature provides a reliable signal for gradient-based solvers, allowing the OT-ICA framework to converge consistently.
 
