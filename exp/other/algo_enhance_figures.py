@@ -9,8 +9,6 @@ def set_cardoso_theme():
     mpl.rcParams.update({
         'font.family': 'serif',
         'mathtext.fontset': 'cm',  # Computer Modern font (standard LaTeX)
-        'font.size': 12,
-        'axes.labelsize': 14,
         'axes.grid': False,        # No grids for abstract math diagrams
         'axes.spines.top': False,
         'axes.spines.right': False,
@@ -26,33 +24,32 @@ set_cardoso_theme()
 # DIAGRAM 1: Riemannian Gradient on the Stiefel Manifold
 # =====================================================================
 def plot_manifold_projection():
-    fig = plt.figure(figsize=(8, 6))
+    # Massive figure for high-res PDF
+    fig = plt.figure(figsize=(14, 12))
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_axis_off() # Hide standard 3D axes for a clean geometric sketch
+    ax.set_axis_off() 
 
-    # 1. Draw the Manifold Surface (A curved sphere segment)
-    u = np.linspace(0, np.pi/2.5, 50)
-    v = np.linspace(0, np.pi/2.5, 50)
+    # 1. Draw the Manifold Surface
+    u = np.linspace(0, np.pi/2.2, 60)
+    v = np.linspace(0, np.pi/2.2, 60)
     x = np.outer(np.sin(u), np.cos(v))
     y = np.outer(np.sin(u), np.sin(v))
     z = np.outer(np.cos(u), np.ones_like(v))
     
-    # Manifold surface: very faint and transparent
-    ax.plot_surface(x, y, z, color='#B0B0B0', alpha=0.6, edgecolor='none', shade=True)
+    ax.plot_surface(x, y, z, color='#B0B0B0', alpha=0.5, edgecolor='none', shade=True)
 
     # 2. Define our point W on the manifold
     W = np.array([np.sin(np.pi/4)*np.cos(np.pi/4), np.sin(np.pi/4)*np.sin(np.pi/4), np.cos(np.pi/4)])
     
     # 3. Draw the Tangent Space (A flat plane touching W)
     d = -W.dot(W)
-    xx, yy = np.meshgrid(np.linspace(W[0]-0.4, W[0]+0.4, 2), np.linspace(W[1]-0.4, W[1]+0.4, 2))
+    xx, yy = np.meshgrid(np.linspace(W[0]-0.45, W[0]+0.45, 2), np.linspace(W[1]-0.45, W[1]+0.45, 2))
     zz = (-W[0]*xx - W[1]*yy - d) / W[2]
     
-    # CHANGED: Tangent plane is now stark white, high opacity, with a distinct edge
-    ax.plot_surface(xx, yy, zz, color='#F8F8F8', alpha=0.3, edgecolor='#B0B0B0', linewidth=0.8)
+    ax.plot_surface(xx, yy, zz, color='#F8F8F8', alpha=0.4, edgecolor='#666666', linewidth=1.5)
 
-    # 4. Vectors
-    G = W + np.array([-0.1, 0.3, 0.4]) 
+    # 4. Vectors (Adjusted to point significantly more upwards)
+    G = W + np.array([-0.25, 0.35, 0.85]) 
     
     G_vec = G - W
     proj_length = np.dot(G_vec, W)
@@ -60,78 +57,102 @@ def plot_manifold_projection():
     G_riemannian = W + riemannian_vec
 
     # Plot Point W
-    ax.scatter(*W, color='black', s=50, zorder=5)
-    ax.text(W[0]+0.2, W[1]-0.1, W[2]-0.05, r'$\mathbf{W}$', fontsize=16)
+    ax.scatter(*W, color='black', s=150, zorder=5)
+    ax.text(W[0]+0.08, W[1]-0.05, W[2]+0.05, r'$\mathbf{W}$', fontsize=26, fontweight='bold')
 
     # Plot Euclidean Gradient G
-    ax.quiver(W[0], W[1], W[2], G_vec[0], G_vec[1], G_vec[2], color='gray', arrow_length_ratio=0.1, linewidth=1.5, linestyle='--')
-    ax.text(G[0]+0.02, G[1]+0.02, G[2]+0.02, r'$\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$', fontsize=14, color='gray')
+    ax.quiver(W[0], W[1], W[2], G_vec[0], G_vec[1], G_vec[2], color='gray', arrow_length_ratio=0.1, linewidth=2.5, linestyle='--')
+    ax.text(G[0]+0.02, G[1]+0.02, G[2]+0.05, r'$\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$', fontsize=22, color='gray')
 
-    # Plot Riemannian Gradient
-    ax.quiver(W[0], W[1], W[2], riemannian_vec[0], riemannian_vec[1], riemannian_vec[2], color='black', arrow_length_ratio=0.1, linewidth=2)
-    ax.text(G_riemannian[0] +0.05, G_riemannian[1]-0.12, G_riemannian[2]-0.05, r'$\nabla_{\mathcal{S}} \mathbf{W}$', fontsize=16, color='black')
+    # Plot Riemannian Gradient (Tangent Arrow)
+    ax.quiver(W[0], W[1], W[2], riemannian_vec[0], riemannian_vec[1], riemannian_vec[2], color='black', arrow_length_ratio=0.1, linewidth=4)
+    ax.text(G_riemannian[0]-0.08, G_riemannian[1]+0.1, G_riemannian[2]+0.05, r'$\nabla_{\mathcal{S}} \mathbf{W}$', fontsize=26, color='black')
 
     # Retraction Step 
-    step_point = W + riemannian_vec * 0.8
+    step_point = W + riemannian_vec * 0.7
     retracted_point = step_point / np.linalg.norm(step_point) 
     
-    ax.plot([step_point[0], retracted_point[0]], [step_point[1], retracted_point[1]], [step_point[2], retracted_point[2]], color='black', linestyle=':', linewidth=2)
-    ax.scatter(*retracted_point, color='black', s=30, zorder=5)
-    ax.text(retracted_point[0]+0.05, retracted_point[1]+0.1, retracted_point[2]-0.05, r'$\mathbf{W}_{\text{new}}$', fontsize=14)
+    # Dotted drop line from the tangent plane down to the manifold
+    ax.plot([step_point[0], retracted_point[0]], [step_point[1], retracted_point[1]], [step_point[2], retracted_point[2]], color='black', linestyle=':', linewidth=3)
+    ax.scatter(*retracted_point, color='black', s=120, zorder=5)
+    ax.text(retracted_point[0]+0.05, retracted_point[1]+0.05, retracted_point[2]-0.08, r'$\mathbf{W}_{\text{new}}$', fontsize=24)
 
-    # Label the spaces
-    ax.text(0.1, 0.1, 0.9, r'$\mathcal{S}$ (Stiefel)', fontsize=14)
-    ax.text(W[0]+0.2, W[1]-0.3, zz[1,1]+0.05, r'$T_{\mathbf{W}}\mathcal{S}$', fontsize=14)
+    # Curved line ON the manifold from W to W_new (Spherical Interpolation)
+    t_vals = np.linspace(0, 1, 30)
+    theta = np.arccos(np.clip(np.dot(W, retracted_point), -1.0, 1.0))
+    sin_theta = np.sin(theta)
+    curve_pts = np.array([(np.sin((1-t)*theta)/sin_theta)*W + (np.sin(t*theta)/sin_theta)*retracted_point for t in t_vals])
+    # Plot the curve hugging the manifold
+    ax.plot(curve_pts[:,0], curve_pts[:,1], curve_pts[:,2], color='black', linestyle='-', linewidth=3.5, zorder=4)
 
-    # CHANGED: Adjusted viewing angle for better depth perception
-    ax.view_init(elev=20, azim=100)
+    # --- UPDATED LABELS (SWAPPED POSITIONS) ---
+    # Moved Tangent Space label to the foreground (bottom middle)
+    ax.text(0.8, 0.9, 0.2, r'$T_{\mathbf{W}}\mathcal{S}$', fontsize=26, horizontalalignment='center')
+    
+    # Moved Manifold label to the corner of the plane
+    corner_x = xx[1,0]
+    corner_y = yy[1,0]
+    corner_z = zz[1,0]
+    ax.text(corner_x - 0.3, corner_y + 0.2, corner_z - 0.1, '$\mathcal{S}$ (Orthogonal Matrices Space)', fontsize=24, horizontalalignment='center')
+
+    # Set viewing angle for perfect side-profile
+    ax.view_init(elev=25, azim=120)
     plt.tight_layout()
-    plt.savefig('stiefel_manifold_projection.png', dpi=300, bbox_inches='tight')
+    
+    file_name = 'stiefel_manifold_projection.pdf'
+    plt.savefig(file_name, format='pdf', bbox_inches='tight')
+    print(f"Saved {file_name}")
     plt.show()
+
 
 # =====================================================================
 # DIAGRAM 2: Discrete CDF Smoothed by Gaussian Dithering
 # =====================================================================
 def plot_dithering_cdf():
-    fig, ax = plt.figure(figsize=(8, 5)), plt.gca()
+    # Massive figure for high-res PDF
+    fig, ax = plt.subplots(figsize=(14, 10))
     
     n_points = 150
     discrete_data = np.random.choice([0, 1, 2, 3], size=n_points, p=[0.1, 0.4, 0.3, 0.2])
     discrete_data = np.sort(discrete_data)
     y_discrete = np.arange(1, n_points + 1) / n_points
 
-    # REDUCED SIGMA FOR TIGHTER FIT
     sigma_dither = 0.05
     dithered_data = discrete_data + np.random.normal(0, sigma_dither, size=n_points)
     dithered_data = np.sort(dithered_data)
     y_dithered = np.arange(1, n_points + 1) / n_points
 
-    ax.step(discrete_data, y_discrete, where='post', color='gray', linewidth=2.5, label='Discrete Empirical CDF (Staircase)')
-    ax.plot(dithered_data, y_dithered, color='black', linewidth=2, label='Dithered CDF (Continuous)')
+    # Thickened lines
+    ax.step(discrete_data, y_discrete, where='post', color='#666666', linewidth=4, label='Discrete Empirical CDF (Staircase)')
+    ax.plot(dithered_data, y_dithered, color='black', linewidth=3.5, label='Dithered CDF (Continuous)')
 
-    # NARROWER VISUAL KERNEL
     x_kernel = np.linspace(0.8, 1.2, 100)
-    # Scaled down to fit nicely above the step
     y_kernel = 0.5 + 0.035 * norm.pdf(x_kernel, loc=1, scale=sigma_dither)
-    ax.plot(x_kernel, y_kernel, color='black', linestyle=':', linewidth=1.5)
-    ax.fill_between(x_kernel, 0.5, y_kernel, color='#E0E0E0', alpha=0.5)
-    ax.text(1.1, 0.65, r'$\sim \mathcal{N}(0, \sigma_{\text{dither}}^2)$', fontsize=12)
+    ax.plot(x_kernel, y_kernel, color='black', linestyle=':', linewidth=2.5)
+    ax.fill_between(x_kernel, 0.5, y_kernel, color='#E0E0E0', alpha=0.7)
     
+    # Scaled up math text
+    ax.text(1.15, 0.65, r'$\sim \mathcal{N}(0, \sigma_{\text{dither}}^2)$', fontsize=24)
     ax.annotate('', xy=(2.0, 0.65), xytext=(2.0, 0.8),
-                arrowprops=dict(arrowstyle='->', color='black', lw=1.5, ls=':'))
+                arrowprops=dict(arrowstyle='->', color='black', lw=2.5, ls=':'))
 
-    ax.set_xlabel('Projected Value $y = \mathbf{w}^\top \mathbf{x}$', fontsize=14)
-    ax.set_ylabel('Cumulative Probability $F_{\mathbf{w}}(y)$', fontsize=14)
+    # Scaled up axes text
+    ax.set_xlabel(r'Projected Value $y = \mathbf{w}^\top \mathbf{x}$', fontsize=26, labelpad=15)
+    ax.set_ylabel(r'Cumulative Probability $F_{\mathbf{w}}(y)$', fontsize=26, labelpad=15)
     ax.set_xlim(-0.5, 3.5)
     ax.set_ylim(0, 1.05)
+    
     ax.set_xticks([0, 1, 2, 3])
-    ax.legend(loc='lower right', fontsize=12)
+    ax.tick_params(axis='both', which='major', labelsize=24)
+    ax.legend(loc='lower right', fontsize=22)
 
     plt.tight_layout()
-    plt.savefig('gaussian_dithering_cdf.png', dpi=300, bbox_inches='tight')
+    
+    file_name = 'gaussian_dithering_cdf.pdf'
+    plt.savefig(file_name, format='pdf', bbox_inches='tight')
+    print(f"Saved {file_name}")
     plt.close()
 
 # Run the functions
 plot_manifold_projection()
 plot_dithering_cdf()
-print("Saved 'stiefel_manifold_projection.png' and 'gaussian_dithering_cdf.png'")
