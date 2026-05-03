@@ -92,15 +92,15 @@
 % -----------------------------------------------------------------
 \chapter{Introduction}
 
-Blind source separation, specifically formulated as independent component analysis (ICA), is a fundamental problem in modern statistics \cite{jutten1985}. 
-The primary objective of ICA is to recover a set of hidden, statistically independent source signals from an observed set of mixtures. 
-In this thesis, the problem is strictly bounded to the linear mixture setting, wherein the observations are assumed to be generated 
-by an unknown, invertible linear combination of the latent sources.
+Blind source separation, specifically formulated as independent component analysis (ICA), is a fundamental problem in statistics \cite{jutten1985}. 
+The objective of ICA is to recover a set of hidden, statistically independent source signals from an observed set of mixtures. 
+In this thesis, only linear mixtures, wherein the observations are assumed to be generated 
+by an unknown, invertible linear combination of the latent sources are considered.
 
-To achieve exact separation, ICA imposes strict statistical independence among the recovered components. 
+To achieve this separation, ICA imposes statistical independence among the recovered components. 
 This approach is frequently contrasted with principal component analysis (PCA). While PCA diagonalizes the covariance matrix 
-to ensure that the resulting components are uncorrelated, ICA enforces the mathematical condition of full statistical independence \cite[Chapter 1]{hyvarinen2001}. 
-This rigorous criterion allows ICA to systematically disentangle complex latent variables that remain mixed under simple decorrelation.
+to ensure that the resulting components are uncorrelated, ICA enforces full statistical independence \cite[Chapter 1]{hyvarinen2001}. 
+This stronger criterion allows ICA to disentangle complex latent variables that remain mixed under simple decorrelation.
 
 \section{Existing Methodologies}
 
