@@ -104,26 +104,24 @@ This stronger criterion allows ICA to disentangle complex latent variables that 
 
 \section{Existing Methodologies}
 
-In practice, the standard ICA pipeline begins by centering and whitening the observed mixture. 
+The standard ICA pipeline begins by centering and whitening the observed mixture. 
 Whitening is a necessary preprocessing step that removes linear correlations and scales the marginal variances to unity. 
-Once the data is whitened, the search for independent components is geometrically restricted to finding 
-an optimal orthogonal rotation matrix on the Stiefel manifold, a space of orthogonal matrices. \cite{absil2008optimization}.
+Once the data is whitened, the search for independent components is restricted to finding 
+an optimal orthogonal rotation matrix on a space of orthogonal matrices. \cite{absil2008optimization}.
 
-Traditional ICA algorithms navigate this rotational search by optimizing surrogate contrast functions to identify non-Gaussian projections \cite[Chapter 8]{hyvarinen2001}. 
+Traditional ICA algorithms navigate this rotational search by optimizing contrast functions to identify non-Gaussian projections \cite[Chapter 8]{hyvarinen2001}. 
 These classical methods rely on surrogate information-theoretic measures, such as negentropy approximations or cumulant-based matching, 
 to quantify the non-Gaussianity of the unmixed components \cite{amari1996new}. 
 
 While computationally efficient, these parametric approximations evaluate specific statistical moments rather than the full probability density. 
-Consequently, we find that they fail to capture the complete geometric structure of the underlying empirical distributions, 
+Consequently, we find that they fail to capture the complete geometric structure of the underlying distributions, 
 leading to optimization failures in heterogeneous mixtures.
 
 \section{Applications}
 
-The ability to blindly separate independent sources without parametric assumptions regarding their underlying distributions has widespread utility across diverse scientific domains. 
+The ability to blindly separate independent sources without parametric assumptions regarding their underlying distributions has widespread utility across diverse domains. 
 In neuroscience, ICA serves as the standard clinical technique for isolating and removing high-amplitude biological artifacts, such as ocular and muscular signals, 
-from continuous electroencephalogram (EEG) and magnetoencephalogram (MEG) recordings \cite[Chapter 21]{hyvarinen2001}.
-
-Beyond biological signal processing, the framework is foundational in digital communications and computer vision. 
+from continuous electroencephalogram (EEG) and magnetoencephalogram (MEG) recordings \cite[Chapter 21]{hyvarinen2001}. 
 In telecommunications, ICA is deployed to separate overlapping transmissions in code-division multiple access (CDMA) systems, 
 while in image processing, it is utilized to extract localized, oriented, and bandpass features from natural images, 
 effectively mimicking the processing functions of the mammalian primary visual cortex \cite[Chapters 22-23]{hyvarinen2001}.
@@ -132,19 +130,19 @@ Furthermore, the methodology is increasingly utilized in advanced econometrics a
 In financial price discovery, ICA facilitates the identification of latent structural shocks, allowing researchers to 
 uniquely resolve the orthogonal ambiguities inherent in standard vector error correction models \cite{zema2025}. 
 Across all these distinct domains, the validity of the downstream scientific or economic analysis depends strictly on the 
-reliable mathematical convergence of the underlying ICA optimization algorithm.
+reliable convergence of the underlying ICA optimization algorithm.
 
 \section{Main Contribution}
 
-The primary methodological contribution of this thesis is the formulation and investigation of an optimal transport framework for independent component analysis (OT-ICA). 
-The core objective of the OT-ICA framework reduces to searching the Stiefel manifold for the rotation matrix that maximizes the non-Gaussianity of the projected data.
+The primary methodological contribution of this thesis is the formulation and investigation of an optimal transport theory based framework for independent component analysis (OT-ICA). 
+The core objective of the OT-ICA framework reduces to searching the space of orthogonal matrices for the rotation matrix that maximizes the non-Gaussianity of the projected data.
 
-To achieve this, we propose utilizing the Wasserstein distance as the objective function for the rotational search.
+To achieve this, we propose utilizing the Wasserstein distance as the contrast function for the rotational search.
 \footnote{The complete implementation of the OT-ICA framework is publicly available at: \url{https://gitfront.io/r/ashutosh-jha/4gwwN1sPeeAD/ot-in-linear-ica/}} 
 Our objective is to find the orthogonal candidates that maximize the Wasserstein distance to a standard normal distribution. 
-Because the Wasserstein metric evaluates the true global geometry of the empirical distribution using order statistics \cite{villani2003}, 
+Because the Wasserstein metric evaluates the global geometry of the empirical distribution using order statistics \cite{villani2003}, 
 it provides a non-parametric and highly sensitive measure of distance to Gaussianity. 
-We find that this helps in circumvent the structural blind spots of standard surrogate measures.
+We find that this helps to circumvent the structural blind spots of existing methods which use surrogate information-theoretic or moment based contrasts.
 
 \section{Structure of the Thesis}
 
@@ -159,10 +157,10 @@ Finally, Chapter 6 concludes the thesis with a summary of findings and direction
 % -----------------------------------------------------------------
 \chapter{Theoretical Foundations}
 
-This chapter establishes the mathematical and conceptual foundations necessary for linear independent component analysis. 
-We first formalize the linear mixing model and its identifiability conditions, subsequently detailing the statistical and 
-thermodynamic intuitions that motivate the framework. Following this, we introduce an information-geometric perspective linking 
-independence to non-Gaussianity, and finally, formalize the principles of optimal transport that govern the proposed optimization metric.
+This chapter establishes the foundations necessary for linear independent component analysis. 
+We first formalize the linear mixing model and its identifiability conditions, subsequently detailing the statistical intuitions that motivate the framework. 
+Following this, we introduce an information-geometric perspective linking 
+statistical independence to non-Gaussianity, and finally, formalize the principles of optimal transport that govern the proposed optimization metric.
 
 \section{Linear Independent Component Analysis (ICA)}
 
