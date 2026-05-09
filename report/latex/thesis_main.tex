@@ -286,12 +286,12 @@ that minimizes the divergence between the empirical data and its projection onto
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.85\textwidth]{pythagorean_ig_ica.png}
+    \includegraphics[width=1.0\textwidth]{pythagorean_ig_ica.png}
     \caption[Information Geometry of ICA]{The Pythagorean geometry of Independent Component Analysis. 
     The empirical joint distribution $P_Y$ is orthogonally projected onto the Product manifold $\mathcal{P}$ (yielding the independent marginals $P_Y^P$) 
     and the Gaussian manifold $\mathcal{G}$ (yielding the best Gaussian fit $\mathcal{N}(\operatorname{Cov} Y)$). The intersection of these approximations yields 
     the fully factorized Gaussian target $\mathcal{N}(\operatorname{diag\,Cov} Y)$. The Kullback-Leibler divergences between these nodes geometrically represent distinct statistical properties: 
-    Mutual Information $\mathscr{I}(Y)$, Joint Non-Gaussianity $G(Y)$, and Correlation $C(Y)$. Figure adapted from Cardoso \citeyear{cardoso2022}.}
+    Mutual Information $\mathscr{I}(Y)$, Joint Non-Gaussianity $G(Y)$, and Correlation $C(Y)$. Figure from Cardoso \citeyear{cardoso2022}.}
     \label{fig:cardoso_geometry}
 \end{figure}
 
@@ -373,7 +373,7 @@ A measure $\nu$ is the push-forward of $\mu$ by a map $T$, denoted $\nu = T_{\#}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{ot_pushforward_concept.png}
+    \includegraphics[width=1.0\textwidth]{ot_pushforward_concept.pdf}
     \caption[Optimal Transport Push-Forward]{The Monge transport map $T$ pushes forward the probability mass from 
     the source measure $\mu$ to construct the target measure $\nu$, strictly conserving total mass during the transformation.}
     \label{fig:ot_pushforward}
@@ -400,7 +400,7 @@ or coupling, $\pi \in \Pi(\mu, \nu)$, which dictates exactly how fractions of ma
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{ot_coupling_cases.png}
+    \includegraphics[width=1.0\textwidth]{ot_coupling_cases.pdf}
     \caption[The Three Scenarios of Kantorovich Optimal Transport]{A schematic view of the input measures and 
     optimal couplings across the three primary scenarios of Kantorovich Optimal Transport: Discrete, Semi-discrete, and Continuous. 
     The top row depicts the marginal distributions, while the bottom row visualizes the structural nature of the corresponding coupling spaces. 
@@ -645,7 +645,7 @@ the two true independent components are geometrically separated by exactly $\pi/
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{w1_vs_w2_derivatives.png} 
+    \includegraphics[width=1.0\textwidth]{w1_vs_w2_derivatives.pdf} 
     \caption[Gradient Landscapes of $W_1$ and $W_2^2$]{The empirical optimization landscapes (top) and their normalized first derivatives (bottom). 
     While both metrics peak near the true independent components ($\theta \approx 0, \pi/2, \pi$), their gradient behaviors differ. 
     The $W_2^2$ gradient smoothly approaches zero, whereas the $W_1$ gradient exhibits jagged volatility on finite samples.}
@@ -742,7 +742,7 @@ To navigate the geometry of the Stiefel manifold, we project the Euclidean gradi
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{stiefel_manifold_projection.png}
+    \includegraphics[width=0.9\textwidth]{stiefel_manifold_projection.pdf}
     \caption[Riemannian Optimization on the Stiefel Manifold]{Geometric sketch of optimization on the Stiefel manifold $\mathcal{S}$. 
     The Euclidean gradient $\mathbf{G}$ is projected onto the tangent space $T_{\mathbf{W}}\mathcal{S}$ to yield the Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$. 
     Following a step along the tangent plane, a retraction maps the estimate back to the orthogonal manifold surface at $\mathbf{W}_{\text{new}}$.}
@@ -833,7 +833,7 @@ statistically negligible and preserves the underlying Wasserstein geometry. For 
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{gaussian_dithering_cdf.png}
+    \includegraphics[width=1.0\textwidth]{gaussian_dithering_cdf.pdf}
     \caption[Gaussian Dithering of Discrete CDFs]{The effect of algorithmic Gaussian Dithering. 
     The non-differentiable staircase of a discrete empirical CDF (gray) is convolved with a narrow Gaussian kernel, 
     yielding a strictly increasing, continuous curve (black) that restores stable Wasserstein gradients.}
@@ -1045,7 +1045,7 @@ Laplace (super-Gaussian), Uniform (sub-Gaussian), Student-t (continuous heavy-ta
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{otica_baseline_recovery.png} 
+    \includegraphics[width=1.0\textwidth]{otica_baseline_recovery.pdf} 
     \caption[Baseline Source Recovery via OT-ICA]{Empirical probability distributions of the 4D baseline validation. 
     The original generated sources are represented by gray histograms, overlaid with the sources extracted by the OT-ICA algorithm (orange curves). 
     The framework recovers continuous non-Gaussian structures, navigating both super-Gaussian peaks and sub-Gaussian bimodality.}
@@ -1118,7 +1118,7 @@ its capacity to find global optima depends on computational resources. We evalua
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{laplace_amari_ot_ica_scaling.png} 
+    \includegraphics[width=1.0\textwidth]{laplace_amari_ot_ica_scaling.pdf} 
     \caption[Separation Accuracy on Laplacian Sources]{Amari error comparison between FastICA and OT-ICA across dimensions for Laplacian sources. 
     While OT-ICA degrades in the Low Compute regime due to the surface area of the Stiefel manifold, the High Compute regime achieves separation ($E < 0.3$), 
     matching FastICA's capabilities.}
@@ -1133,7 +1133,7 @@ demonstrating a statistical limitation of the fixed sample size.
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{laplace_time_ot_ica_scaling.png} 
+    \includegraphics[width=1.0\textwidth]{laplace_time_ot_ica_scaling.pdf} 
     \caption[Execution Time Scaling]{Total execution time (in seconds) for FastICA and OT-ICA across dimensions. 
     OT-ICA exhibits higher computational costs, particularly in the High Compute regime (right) where parallel restarts are required.}
     \label{fig:laplace_time_scaling}
@@ -1174,7 +1174,7 @@ We separated the evaluation into the Low Compute and High Compute regimes.
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{zero_negentropy_amari_compute.png} 
+    \includegraphics[width=1.0\textwidth]{zero_negentropy_amari_compute.pdf} 
     \caption[Performance on Zero-Negentropy Failure Mode]{Amari error comparison between FastICA and OT-ICA for the zero-negentropy Trimodal Gaussian distribution. 
     FastICA lacks convergence ($E > 0.5$) across all regimes. OT-ICA unmixes the sources, though it requires the High Compute regime for higher dimensions.}
     \label{fig:zero_negentropy_amari}
@@ -1213,7 +1213,7 @@ that balance the regions of negative and positive curvature.
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{vanishing_curvature_trimodal_pdf.png} 
+    \includegraphics[width=1.0\textwidth]{vanishing_curvature_trimodal_pdf.pdf} 
     \caption[The Vanishing Curvature Counterexample]{The engineered Trimodal Gaussian Mixture. The central mass generates negative algorithmic curvature, 
     while the side peaks generate positive algorithmic curvature. The parameters $b$ and $p$ are solved such that these regions cancel ($\int h(x) \text{PDF}(x) dx = 0$) 
     while maintaining unit variance.}
@@ -1225,7 +1225,7 @@ We evaluated FastICA and OT-ICA across dimensions ($d \in [5, 25]$) at $N=10,000
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{vanishing_curvature_amari_compute.png} 
+    \includegraphics[width=1.0\textwidth]{vanishing_curvature_amari_compute.pdf} 
     \caption[Performance on Trimodal Failure Mode]{Amari error comparison between FastICA and OT-ICA across dimensions for the engineered Trimodal distribution. 
     FastICA lacks convergence ($E > 1.0$) across all regimes.}
     \label{fig:amari_trimodal_failure}
@@ -1252,7 +1252,7 @@ OT-ICA maintained moderate to good separation ($E < 0.5$) across the dimensions 
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{general_hybrid_test.png} 
+    \includegraphics[width=1.0\textwidth]{general_hybrid_test.pdf} 
     \caption[General Hybrid Mixture Stress Test]{Amari error comparison for the Generalized Hybrid Mixture. OT-ICA maintains stability across the tested dimensions.}
     \label{fig:hybrid_mixture_results}
 \end{figure}
@@ -1271,7 +1271,7 @@ geometries of standard Poisson ($\lambda=3$) and Binomial ($n=10$) distributions
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{isolated_discrete_test.png} 
+    \includegraphics[width=1.0\textwidth]{isolated_discrete_test.pdf} 
     \caption[Performance on Isolated Discrete Pools]{Amari error for mixtures composed entirely of a single discrete distribution type. 
     Both algorithms separate binary (Bernoulli) data but show higher error on count data (Poisson, Binomial).}
     \label{fig:discrete_isolation}
@@ -1303,7 +1303,7 @@ The Logcosh proxy evaluates to lower relative values for these discrete structur
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{all_optimization_surfaces.png}
+    \includegraphics[width=1.0\textwidth]{all_optimization_surfaces.pdf}
     \caption[Optimization Surface of Discrete Mixtures]{The 1D optimization landscapes for discrete mixtures. The step-function geometry of 
     discrete data affects the gradient properties of both the OT-ICA surface and the FastICA proxy approximation.}
     \label{fig:optimization_surface}
@@ -1319,7 +1319,7 @@ We evaluated the algorithms on the skewed parameterizations.
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{binomial_poisson_fast_vs_ot_ica.png} 
+    \includegraphics[width=1.0\textwidth]{binomial_poisson_fast_vs_ot_ica.pdf} 
     \caption[Performance on Harsh Discrete Environments]{Amari Error for skewed discrete parameterizations. 
     OT-ICA achieves separation on the Poisson distribution but does not converge on the symmetric Binomial.}
     \label{fig:harsh_discrete}
@@ -1363,7 +1363,7 @@ and we isolated a 10-second window (10.0s to 20.0s) containing eye-blinks across
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{eeg_artifact_removal.png}
+    \includegraphics[width=1.0\textwidth]{eeg_artifact_removal.pdf}
     \caption[EEG Artifact Removal via OT-ICA]{Application of OT-ICA to EEG data. \textbf{Top (Plot A):} 
     Five frontal EEG channels containing eye-blink artifacts. \textbf{Bottom (Plot B):} The independent components recovered by OT-ICA. 
     The ocular artifact is isolated into a single independent component (Comp 1).}
@@ -1401,7 +1401,7 @@ A representative run demonstrates the correlation between the generative shocks 
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{shock_recovery_scatter.png}
+    \includegraphics[width=1.0\textwidth]{shock_recovery_scatter.pdf}
     \caption[Recovery of Structural Shocks via OT-ICA]{Pairplot demonstrating the recovery of true structural shocks versus estimated shocks 
     from OT-ICA for a single Monte Carlo run. The linear alignment indicates unmixing of the latent market innovations.}
     \label{fig:shock_recovery}
@@ -1433,7 +1433,7 @@ The empirical density of the estimated information shares is centered around the
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=1.0\textwidth]{econ_applicatn_is_distribution.png} 
+    \includegraphics[width=1.0\textwidth]{econ_applicatn_is_distribution.pdf} 
     \caption[Empirical Distribution of Estimated Information Shares]{Empirical density distributions of the estimated Information Shares 
     across 500 Monte Carlo simulations. The vertical dashed lines represent the true theoretical values.}
     \label{fig:is_distribution}

@@ -31,14 +31,19 @@ y_nu = norm.pdf(x_nu, 8, 1.2)
 # Set a massive line width
 LW = 4.5
 
-# Plot the distributions
-ax.plot(x_mu, y_mu, color='#1f77b4', lw=LW)
-ax.fill_between(x_mu, 0, y_mu, color='#1f77b4', alpha=0.3)
-ax.text(0, -0.05, r'Source Measure $\mu$', ha='center', fontsize=28)
+# Define the requested colors
+color_mu = '#d62728' # Red for source
+color_nu = '#0b5394' # Slightly darker blue for target
 
-ax.plot(x_nu, y_nu, color='#d62728', lw=LW)
-ax.fill_between(x_nu, 0, y_nu, color='#d62728', alpha=0.3)
-ax.text(8, -0.05, r'Target Measure $\nu$', ha='center', fontsize=28)
+# Plot the Source distribution
+ax.plot(x_mu, y_mu, color=color_mu, lw=LW)
+ax.fill_between(x_mu, 0, y_mu, color=color_mu, alpha=0.3)
+ax.text(0, -0.05, r'Source Measure $\mu$', ha='center', fontsize=42)
+
+# Plot the Target distribution
+ax.plot(x_nu, y_nu, color=color_nu, lw=LW)
+ax.fill_between(x_nu, 0, y_nu, color=color_nu, alpha=0.3)
+ax.text(8, -0.05, r'Target Measure $\nu$', ha='center', fontsize=42)
 
 # Draw the Transport Map arrow
 arrow_start = 1.5
@@ -46,9 +51,9 @@ arrow_end = 6.5
 ax.annotate('', xy=(arrow_end, 0.2), xytext=(arrow_start, 0.2),
             arrowprops=dict(arrowstyle="->", color="black", lw=LW))
 
-# Add the text and equation
-ax.text(4, 0.22, 'Transport Map', ha='center', va='bottom', fontsize=28)
-ax.text(4, 0.28, r'$\nu = T_{\#}\mu$', ha='center', va='bottom', fontsize=36) # Larger font for the equation
+# Add the text and equation (Sizes doubled, Y-height slightly separated to prevent overlap)
+ax.text(4, 0.22, 'Transport Map', ha='center', va='bottom', fontsize=42)
+ax.text(4, 0.32, r'$\nu = T_{\#}\mu$', ha='center', va='bottom', fontsize=56) 
 
 ax.set_ylim(-0.1, 0.5)
 ax.set_xlim(-5, 13)
