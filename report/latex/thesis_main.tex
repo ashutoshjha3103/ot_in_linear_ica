@@ -628,6 +628,28 @@ contradicts the non-Gaussianity of the sources. Because the condition for equali
     W_2^2(\mathbf{w} \cdot \mathbf{Z}, \Gamma) < \sum_{i=1}^d w_i^2 W_2^2(Z_i, \Gamma). \quad \blacksquare
 \end{equation} 
 
+The practical implication of this strict inequality dictates the behavior of the objective function. 
+The upper bound is structured as a convex combination of the marginal non-Gaussianities, 
+subject to the constraint $\sum_{i=1}^d w_i^2 = 1$. When the objective function is maximized, 
+the supremum is achieved when the entirety of the weight is assigned to the single 
+latent source exhibiting the maximum distance to Gaussianity. Consequently, finding the global maximum forces 
+the weight vector $\mathbf{w}$ to collapse to a canonical axis ($w_k^2 = 1$ and $w_{i \neq k}^2 = 0$), 
+thereby isolating the most non-Gaussian independent component from the mixture.
+
+\subsection{Sequential Extraction via Orthogonal Deflation}
+Maximizing the $W_2^2$ objective isolates only the most non-Gaussian source, 
+but the framework requires a mechanism to unmix the remaining $(d-1)$ latent components. This is achieved through a sequential deflation process.
+
+Let $\mathbf{w}_1$ be the canonical weight vector recovered by the initial maximization. 
+To extract the second component, the optimization must be restricted to the orthogonal complement of $\mathbf{w}_1$. 
+We update the search space by constraining the subsequent weight vector $\mathbf{w}_2$ to be strictly orthogonal to the first ($\mathbf{w}_2^\top \mathbf{w}_1 = 0$). 
+
+For the $k$-th component, the maximization is performed under the constraint that the new weight vector $\mathbf{w}_k$ 
+satisfies $\mathbf{w}_k^\top \mathbf{w}_j = 0$ for all previously extracted components $j < k$. 
+By iteratively extracting the maximum of the objective function and restricting the subsequent search to the remaining orthogonal subspace, 
+the algorithm sequentially constructs the full orthogonal unmixing matrix $\mathbf{W} \in \mathbb{R}^{d \times d}$. 
+This guarantees that all $d$ mutually independent sources are recovered.
+
 \section{Empirical Landscape: $W_1$ versus $W_2^2$}
 Having established the theoretical foundations of the $W_2^2$ metric, we evaluate its practical suitability for manifold optimization. 
 In the context of ICA, gradient ascent algorithms must climb the loss landscape to locate the maxima of the distance metric, 
@@ -675,36 +697,39 @@ This retention of curvature provides a reliable signal for gradient-based solver
 \chapter{Algorithmic Enhancements}
 
 \section{The Baseline OT-ICA Algorithm}
-Having established the theoretical optimality of the squared Wasserstein distance ($W_2^2$) for Independent Component Analysis, 
-the challenge transitions to computationally minimizing this cost function. The baseline OT-ICA algorithm proceeds by first centering and whitening 
-the observed mixture $\mathbf{X} \in \mathbb{R}^{d \times N}$, yielding the whitened data $\widetilde{\mathbf{X}}$. The algorithm then initializes 
-an orthogonal unmixing matrix $\mathbf{W} \in \mathbb{R}^{d \times d}$. In the forward pass, the data is projected onto the candidate components, 
-$\mathbf{Y} = \mathbf{W}\widetilde{\mathbf{X}}$. For each row (component) of $\mathbf{Y}$, the empirical cumulative distribution function is 
-constructed by sorting the $N$ observations. The $W_2^2$ distance is then computed by matching these sorted empirical quantiles to the 
-corresponding quantiles of a standard normal distribution. 
+Having established the theoretical validity of the squared Wasserstein distance ($W_2^2$) for Independent Component Analysis, 
+the challenge is to minimize this cost function computationally. Just like the standard FastICA algorithm \cite{hyvarinen2001}, 
+the baseline OT-ICA algorithm proceeds by first centering and whitening 
+the observed mixture $\mathbf{X} \in \mathbb{R}^{d \times N}$, yielding the whitened data $\widetilde{\mathbf{X}}$. The algorithm initializes 
+an unmixing matrix $\mathbf{W} \in \mathbb{R}^{d \times d}$ within the Orthogonal Group, denoted hereafter as the space $\mathcal{S}$, which is the mathematical set of all orthogonal matrices. 
 
-While theoretically sound, the standard implementation of this gradient descent loop faces computational and geometric limitations. 
-The exact optimal transport matching requires sorting at every iteration, presenting a computational bottleneck. 
+In the forward pass, the data is projected onto the candidate components, $\mathbf{Y} = \mathbf{W}\widetilde{\mathbf{X}}$. For each row of $\mathbf{Y}$, 
+the empirical cumulative distribution function (CDF) is constructed by sorting the $N$ observations. This sorting operation evaluates the inverse CDF (the quantile function) 
+over a uniform probability grid, typically approximated as $p_i = (i - 0.5)/N$ \cite[Chapter 2]{villani2003}. The $W_2^2$ distance is computed by matching these sorted 
+empirical quantiles to the corresponding quantiles of a standard normal distribution. 
+
+While theoretically sound, the standard implementation of this gradient descent loop faces geometric limitations. 
+The optimal transport matching requires sorting at each iteration, presenting a computational bottleneck. 
 Furthermore, standard gradient updates do not inherently respect the strict orthogonality constraint of the mixing matrix, 
-and discrete approximations of the target Gaussian introduce gradient noise. To make OT-ICA computationally competitive with existing methods, 
-several specific algorithmic and geometric enhancements are required.
+and discrete approximations of the target Gaussian introduce gradient noise. To make OT-ICA competitive with existing methods, 
+specific algorithmic enhancements are required.
 
 \section{Computational Bottlenecks and Solutions}
 
-\subsection{Exact Analytical Gaussian Targets}
+\subsection{Analytical Gaussian Targets}
 One source of instability in the baseline algorithm is the discrete approximation of the target Gaussian distribution. 
-Traditionally, the target quantiles are approximated by evaluating the inverse cumulative distribution function at evenly spaced intervals, 
-such as $q_i = \Phi^{-1}((i - 0.5)/N)$. However, representing a continuous, infinite-tailed Gaussian distribution with a finite set of discrete points 
-introduces approximation noise. When the algorithm computes the gradient of the $W_2^2$ distance, this noise translates into a non-smooth optimization landscape, 
-hindering convergence as the components approach independence.
+Traditionally, target quantiles are evaluated at evenly spaced intervals ($q_i = \Phi^{-1}((i - 0.5)/N)$). Representing a continuous 
+Gaussian distribution with finite discrete points 
+introduces approximation noise. During gradient computation, this noise translates into a non-smooth optimization landscape.
 
-To eliminate this approximation noise, we replace the point-sampled targets with an exact analytical formulation. 
-We compute the expected value of a standard normal variable within each discrete quantile bin. 
+To eliminate this noise, we replace point-sampled targets with an analytical formulation. 
+We compute the expected value of a standard normal variable within each discrete quantile bin.
 
 \vspace{0.5em}
-\noindent\textbf{Definition 4.1 Exact Analytical Gaussian Target.} \textit{Let the uniform probability bin edges for $N$ samples be 
+\noindent\textbf{Definition 4.1 Analytical Gaussian Target.} \textit{Let the uniform probability bin edges for $N$ samples be 
 defined as $p_i = \frac{i}{N}$ for $i = 0, \dots, N$, with corresponding Gaussian domain boundaries $z_i = \Phi^{-1}(p_i)$, where $\Phi$ is 
-the standard normal cumulative distribution function. The exact analytical target value $T_i$ for the $i$-th sorted sample is the conditional expectation within that interval:}
+the standard normal cumulative distribution function. The analytical target value $T_i$ for the $i$-th sorted 
+sample is the conditional expectation within that interval:}
 \begin{equation}
     T_i = N \int_{z_{i-1}}^{z_i} x \phi(x) \, dx
 \end{equation}
@@ -714,157 +739,195 @@ the standard normal cumulative distribution function. The exact analytical targe
 \end{equation}
 \vspace{0.5em}
 
-By computing this analytical target once during initialization, the algorithm evaluates the $W_2^2$ distance against an exact discrete representation of a Gaussian, 
-ensuring smooth gradients near the optimum.
+This discrete formulation computes the true expected Wasserstein cost only up to an additive constant. 
+To demonstrate this, consider the exact squared Wasserstein distance between the sorted empirical projections $y_i$ and 
+the continuous Gaussian target $\Phi^{-1}(p)$ integrated over the uniform intervals $p \in [\frac{i-1}{N}, \frac{i}{N}]$:
+\begin{equation}
+    W_2^2(P_N, \mathcal{N}(0,1)) = \sum_{i=1}^N \int_{\frac{i-1}{N}}^{\frac{i}{N}} \big( y_i - \Phi^{-1}(p) \big)^2 \, dp.
+\end{equation}
+Expanding the squared binomial yields the empirical variance $\frac{1}{N}y_i^2$, the target Gaussian variance $\int \Phi^{-1}(p)^2 \, dp$, 
+and the cross-term $-2y_i \int \Phi^{-1}(p) \, dp$. Because $T_i$ is defined strictly as $N \int \Phi^{-1}(p) \, dp$, 
+the discrete cost $\frac{1}{N}\sum (y_i - T_i)^2$ evaluates the same empirical variance and cross-terms as the continuous integral. 
+
+The two cost functions differ only in the final target variance term. Because the target Gaussian distribution is static, 
+its variance is completely independent of the optimization matrix $\mathbf{W}$. Consequently, this difference is an absolute constant 
+that vanishes under differentiation ($\nabla_{\mathbf{W}} C = \mathbf{0}$). By evaluating this analytical target once during initialization, 
+the algorithm generates an accurate continuous Wasserstein gradient while maintaining the efficiency of discrete sorting.
 
 \subsection{Batched Vectorization for Restarts}
 Unlike Principal Component Analysis, which yields a unique global solution via singular value decomposition, 
-the ICA optimization landscape is non-convex and characterized by local optima. Consequently, 
-identifying the true independent components requires multiple random initializations (restarts) to explore the space. 
+the ICA optimization landscape is non-convex and characterized by local optima. Identifying the independent components 
+requires multiple random initializations or restarts to explore the space.
 
 Because evaluating the $W_2^2$ objective requires an $\mathcal{O}(N \log N)$ sorting operation for each candidate component, 
-executing these random restarts sequentially via standard iterative loops is computationally expensive. To resolve this, we utilize a batched vectorization strategy. 
-Rather than maintaining a single weight matrix, we aggregate $B$ random restarts into a single high-dimensional tensor $\mathbf{W}_{\text{batch}} \in \mathbb{R}^{B \times d \times d}$. 
+executing these random restarts sequentially is computationally expensive. We utilize a batched vectorization strategy. 
+We aggregate $B$ random restarts into a single high-dimensional tensor $\mathbf{W}_{\text{batch}} \in \mathbb{R}^{B \times d \times d}$. 
 
 This formulation allows the projection $\mathbf{Y} = \mathbf{W}_{\text{batch}} \widetilde{\mathbf{X}}$ to be computed simultaneously for all $B$ trajectories. 
-The elements of the resulting batch tensor can be sorted in parallel. 
-The pre-computed exact analytical target vector $\mathbf{T}$ is subsequently broadcast-subtracted across the entire batch to compute the distances and gradients in a single step.
-
-\section{Optimization on the Stiefel Manifold}
+The elements of the batch tensor are sorted in parallel. 
+The pre-computed analytical target vector $\mathbf{T}$ is broadcast-subtracted across the batch to compute the distances and gradients in a single step.
 
 \subsection{The Riemannian Gradient}
-Because the input data is whitened, the unmixing matrix $\mathbf{W}$ must remain orthogonal, satisfying $\mathbf{W}\mathbf{W}^\top = \mathbf{I}$. 
-The geometric space of all such orthogonal matrices forms the Stiefel manifold, denoted $\mathcal{S}$. If we compute the standard Euclidean gradient of the squared Wasserstein distance, 
-$\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$, this vector points into the unconstrained ambient space $\mathbb{R}^{d \times d}$. 
-Updating the matrix using this Euclidean gradient would violate the orthogonality constraint.
+Because the input data is whitened, the unmixing matrix $\mathbf{W}$ must remain in the Orthogonal Group $\mathcal{S}$, satisfying $\mathbf{W}\mathbf{W}^\top = \mathbf{I}$. 
+If we compute the standard Euclidean gradient of the squared Wasserstein distance, this vector points into the unconstrained ambient space $\mathbb{R}^{d \times d}$. 
+Updating the matrix directly using this Euclidean gradient violates the strict orthogonality constraint.
 
-To navigate the geometry of the Stiefel manifold, we project the Euclidean gradient onto the tangent space of the manifold at the current point $\mathbf{W}$ (Figure \ref{fig:stiefel_manifold}). 
+To navigate the geometry of $\mathcal{S}$, we first compute the Euclidean gradient $\mathbf{G}$ of the empirical objective function in the ambient space. 
+Let $\mathbf{Y} = \mathbf{W} \widetilde{\mathbf{X}}_{\text{batch}} \in \mathbb{R}^{d \times B}$ be the projected mini-batch. For each projection component (row) $i$, 
+there exists an optimal permutation $\pi_i$ that sorts the empirical observations such that $y_{i, \pi_i(1)} \le y_{i, \pi_i(2)} \le \dots \le y_{i, \pi_i(B)}$. 
+The total squared Wasserstein objective across all $d$ dimensions is evaluated as:
+\begin{equation}
+    W_2^2(\mathbf{W}) = \frac{1}{B} \sum_{i=1}^d \sum_{j=1}^B \big( y_{i, \pi_i(j)} - T_j \big)^2.
+\end{equation}
+
+To compute the Euclidean gradient $\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$, we differentiate this objective with respect to $\mathbf{W}$. 
+Utilizing the envelope theorem for optimal transport \cite[Section 7.2]{santambrogio2015optimal}, the variation of the optimal sorting map $\pi_i$ evaluates to zero. 
+This allows us to differentiate the squared cost while holding the permutations fixed. Taking the partial derivative with respect to a single row vector $\mathbf{w}_i$ yields:
+\begin{equation}
+    \frac{\partial W_2^2}{\partial \mathbf{w}_i} = \frac{2}{B} \sum_{j=1}^B \big( y_{i, \pi_i(j)} - T_j \big) \widetilde{\mathbf{x}}_{\pi_i(j)}.
+\end{equation}
+
+This expression evaluates the difference between the projection and the target, mapped back to the original data index. 
+Let $\mathbf{T}^{\text{inv}} \in \mathbb{R}^{d \times B}$ be the target matrix where the analytical targets $T_j$ have been inversely permuted for each row 
+to match the original, unsorted data ordering. The full Euclidean gradient expands into the closed-form matrix equation:
+\begin{equation}
+    \mathbf{G} = \nabla_{\mathbf{W}} W_2^2 = \frac{2}{B} \big( \mathbf{Y} - \mathbf{T}^{\text{inv}} \big) \widetilde{\mathbf{X}}_{\text{batch}}^\top.
+\end{equation}
+
+To ensure the update step respects the orthogonality constraints, we project this Euclidean gradient $\mathbf{G}$ onto the tangent space of 
+the manifold at the current evaluation point $\mathbf{W}$ (Figure \ref{fig:stiefel_manifold}). 
 
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=0.9\textwidth]{stiefel_manifold_projection.pdf}
-    \caption[Riemannian Optimization on the Stiefel Manifold]{Geometric sketch of optimization on the Stiefel manifold $\mathcal{S}$. 
-    The Euclidean gradient $\mathbf{G}$ is projected onto the tangent space $T_{\mathbf{W}}\mathcal{S}$ to yield the Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$. 
-    Following a step along the tangent plane, a retraction maps the estimate back to the orthogonal manifold surface at $\mathbf{W}_{\text{new}}$.}
+    \caption[Riemannian Optimization on the Orthogonal Group]{Geometric sketch of optimization on the Orthogonal Group $\mathcal{S}$. 
+    The Euclidean gradient $\mathbf{G}$ is projected onto the tangent space $T_{\mathbf{W}}\mathcal{S}$ to yield 
+    the Riemannian gradient $\nabla_{\mathcal{S}} W_2^2$ (labeled as the $\nabla_{\mathcal{S}} \mathbf{W}$ update direction in the diagram). 
+    Following a step along the tangent plane, a retraction maps the estimate back to the orthogonal surface at $\mathbf{W}_{\text{new}}$.}
     \label{fig:stiefel_manifold}
 \end{figure}
 
 \vspace{0.5em}
-\noindent\textbf{Definition 4.2 Riemannian Gradient on the Stiefel Manifold.} \textit{Given a Euclidean gradient $\mathbf{G}$, 
-the Riemannian gradient $\nabla_{\mathcal{S}} \mathbf{W}$ that projects $\mathbf{G}$ onto the tangent space of the Stiefel manifold 
-at $\mathbf{W}$ is given by \cite[Chapter 3]{absil2008optimization}:}
+\noindent\textbf{Definition 4.2 Riemannian Gradient on the Orthogonal Group.} \textit{Given the Euclidean gradient $\mathbf{G}$ and the current unmixing matrix $\mathbf{W}$, 
+the Riemannian gradient $\nabla_{\mathcal{S}} W_2^2$ resulting from the projection onto the tangent space $T_{\mathbf{W}}\mathcal{S}$ 
+is given by \cite[Chapter 3]{absil2008optimization}:}
 \begin{equation}
-    \nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}.
+    \nabla_{\mathcal{S}} W_2^2 = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}.
 \end{equation}
 \vspace{0.5em}
 
-Geometrically, the term $(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top)$ measures the symmetric violation of orthogonality induced 
-by the Euclidean gradient. By subtracting this violation, we ensure that the update step aligns with the curvature of the manifold, preserving the decorrelation of the components.
+The term $(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top)$ mathematically isolates the symmetric violation of orthogonality induced 
+by the Euclidean gradient. Subtracting this term from $\mathbf{G}$ ensures the update step strictly aligns with the intrinsic tangent plane of 
+the manifold, preserving the rotational structure of the matrix prior to retraction.
 
 \subsection{Retraction via Symmetric Decorrelation}
-Although the Riemannian gradient ensures the update step is tangential to the Stiefel manifold, 
+Although the Riemannian gradient ensures the update step is tangential to the Orthogonal Group, 
 moving along this tangent plane for a finite step size $\eta$ causes the new matrix $\mathbf{W}_{\text{step}} = \mathbf{W} - \eta \nabla_{\mathcal{S}} \mathbf{W}$ 
-to depart from the curved manifold surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold 
+to depart from the curved surface. To restore exact orthogonality, the matrix must be mapped back onto the manifold 
 via a retraction \cite[Chapter 4]{absil2008optimization}.
 
-%While the Gram-Schmidt orthogonalization process is a common approach, it is asymmetric; it fixes the first vector and modifies subsequent vectors to fit, 
-%which introduces bias in simultaneous optimization. Instead, we utilize symmetric decorrelation as the retraction mechanism.
+Absil, Mahony, and Sepulchre \citeyear[Chapter 3 and 4]{absil2008optimization} demonstrate that projecting the gradient onto the tangent plane prior to 
+retraction is a numerical requirement. The normal component of the Euclidean gradient $\mathbf{G}$ points directly into the ambient space. 
+Because this vector is orthogonal to the surface, it provides no mathematical progress along the manifold. 
+Furthermore, taking a direct step using $\mathbf{G}$ overshoots into the ambient space, degrading the local approximation bounds required to 
+guarantee the convergence of the retraction mapping \cite[Chapter 4]{absil2008optimization}.
 
 \vspace{0.5em}
 \noindent\textbf{Definition 4.3 Symmetric Decorrelation Retraction.} \textit{Let $\mathbf{W}_{\text{step}}$ be the unmixing matrix after a tangent space update. 
-The retraction mapping the matrix back to the orthogonal Stiefel manifold surface is:}
+To map the matrix back to the orthogonal surface, we first compute its overlap covariance matrix:}
 \begin{equation}
-    \mathbf{W}_{\text{new}} = (\mathbf{W}_{\text{step}}\mathbf{W}_{\text{step}}^\top)^{-1/2} \mathbf{W}_{\text{step}}.
+    \mathbf{C} = \mathbf{W}_{\text{step}}\mathbf{W}_{\text{step}}^\top.
 \end{equation}
-%\vspace{0.5em}
+\textit{If $\mathbf{W}_{\text{step}}$ were strictly orthogonal, $\mathbf{C}$ would equal the identity matrix $\mathbf{I}$. The retraction mapping corrects this deviation by applying the inverse square root of the covariance:}
+\begin{equation}
+    \mathbf{W}_{\text{new}} = \mathbf{C}^{-1/2} \mathbf{W}_{\text{step}}.
+\end{equation}
 
-This operation computes the overlap covariance of the stepped matrix and applies a uniform adjustment to all vectors simultaneously. 
-This ensures that no single independent component is prioritized during the retraction process, maintaining the stability of the batched optimization.
+We can mathematically verify that this operation successfully retracts the matrix to the Orthogonal Group by evaluating the covariance of the updated matrix:
+\begin{equation}
+    \mathbf{W}_{\text{new}}\mathbf{W}_{\text{new}}^\top = (\mathbf{C}^{-1/2} \mathbf{W}_{\text{step}}) (\mathbf{W}_{\text{step}}^\top \mathbf{C}^{-1/2}) = \mathbf{C}^{-1/2} \mathbf{C} \mathbf{C}^{-1/2} = \mathbf{I}.
+\end{equation}
+
+This retraction computes the orthogonal deviation ($\mathbf{C}$) 
+and applies a uniform geometric correction ($\mathbf{C}^{-1/2}$). Because this correction is symmetric, it ensures that no single independent 
+component is prioritized or artificially rotated during the retraction process, maintaining the stability of the batched optimization.
 
 \section{Total Complexity and Statistical Efficiency}
-Having detailed the sorting-based objective and the Riemannian optimization steps, we formalize the total computational cost of the OT-ICA framework. 
-For a dataset of dimension $d$ with $N$ samples, $K$ random restarts, and $T$ optimization iterations, the per-iteration complexity is dominated by:
+We formalize the total computational cost of the OT-ICA framework. 
+For a dataset of dimension $d$ with $N$ samples, $K$ random restarts, and $T$ optimization iterations, the per-iteration complexity is:
 \begin{equation}
     \mathcal{O}(K \cdot (d \cdot N \log N + d^3))
 \end{equation}
-The $N \log N$ term stems from the sorting of projections, while the $d^3$ term represents the cost of the symmetric decorrelation (matrix inverse square root) 
-used for retraction on the Stiefel manifold. For typical ICA applications where the number of samples significantly exceeds the dimensionality 
-($N \gg d$), this $d^3$ cost is computationally negligible. It becomes a bottleneck only in extreme high-dimensional regimes, a scenario that is 
-independently precluded by the statistical limits of the framework.
+The $N \log N$ term represents the sorting of projections, while the $d^3$ term represents the cost of the symmetric decorrelation 
+used for retraction. For typical ICA applications where the number of samples exceeds the dimensionality 
+($N \gg d$), the $d^3$ cost is computationally negligible. 
 
-Beyond temporal complexity, we must account for the statistical sample complexity. While the 1D projection approach maintains a convergence rate 
-of $\mathcal{O}(N^{-1/2})$, the global identification of the mixing matrix is implicitly subject to the curse of dimensionality. Theoretical results in optimal transport establish 
-that the empirical Wasserstein distance in $d$ dimensions converges at a rate of $\mathcal{O}(N^{-1/d})$ \cite{fournier2015rate}. 
-In practice, as $d$ increases, the number of samples $N$ required to 
-accurately resolve the maxima of non-Gaussianity on the manifold surface grows. This necessitates a corresponding increase in the number of parallel restarts $K$, creating 
-a trade-off between statistical resolution and computational feasibility.
+Beyond time complexity, we must account for statistical sample complexity. While the 1D projection maintains a convergence rate 
+of $\mathcal{O}(N^{-1/2})$, the global identification of the mixing matrix is implicitly subject to the curse of dimensionality. 
+Theoretical results in transport theory establish 
+that the empirical Wasserstein distance in $d$ dimensions converges at slower rates as dimension increases \cite{fournier2015rate}. 
+As $d$ expands, the number of samples $N$ required to accurately resolve the maxima of non-Gaussianity on the manifold surface grows. 
+An empirical evaluation of this statistical ceiling is reported in Chapter 5.
 
-\section{Navigating Discrete Optimization Landscapes}
+\section{Optimization in Discrete Spaces}
 While the OT-ICA framework demonstrates convergence on continuous distributions, data often contains discrete signals, such as binary states 
 or count-based events. Applying continuous optimal transport directly to discrete mixtures introduces geometric properties 
-that complicate the optimization landscape.
-
-\subsection{The Discontinuous Landscape of Discrete CDFs}
-The exact analytical Gaussian target developed in Section 4.2 relies on matching the empirical cumulative distribution function (CDF) of the projected data. 
-For a continuous variable, this empirical CDF approximates a strictly increasing curve. However, for highly discrete data, any one-dimensional 
-projection creates a step-wise CDF. 
-
-This discreteness disrupts the continuous geometry of the $W_2$ metric due to the mechanics of sorting. Evaluating the Wasserstein distance requires 
-sorting the projected points. As the optimization algorithm rotates the unmixing matrix $\mathbf{W}$, dense clusters of discrete data points shift relative to one another, 
-causing the sorting order to change abruptly. Every change in the sorting permutation causes a discontinuous shift in the gradient direction. 
-Consequently, the theoretically smooth $W_2$ landscape results in a non-differentiable surface filled with local optima. 
-The optimizer frequently converges to spurious peaks (often corresponding to diagonal projections of the discrete hypercube), leading to unmixing failures.
+that disrupt gradient calculation.
 
 \subsection{Continuous Smoothing via Gaussian Dithering}
-To restore the smooth gradients of the Stiefel manifold without resorting to computationally intensive $\mathcal{O}(N^2)$ entropic regularization techniques 
-(such as Sinkhorn distances), we implement a Gaussian dithering step. 
+We implement a Gaussian Dithering step to restore smooth gradients without resorting to $\mathcal{O}(N^2)$ entropic regularization techniques, 
+such as Sinkhorn distances \cite{cuturi2013sinkhorn}. 
 
-Adapted from signal processing techniques used to decorrelate quantization error \cite{schuchman1964dither}, we inject a small variance of continuous, zero-mean Gaussian noise 
-($\sigma_{\text{dither}} \approx 0.01$) into the projected components prior to the sorting operation in the forward pass. 
-Mathematically, this operation convolves the discrete empirical distribution with a narrow Gaussian kernel (Figure \ref{fig:gaussian_dithering}).
+Adapted from signal processing techniques used to decorrelate quantization error \cite{schuchman1964dither}, we inject a variance of continuous, zero-mean Gaussian noise 
+($\sigma_{\text{dither}}^2 = 0.01$) into the 1D projected components $\mathbf{Y}$ prior to the sorting operation. 
+The sorting operation acts as a strict discrete quantizer. When data clusters densely, ties create highly correlated, deterministic errors in the gradient. 
+By injecting Gaussian dither before sorting, we decorrelate this deterministic quantization error, transforming it into independent noise that 
+first-order gradient solvers can average out. Mathematically, this operation convolves the discrete empirical distribution with 
+a Gaussian kernel (Figure \ref{fig:gaussian_dithering}).
 
-This deforms the step-wise discrete CDF into a strictly increasing, continuous curve. By eliminating non-differentiable sorting ties, 
-Gaussian dithering restores stable gradients while preserving the $\mathcal{O}(N \log N)$ computational efficiency of the 1D optimal transport formulation.
+The choice of $\sigma_{\text{dither}}^2 = 0.01$ functions as a strictly bounded heuristic governed by the algorithmic pipeline. 
+Because the input data is whitened, its covariance matrix is the identity matrix ($\mathbb{E}[\widetilde{\mathbf{x}}\widetilde{\mathbf{x}}^\top] = \mathbf{I}$). 
+For any 1D projection component $\mathbf{y}_i = \mathbf{w}_i^\top \widetilde{\mathbf{x}}$, the variance is formulated as:
 
-This dithering process does not constitute the injection of restrictive prior knowledge regarding the source distributions. 
-Rather, it acts as an uninformed regularizer applied uniformly to the 1D projections $\mathbf{w}^\top \mathbf{X}$. 
-For latent sources that are already continuous, the addition of small variance ($\sigma_{\text{dither}} \approx 0.01$) is 
-statistically negligible and preserves the underlying Wasserstein geometry. For discrete sources, it prevents sorting failures.
+\begin{equation}
+    \text{Var}(\mathbf{y}_i) = \mathbf{w}_i^\top \mathbb{E}[\widetilde{\mathbf{x}}\widetilde{\mathbf{x}}^\top] \mathbf{w}_i = \mathbf{w}_i^\top \mathbf{I} \mathbf{w}_i = \|\mathbf{w}_i\|^2.
+\end{equation}
+Furthermore, because the unmixing matrix is restricted to the Orthogonal Group, its row vectors must satisfy the strict orthogonality constraint:
+\begin{equation}
+    \mathbf{W}\mathbf{W}^\top = \mathbf{I} \implies \|\mathbf{w}_i\|^2 = 1.
+\end{equation}
+
+Therefore, the variance of any 1D projection within $\mathbf{Y}$ is locked to exactly $1.0$. 
+Consequently, a dither variance of $0.01$ corresponds to a standard deviation of $0.1$, injecting noise scaled to $10\%$ of the projection's standard deviation. 
+This amplitude is sufficient to break deterministic sorting ties at the microscopic level, yet small enough to preserve 
+the macroscopic geometric divergence from Gaussianity measured by the Wasserstein metric.
+
+This deforms the step-wise discrete CDF into a continuous curve. Gaussian dithering restores stable gradients 
+while preserving the $\mathcal{O}(N \log N)$ efficiency of the 1D optimal transport formulation. 
+This acts as an uninformed regularizer applied to the projections $\mathbf{Y}$.
 
 \begin{figure}[tbp]
     \centering
     \includegraphics[width=1.0\textwidth]{gaussian_dithering_cdf.pdf}
     \caption[Gaussian Dithering of Discrete CDFs]{The effect of algorithmic Gaussian Dithering. 
     The non-differentiable staircase of a discrete empirical CDF (gray) is convolved with a narrow Gaussian kernel, 
-    yielding a strictly increasing, continuous curve (black) that restores stable Wasserstein gradients.}
+    yielding a strictly increasing, continuous curve (black).}
     \label{fig:gaussian_dithering}
 \end{figure}
 
-From a theoretical perspective, this dithering process represents a form of kernel density regularization. Mathematically, 
-adding Gaussian noise $\epsilon \sim \mathcal{N}(0, \sigma_{\text{dither}}^2)$ to the projection $Y$ is equivalent to convolving the empirical measure $\mu_N$ with 
-a Gaussian kernel $\phi_{\sigma}$:
-\begin{equation}
-    \hat{\mu}_{\sigma} = \mu_N * \phi_{\sigma}
-\end{equation}
-This operation transforms discrete measures into a smooth density. By Brenier's Theorem \cite{brenier1991} and Caffarelli's regularity \cite{caffarelli1992} results, 
-this ensures that the resulting optimal transport map is unique and continuously differentiable. Furthermore, this approach is analogous 
-to entropic regularization used in Sinkhorn distances, where a blur parameter is introduced to make the Wasserstein distance differentiable. 
-By utilizing 1D dithering, we approximate the smoothness of Sinkhorn divergence while retaining the computational efficiency of sorted exact transport.
-
 \subsection{Escaping Local Minima with Stochastic Mini-Batching}
 Even with a smoothed CDF, the global optimization landscape of a discrete mixture remains non-convex. Evaluating the exact $W_2$ distance using the 
-full dataset guarantees deterministic convergence to the nearest local maximum. In non-convex environments with discrete local minima, 
+full dataset guarantees deterministic convergence to the nearest local maximum. In non-convex environments, 
 this deterministic behavior prevents global convergence.
 
-To address this, we utilize stochastic mini-batching. At each optimization step, the algorithm evaluates 
-the Wasserstein gradients using a randomly sampled subset of the data (e.g., $N_{\text{batch}} = 512$ or $1024$). This stochastic subsampling introduces gradient noise, 
-acting similarly to simulated annealing. A geometric local minimum that exists for the full dataset may have a different gradient profile for a random subset. 
-This stochastic momentum allows the optimizer to escape spurious local minima. The combination of Gaussian dithering to smooth 
-the discrete steps and stochastic mini-batching to navigate the non-convex topology enables OT-ICA to separate mixed environments.
+We utilize stochastic mini-batching. At each optimization step, the algorithm evaluates 
+the Wasserstein gradients using a randomly sampled subset of the data (e.g., $N_{\text{batch}} = 512$). This stochastic subsampling introduces gradient noise. 
+A geometric local minimum that exists for the full dataset presents a different gradient profile for a random subset. 
+This stochastic momentum allows the optimizer to escape spurious local minima.
 
 \section{OT-ICA Algorithm Overview}
-The theoretical components and algorithmic enhancements are synthesized into the final OT-ICA training procedure. 
-The pseudo-code for extracting independent non-Gaussian components from a mixed dataset using stochastic Riemannian optimization is detailed below (Algorithm \ref{alg:ot_ica}).
+The theoretical components and algorithmic enhancements are synthesized into the final OT-ICA procedure. 
+The pseudo-code for extracting independent components using stochastic Riemannian optimization is detailed below (Algorithm \ref{alg:ot_ica}).
 
 \begin{algorithm}[H]
 \caption{The Optimal Transport ICA (OT-ICA) Algorithm}
@@ -875,25 +938,25 @@ The pseudo-code for extracting independent non-Gaussian components from a mixed 
 \State \textbf{Phase 1: Preprocessing \& Target Generation}
 \State Center the data: $\mathbf{X} \gets \mathbf{X} - \mathbb{E}[\mathbf{X}]$
 \State Whiten the data: $\widetilde{\mathbf{X}} \gets (\mathbf{X}\mathbf{X}^\top)^{-1/2} \mathbf{X}$ \Comment{Yields unit variance, uncorrelated data}
-\State Compute analytical target $\mathbf{T} \in \mathbb{R}^{B}$ via exact Gaussian CDF integration
+\State Compute analytical target $\mathbf{T} \in \mathbb{R}^{B}$ via analytical Gaussian CDF integration
 \State \textbf{Phase 2: Initialization}
 \State Initialize $\mathbf{W} \in \mathbb{R}^{d \times d}$ randomly from $\mathcal{N}(0,1)$
 \State Apply symmetric decorrelation:
-\Statex \qquad $\mathbf{W} \gets (\mathbf{W}\mathbf{W}^\top)^{-1/2} \mathbf{W}$ \Comment{Initialize on Stiefel manifold}
+\Statex \qquad $\mathbf{W} \gets (\mathbf{W}\mathbf{W}^\top)^{-1/2} \mathbf{W}$ \Comment{Initialize in the Orthogonal Group $\mathcal{S}$}
 \State \textbf{Phase 3: Stochastic Riemannian Optimization}
 \For{$k = 1$ to $K$}
     \State Sample stochastic mini-batch $\widetilde{\mathbf{X}}_{\text{batch}} \in \mathbb{R}^{d \times B}$ from $\widetilde{\mathbf{X}}$
     \State Project data onto candidates: $\mathbf{Y} \gets \mathbf{W} \widetilde{\mathbf{X}}_{\text{batch}}$
     \State Apply Gaussian Dithering: $\mathbf{Y}_{\text{dither}} \gets \mathbf{Y} + \mathcal{N}(0, \sigma_{\text{dither}}^2)$
     \State Sort each row of $\mathbf{Y}_{\text{dither}}$ ascending to yield empirical quantiles $\mathbf{Y}_{\text{sorted}}$
-    \State Compute Wasserstein objective (maximize non-Gaussianity):
+    \State Compute Wasserstein objective:
     \Statex \qquad $\mathcal{L} = \frac{1}{B} \sum_{i=1}^{d} ||\mathbf{Y}_{\text{sorted}}^{(i)} - \mathbf{T}||_2^2$
     \State Backpropagate to compute Euclidean gradient: $\mathbf{G} = \nabla_{\mathbf{W}} \mathcal{L}$
     \State Project to tangent space (Riemannian Gradient): 
     \Statex \qquad $\nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\big(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \big)\mathbf{W}$
     \State Update matrix along tangent plane:
     \Statex \qquad $\mathbf{W}_{\text{step}} = \mathbf{W} + \eta \nabla_{\mathcal{S}} \mathbf{W}$ \Comment{Gradient Ascent}
-    \State Retract to Stiefel manifold via symmetric decorrelation: 
+    \State Retract to Orthogonal Group $\mathcal{S}$ via symmetric decorrelation: 
     \Statex \qquad $\mathbf{W} \gets (\mathbf{W}_{\text{step}}\mathbf{W}_{\text{step}}^\top)^{-1/2} \mathbf{W}_{\text{step}}$
     \State Optional: Apply learning rate decay $\eta \gets \eta \cdot 0.99$
 \EndFor
@@ -905,53 +968,22 @@ The pseudo-code for extracting independent non-Gaussian components from a mixed 
 
 
 \section{Limitations of Fixed-Point Algorithms for OT-ICA}
-A widely used algorithm for ICA, FastICA \cite[Chapter 8]{hyvarinen2001}, achieves efficient convergence by employing a Newton (second-order) fixed-point step. 
-FastICA utilizes this approach by maximizing proxy contrast functions that are static and easily differentiable. 
-A natural question is whether a similar fixed-point iteration can be derived for the $W_2^2$ objective. 
+A widely used algorithm for ICA, FastICA \cite[Chapter 8]{hyvarinen2001}, achieves efficient convergence by employing a second-order Newton fixed-point step. 
+FastICA utilizes this approach by maximizing globally differentiable proxy contrast functions. 
+A natural question is whether a similar fixed-point iteration can be derived for the OT-ICA objective ($W_2^2$). 
 
-\vspace{0.5em}
-\noindent\textbf{Theorem 4.1 Intractability of Exact Newton Updates.} \textit{For an empirical distribution mapped to a continuous target via sorting, 
-computing an exact, closed-form Hessian $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$ is analytically intractable without introducing external density estimation mechanisms. 
-The Map Derivative $\nabla_{\mathbf{w}} T_{\mathbf{w}}$ inherently relies upon the rate of change of cumulative probability mass, which strictly requires the continuous 
-Probability Density Function (PDF) evaluated at the quantile boundaries.}
-\vspace{0.5em}
+Computing exact second-order Newton updates for the empirical Wasserstein metric is analytically intractable without introducing explicit density approximation mechanisms. 
+Because the efficiency of 1D optimal transport relies on the empirical CDF generated via sorting, formulating the exact 
+Hessian matrix $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$ requires differentiating the transport map boundaries. 
+This calculation strictly requires the continuous Probability Density Function (PDF) evaluated at the empirical quantiles. 
+We provide the formal derivation showing this intractability in Appendix \ref{app:newton_intractable}.
 
-\textit{Proof.} To implement a Newton step, the exact Hessian matrix of the squared Wasserstein distance, $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$, is required. 
-We first derive the first derivative (the gradient) of the objective with respect to the weight vector $\mathbf{w}$. Utilizing the envelope theorem for 
-optimal transport \cite[Section 7.2]{santambrogio2015optimal}, the variation of the optimal map evaluates to zero within the cost function, 
-allowing us to differentiate the squared cost directly:
-\begin{align}
-    \nabla_{\mathbf{w}} \left( \frac{1}{2} W_2^2 \right) &= \nabla_{\mathbf{w}} \left( \frac{1}{2} \mathbb{E}\Big[ \big( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \big)^2 \Big] \right) \nonumber \\
-    &= \mathbb{E}\Big[ \big( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \big) \nabla_{\mathbf{w}} (\mathbf{w}^\top \mathbf{X}) \Big] \nonumber \\
-    &= \mathbb{E}\Big[ \mathbf{X} \big( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \big) \Big].
-\end{align}
-To compute the Hessian, we differentiate the optimal transport map $T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})$ with respect to $\mathbf{w}$. 
-Applying the total derivative yields two terms:
-\begin{equation}
-    \nabla_{\mathbf{w}} [T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})] = \underbrace{T'_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \mathbf{X}}_{\text{Argument Derivative}} + \underbrace{(\nabla_{\mathbf{w}} T_{\mathbf{w}})(\mathbf{w}^\top \mathbf{X})}_{\text{Map Derivative}}.
-\end{equation}
-By Caffarelli's regularity theory \cite{caffarelli1992}, the transport map $T_{\mathbf{w}}$ is continuously differentiable, guaranteeing the existence of the Argument Derivative. 
-The limitation lies within the Map Derivative. 
+Satisfying this mathematical requirement necessitates density approximation methods, such as Kernel Density Estimation (KDE). 
+These methods introduce statistical noise and additional computational overhead, eating into the efficiency of the sorting-based transport formulation.
 
-In the 1D optimal transport setting, the transport map to a standard Gaussian relies on the empirical cumulative distribution function, $F_{\mathbf{w}}$, 
-of the projected data $y = \mathbf{w}^\top \mathbf{X}$. Expanding the Map Derivative yields:
-\begin{equation}
-    (\nabla_{\mathbf{w}} T_{\mathbf{w}})(y) = \nabla_{\mathbf{w}} \big[ \Phi^{-1}(F_{\mathbf{w}}(y)) \big] = \frac{1}{\phi(\Phi^{-1}(F_{\mathbf{w}}(y)))} \nabla_{\mathbf{w}} F_{\mathbf{w}}(y).
-\end{equation}
-The term $\nabla_{\mathbf{w}} F_{\mathbf{w}}(y)$ represents the rate of change of the cumulative probability mass as the projection 
-plane $\mathbf{w}$ is rotated. The derivative of a cumulative distribution function's boundary strictly requires the underlying 
-probability density function (PDF) evaluated at that boundary, rendering the closed-form calculation intractable without explicit density estimation. $\blacksquare$
-
-This theoretical requirement negates the computational advantage of the OT-ICA formulation. The efficiency of 1D optimal 
-transport stems from its reliance on sorting (empirical CDFs), circumventing continuous density estimation entirely. 
-Requiring the PDF to compute the Hessian necessitates density approximation methods like Kernel Density Estimation (KDE) or 
-Normalizing Flows. These methods introduce statistical noise, hyperparameter tuning, and significant computational overhead.
-
-Because computing a true Newton-based fixed-point step for exact OT-ICA is analytically intractable, the chosen strategy for 
-the OT-ICA framework utilizes Quasi-Newton methods, specifically the Limited-memory BFGS (L-BFGS) algorithm \cite{liu1989limited} 
-adapted for the Stiefel manifold \cite[Chapter 6]{absil2008optimization}. L-BFGS approximates the inverse Hessian curvature by 
-observing the history of first-order Wasserstein gradients. This approach allows the algorithm to achieve convergence while preserving 
-the sorting-based methodology of the optimal transport formulation.
+Consequently, the chosen strategy for the OT-ICA framework in this work utilizes Quasi-Newton methods, specifically the Limited-memory BFGS (L-BFGS) algorithm \cite{liu1989limited} 
+adapted for the Orthogonal Group \cite[Chapter 6]{absil2008optimization}. L-BFGS approximates the inverse Hessian curvature strictly by observing 
+the history of first-order Wasserstein gradients, achieving convergence while preserving the efficiency of the sorting-based metric.
 
 
 % -----------------------------------------------------------------
@@ -959,7 +991,7 @@ the sorting-based methodology of the optimal transport formulation.
 % -----------------------------------------------------------------
 \chapter{Experimental Evaluation and Applications}
 
-\section{Evaluation Metrics And Methodology}
+\section{Evaluation Metrics and Methodology}
 \subsection{The Amari Performance Index}
 To empirically evaluate the success of an Independent Component Analysis (ICA) algorithm, a quantitative metric is required to measure 
 the distance between the estimated unmixing matrix $\mathbf{W}_{\text{est}}$ and the true mixing matrix $\mathbf{A}$. 
@@ -973,7 +1005,7 @@ For a $d \times d$ matrix $\mathbf{P}$ with elements $p_{ij}$, the Amari error m
 \end{equation}
 \vspace{0.5em}
 
-This formulation normalizes each row and column by its maximum absolute value. If $\mathbf{P}$ is a generalized permutation matrix, 
+This formulation normalizes each row and column by their maximum absolute values. If $\mathbf{P}$ is a generalized permutation matrix, 
 indicating successful source separation, the index evaluates to zero. The experimental evaluations employ specific heuristic thresholds 
 to interpret the Amari error (Table \ref{tab:amari_thresholds}).
 
@@ -1002,7 +1034,7 @@ to interpret the Amari error (Table \ref{tab:amari_thresholds}).
 Because OT-ICA relies on first-order gradient descent over the non-convex Stiefel manifold, its capacity to find 
 the global optimum depends on the computational resources allocated to search the space, particularly as dimensionality increases. 
 Conversely, FastICA utilizes a Newton-based fixed-point iteration that converges rapidly under standard conditions. 
-FastICA requires extended computational limits in specific edge cases where its structural assumptions are violated, 
+FastICA requires greater computational resources in certain edge cases where its structural assumptions are violated, 
 causing the solver to oscillate. 
 
 To accommodate OT-ICA's scaling requirements, and to evaluate whether FastICA's non-convergence in certain cases is due 
@@ -1017,7 +1049,7 @@ this chapter are evaluated under two computational regimes. The hyperparameter c
         \textbf{Regime \& Objective} & \textbf{OT-ICA Configuration} & \textbf{FastICA Configuration} \\
         \midrule
         \textbf{Low Compute Baseline} \newline \textit{Represents standard, efficient execution.} & 
-        \textbf{Restarts:} $\min(4d, 150)$ \newline
+        \textbf{Restarts:} $\min(4 * \#dimensions, 150)$ \newline
         \textbf{Deflation Phase:} 150 iterations \newline
         \textbf{Symmetric Phase:} 200 iterations & 
         \textbf{Max Iterations:} 1,000 \newline 
@@ -1025,7 +1057,7 @@ this chapter are evaluated under two computational regimes. The hyperparameter c
         \addlinespace
         \addlinespace
         \textbf{High Compute Regime} \newline \textit{Evaluates structural convergence independent of timeouts.} & 
-        \textbf{Restarts:} $\min(15d, 600)$ \newline
+        \textbf{Restarts:} $\min(15 * \#dimensions, 600)$ \newline
         \textbf{Deflation Phase:} 300 iterations \newline
         \textbf{Symmetric Phase:} 500 iterations & 
         \textbf{Max Iterations:} 5,000 \newline 
@@ -1114,7 +1146,7 @@ yielding an Amari error below the 0.1 threshold. For comparison, the FastICA alg
 \section{Computational \& Temporal Scaling}
 To evaluate computational scaling in higher dimensions, we benchmarked OT-ICA against FastICA using a linear mixture of continuous super-Gaussian Laplacian sources. 
 We evaluated both algorithms across increasing dimensions with a fixed sample size of $N=10,000$. Because OT-ICA relies on gradient-based optimization over the Stiefel manifold, 
-its capacity to find global optima depends on computational resources. We evaluated both algorithms under the Low Compute and High Compute regimes.
+its capacity to find global optima depends on computational resources. We evaluated both algorithms under the Low-Compute and High-Compute regimes.
 
 \begin{figure}[tbp]
     \centering
@@ -1125,7 +1157,7 @@ its capacity to find global optima depends on computational resources. We evalua
     \label{fig:laplace_amari_scaling}
 \end{figure}
 
-FastICA performs well for lower dimensions, maintaining low error regardless of the compute regime (Figure \ref{fig:laplace_amari_scaling}). 
+FastICA performs well in lower dimensions, maintaining low error across all the compute regimes (Figure \ref{fig:laplace_amari_scaling}). 
 The Laplacian distribution aligns with FastICA's default \textit{logcosh} contrast function. While OT-ICA scales similarly to FastICA, 
 it requires the High Compute regime to navigate the higher-dimensional optimization landscape. As dimensionality approaches $d=40$, 
 the statistical resolution of the joint distribution for a sample size of $N=10,000$ degrades. Both algorithms fail to maintain the $E < 0.3$ threshold, 
@@ -1139,10 +1171,10 @@ demonstrating a statistical limitation of the fixed sample size.
     \label{fig:laplace_time_scaling}
 \end{figure}
 
-The computational cost for OT-ICA is significantly higher than FastICA (Figure \ref{fig:laplace_time_scaling}). FastICA's Newton-based 
+The computational cost of OT-ICA is significantly higher than that of FastICA (Figure \ref{fig:laplace_time_scaling}). FastICA's Newton-based 
 fixed-point iteration allows rapid convergence. In contrast, OT-ICA's first-order gradient descent and parallel restarts cause execution times 
-to scale more steeply. This difference in algorithmic efficiency raises the question of whether a gradient-based framework like 
-OT-ICA provides advantages over FastICA in specific settings.
+to scale more steeply. This difference in algorithmic efficiency raises the question of whether a gradient-based framework such as 
+OT-ICA offers advantages over FastICA in specific settings.
 
 While FastICA efficiently separates homogeneous mixtures of continuous distributions, empirical data is often heterogeneous. 
 The following sections explore how specific structural properties of non-Gaussian sources affect FastICA's convergence.
@@ -1170,7 +1202,7 @@ the theoretical baseline of a standard normal distribution. This distribution ma
 source that yields an approximated negentropy of zero.
 
 We generated linear mixtures of this Trimodal Gaussian source across dimensions ($d \in [5, 25]$) with $N=10,000$ samples. 
-We separated the evaluation into the Low Compute and High Compute regimes.
+We separated the evaluation into the Low-Compute and High-Compute regimes.
 
 \begin{figure}[tbp]
     \centering
@@ -1181,10 +1213,10 @@ We separated the evaluation into the Low Compute and High Compute regimes.
 \end{figure}
 
 The empirical results demonstrate that FastICA yields high Amari errors ($E>0.5$) for this distribution (Figure \ref{fig:zero_negentropy_amari}). 
-Providing FastICA with High Compute resources does not improve performance, confirming that the lack of convergence is related to the properties of 
-the proxy objective function rather than iteration limits.
+Providing FastICA with High-Compute resources does not improve performance, confirming that the lack of convergence is due to the properties of 
+the proxy objective function rather than to iteration limits.
 
-OT-ICA achieves source separation, bypassing parametric approximations by utilizing the empirical CDF via optimal transport. While OT-ICA shows 
+OT-ICA achieves source separation, by utilizing the empirical CDF via optimal transport and bypassing parametric approximations. While OT-ICA shows 
 performance degradation in the Low Compute regime for $d>15$ due to the non-convexity of the Stiefel manifold, the High Compute regime restores 
 accurate unmixing ($E<0.3$) up to $d=20$. 
 
@@ -1242,7 +1274,7 @@ non-convex search space rather than local density approximations.
 To evaluate OT-ICA and FastICA on heterogeneous signals, we tested a generalized hybrid mixture.
 
 \subsection{Experimental Setup}
-We generated linear mixtures at dimensions $d=30$ and $d=40$ with $N=10,000$. One source was fixed as a standard Gaussian distribution, $\mathcal{N}(0,1)$. 
+We generated linear mixtures with $d=30$ and $d=40$ and $N=10,000$. One source was fixed as a standard Gaussian distribution, $\mathcal{N}(0,1)$. 
 The remaining $(d-1)$ independent sources were randomly drawn from eight distributions: Laplace, Bernoulli, Uniform, Student-t, Poisson, Binomial, Chi-squared, and Exponential. 
 
 FastICA was evaluated with a limit of $10,000$ iterations, while OT-ICA utilized its baseline parameters (Table \ref{tab:compute_regimes}).
@@ -1299,7 +1331,7 @@ between standard normal noise and discrete distributions.
 \end{table}
 
 Adjusting the parameters (Poisson $\lambda=0.5$, Binomial $n=2$) increases the non-Gaussianity measured by $W_2^2$ (Table \ref{tab:w2_sensitivity}). 
-The Logcosh proxy evaluates to lower relative values for these discrete structures compared to the continuous Laplace baseline. 
+The Logcosh proxy yields lower relative values for these discrete structures than the continuous Laplace baseline. 
 
 \begin{figure}[tbp]
     \centering
@@ -1310,7 +1342,7 @@ The Logcosh proxy evaluates to lower relative values for these discrete structur
 \end{figure}
 
 The 1D optimization surfaces were mapped for both metrics (Figure \ref{fig:optimization_surface}). For FastICA (dashed blue line), 
-the \textit{logcosh} proxy landscape has low amplitude gradient changes (scale $1e-5$). For OT-ICA (solid orange line), 
+the \textit{logcosh} proxy landscape exhibits low-amplitude gradient changes (scale $10^{-5}$). For OT-ICA (solid orange line), 
 the geometric matching reflects the step-function nature of the empirical CDF, creating flat plateaus where the gradient approaches zero. 
 This non-smooth landscape can stall the L-BFGS solver prior to identifying the components.
 
@@ -1333,14 +1365,14 @@ OT-ICA got stuck, resulting in an Amari error of $E > 2.0$, due to the wider pla
 \section{Synthesis: The Case for OT-ICA}
 The evaluations indicate a distinction between theoretical identifiability and optimization behavior. 
 While statistical non-Gaussianity permits source separation, extracting discrete sources requires navigating a non-smooth optimization surface. 
-As observed in the pure discrete environments, step-functions create zero-gradient plateaus that stall first-order solvers, 
+As observed in pure discrete environments, step functions create zero-gradient plateaus that stall first-order solvers, 
 despite the objective function correctly identifying the non-Gaussianity.
 
 In heterogeneous environments containing both continuous and discrete variables, the continuous distributions smooth the overall 
 joint Cumulative Distribution Function, allowing the gradient solver to utilize the optimal transport metric across the manifold (Figure \ref{fig:hybrid_mixture_results}). 
 
-FastICA's reliance on local negentropy approximations creates specific convergence limitations, such as the zero-negentropy 
-condition and vanishing algorithmic curvature, which affect its performance in generalized hybrid mixtures. 
+FastICA's reliance on local negentropy approximations introduces specific convergence limitations, such as the zero-negentropy 
+condition and vanishing algorithmic curvature, that affect its performance on generalized hybrid mixtures. 
 Because OT-ICA explicitly maps the full empirical geometry via the CDF, it bypasses these specific parametric approximations. 
 Its performance is instead constrained by computational resources and the non-convexity of the Stiefel manifold. 
 For homogeneous mixtures of standard continuous distributions, FastICA provides a computational advantage. 
@@ -1379,16 +1411,16 @@ leaving the underlying continuous signals in the remaining components (Figure \r
 \subsection{Non-Gaussianity in Econometric Market Microstructure}
 We apply OT-ICA to price discovery in financial econometrics. In fragmented financial markets, determining which market 
 contributes most to price discovery involves measuring information shares. Standard vector error correction models (VECMs) 
-identify information shares using uncorrelation of price innovations. However, identification relying solely on uncorrelation 
+identify information shares using the uncorrelation of price innovations. However, identification relying solely on uncorrelation 
 is statistically equivalent up to an orthogonal transformation \cite{zema2025}. 
 
-By utilizing the non-Gaussianity of latent market shocks, ICA can resolve this orthogonal ambiguity, providing a measurement of market information shares. 
+By leveraging the non-Gaussianity of latent market shocks, ICA can resolve this orthogonal ambiguity, thereby providing a measurement of market information shares. 
 
 \subsection{Economic Identification Strategy}
 To address the permutation and sign ambiguities of ICA, we impose two economic identification constraints.
 
 First, to resolve the permutation ambiguity, we enforce a Dominant Diagonal constraint. The structural shock assigned to Market $i$ must 
-contribute the maximum variance to that market's price innovations. We implement this using the Hungarian Algorithm for optimal bipartite matching.
+account for the maximum variance in that market's price innovations. We implement this using the Hungarian Algorithm for optimal bipartite matching \cite{kuhn1955hungarian}.
 
 Second, to resolve the sign ambiguity, we enforce a Positive Impact constraint based on positive spillovers. A structural innovation 
 representing 'good news' is assumed to have a positive initial impact on its own market price. Columns of the unmixing matrix violating this logic are sign-flipped. 
@@ -1439,6 +1471,11 @@ The empirical density of the estimated information shares is centered around the
     \label{fig:is_distribution}
 \end{figure}
 
+These empirical results demonstrate the viability of the OT-ICA framework for price discovery applications. 
+Standard VECMs rely solely on decorrelation, leaving structural shocks unidentified. 
+However, by exploiting the non-Gaussian properties of market innovations and applying basic economic constraints, 
+OT-ICA identifies these structural elements. We therefore conclude that OT-ICA provides a reliable framework for measuring price discovery across markets.
+
 
 % -----------------------------------------------------------------
 % CHAPTER 6: CONCLUSION
@@ -1447,7 +1484,7 @@ The empirical density of the estimated information shares is centered around the
 
 \section{Summary of Contributions}
 This thesis evaluated the Optimal Transport Independent Component Analysis (OT-ICA) framework, transitioning linear source separation from 
-local proxy approximations to global geometric matching. By formulating the search for independent components as a minimization of 
+local proxy approximations to global geometric matching. By formulating the search for independent components as minimizing 
 the squared Wasserstein distance ($W_2^2$) to a standard normal distribution on the Stiefel manifold, we addressed specific 
 mathematical vulnerabilities present in established proxy algorithms.
 
@@ -1455,7 +1492,7 @@ Our theoretical analysis established that the squared Wasserstein distance bound
 for extracting latent sources. Empirically, we demonstrated that while Newton-based algorithms like FastICA fail to converge in the presence 
 of structural blind spots, such as zero-negentropy topologies and vanishing curvature, OT-ICA maintains stable convergence. 
 By mapping the full empirical cumulative distribution function rather than relying on point-estimates of density, OT-ICA successfully resolved 
-generalized hybrid mixtures where proxy solvers infinitely oscillate.
+generalized hybrid mixtures that would otherwise cause proxy solvers to oscillate indefinitely.
 
 We introduced specific algorithmic adaptations to make this optimal transport framework computationally viable. 
 These included exact analytical Gaussian targets to eliminate discretization noise, batched vectorization to handle the non-convex search space, 
@@ -1463,9 +1500,9 @@ and Gaussian dithering to process the discontinuous optimization landscapes of d
 utilizing OT-ICA to isolate sparse artifacts in clinical EEG recordings and to resolve orthogonal ambiguities in econometric price discovery. 
 
 \section{Limitations}
-The OT-ICA framework is subject to constraints regarding computational efficiency. Because calculating the exact Hessian of 
-the Wasserstein distance relies on continuous density estimation, OT-ICA must utilize first-order Quasi-Newton methods (L-BFGS) 
-combined with parallel random restarts. This results in execution times that scale exponentially with dimensionality, making it 
+The OT-ICA framework is subject to constraints regarding computational efficiency. Because computing the exact Hessian of 
+the Wasserstein distance relies on continuous density estimation, OT-ICA must use first-order Quasi-Newton methods (L-BFGS) 
+with parallel random restarts. This results in execution times that scale exponentially with dimensionality, making it 
 computationally expensive compared to fixed-point iteration solvers.
 
 The framework also encounters a statistical performance ceiling related to the curse of dimensionality. As the dimensionality expands, 
@@ -1510,7 +1547,7 @@ may serve to effectively regularize these constrained function spaces, enabling 
 \section{Derivation of the FastICA Fixed-Point Failure Condition}
 \label{app:fastica_proof}
 
-\textbf{Proof of Theorem 8.1} Denote by $H(\mathbf{w})$ the function to be minimized/maximized, $E\{G(\mathbf{w}^T \mathbf{z})\}$. 
+\textbf{Proof of Theorem 8.1} \cite[Chapter 8]{hyvarinen2001} Denote by $H(\mathbf{w})$ the function to be minimized/maximized, $E\{G(\mathbf{w}^T \mathbf{z})\}$. 
 Make the orthogonal change of coordinates $\mathbf{q} = \mathbf{A}^T \mathbf{V}^T \mathbf{w}$. Then we can calculate the gradient as $\frac{\partial H(\mathbf{q})}{\partial \mathbf{q}} = E\{\mathbf{s}g(\mathbf{q}^T \mathbf{s})\}$ and the Hessian as $\frac{\partial^2 H(\mathbf{q})}{\partial \mathbf{q}^2} = E\{\mathbf{s}\mathbf{s}^T g'(\mathbf{q}^T \mathbf{s})\}$. Without loss of generality, it is enough to analyze the stability of the point $\mathbf{q} = \mathbf{e}_1$, where $\mathbf{e}_1 = (1, 0, 0, 0, \dots)$. Evaluating the gradient and the Hessian at point $\mathbf{q} = \mathbf{e}_1$, we get using the independence of the $s_i$,
 \begin{equation}
     \frac{\partial H(\mathbf{e}_1)}{\partial \mathbf{q}} = \mathbf{e}_1 E\{s_1 g(s_1)\}
@@ -1570,6 +1607,41 @@ We obtain also
     \mathbf{q}^* = \mathbf{q}^+ / \|\mathbf{q}^+\|
 \end{equation}
 This shows clearly that under assumption (A.5), the algorithm converges (locally) to such a vector $\mathbf{q}$ that $q_1 = \pm 1$ and $q_i = 0$ for $i > 1$. This means that $\mathbf{w} = ((\mathbf{V}\mathbf{A})^T)^{-1}\mathbf{q}$ converges, up to the sign, to one of the rows of the inverse of the mixing matrix $\mathbf{V}\mathbf{A}$, which implies that $\mathbf{w}^T\mathbf{z}$ converges to one of the $s_i$. Moreover, if $E\{g''(s_1)\} = 0$, i.e., if the $s_i$ has a symmetric distribution, as is usually the case, the convergence is cubic. In other cases, the convergence is quadratic. If kurtosis is used, however, we always have $E\{g''(s_1)\} = 0$ and thus cubic convergence. In addition, if $G(y) = y^4$, the local approximations are exact, and the convergence is global.
+
+\section{Intractability of Exact Newton Updates for Empirical OT-ICA}
+\label{app:newton_intractable}
+
+\noindent\textbf{Theorem A.1 Intractability of Exact Newton Updates.} \textit{For an empirical distribution mapped to a continuous target via sorting, 
+computing an exact, closed-form Hessian $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$ is analytically intractable without introducing external density estimation mechanisms. 
+The Map Derivative $\nabla_{\mathbf{w}} T_{\mathbf{w}}$ inherently relies upon the rate of change of cumulative probability mass, which strictly requires the continuous 
+Probability Density Function (PDF) evaluated at the quantile boundaries.}
+\vspace{0.5em}
+
+\textit{Proof.} To implement a Newton step, the exact Hessian matrix of the squared Wasserstein distance, $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$, is required. 
+We first compute the first derivative of the objective with respect to the weight vector $\mathbf{w}$. Utilizing the envelope theorem for 
+optimal transport \cite[Section 7.2]{santambrogio2015optimal}, the variation of the optimal map evaluates to zero within the cost function, 
+allowing us to differentiate the squared cost directly:
+\begin{align}
+    \nabla_{\mathbf{w}} \left( \frac{1}{2} W_2^2 \right) &= \nabla_{\mathbf{w}} \left( \frac{1}{2} \mathbb{E}\Big[ \big( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \big)^2 \Big] \right) \nonumber \\
+    &= \mathbb{E}\Big[ \big( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \big) \nabla_{\mathbf{w}} (\mathbf{w}^\top \mathbf{X}) \Big] \nonumber \\
+    &= \mathbb{E}\Big[ \mathbf{X} \big( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \big) \Big].
+\end{align}
+To compute the Hessian, we differentiate the optimal transport map $T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})$ with respect to $\mathbf{w}$. 
+Applying the total derivative yields two terms:
+\begin{equation}
+    \nabla_{\mathbf{w}} [T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})] = \underbrace{T'_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \mathbf{X}}_{\text{Argument Derivative}} + \underbrace{(\nabla_{\mathbf{w}} T_{\mathbf{w}})(\mathbf{w}^\top \mathbf{X})}_{\text{Map Derivative}}.
+\end{equation}
+By Caffarelli's regularity theory \cite{caffarelli1992}, the transport map $T_{\mathbf{w}}$ is continuously differentiable, guaranteeing the existence of the Argument Derivative. 
+The limitation lies within the Map Derivative. 
+
+In the 1D optimal transport setting, the transport map to a standard Gaussian relies on the empirical cumulative distribution function, $F_{\mathbf{w}}$, 
+of the projected data $y = \mathbf{w}^\top \mathbf{X}$. Expanding the Map Derivative yields:
+\begin{equation}
+    (\nabla_{\mathbf{w}} T_{\mathbf{w}})(y) = \nabla_{\mathbf{w}} \big[ \Phi^{-1}(F_{\mathbf{w}}(y)) \big] = \frac{1}{\phi(\Phi^{-1}(F_{\mathbf{w}}(y)))} \nabla_{\mathbf{w}} F_{\mathbf{w}}(y).
+\end{equation}
+The term $\nabla_{\mathbf{w}} F_{\mathbf{w}}(y)$ represents the rate of change of the cumulative probability mass as the projection 
+plane $\mathbf{w}$ is rotated. The derivative of a cumulative distribution function's boundary strictly requires the underlying 
+probability density function (PDF) evaluated at that boundary, rendering the closed-form calculation intractable without explicit density estimation. $\blacksquare$
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % BACK MATTER
