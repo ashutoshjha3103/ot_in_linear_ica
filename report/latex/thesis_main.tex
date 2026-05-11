@@ -696,6 +696,14 @@ This retention of curvature provides a reliable signal for gradient-based solver
 % -----------------------------------------------------------------
 \chapter{Algorithmic Enhancements}
 
+This chapter transitions the theoretical formulation of OT-ICA into a practical and efficient algorithm. 
+While the baseline optimal transport formulation provides a valid objective, its reliance on discrete sorting and unconstrained 
+gradient descent presents both algorithmic and computational bottlenecks. To resolve these issues, this chapter introduces a series 
+of targeted algorithmic enhancements. We develop analytical Gaussian targets to eliminate quantile approximation noise, formalize 
+an optimization framework on the Orthogonal Group to strictly preserve component decorrelation, and utilize 
+various methodologies to navigate discontinuous landscapes. The chapter concludes by 
+combining these components into the complete OT-ICA algorithm.
+
 \section{The Baseline OT-ICA Algorithm}
 Having established the theoretical validity of the squared Wasserstein distance ($W_2^2$) for Independent Component Analysis, 
 the challenge is to minimize this cost function computationally. Just like the standard FastICA algorithm \cite{hyvarinen2001}, 
