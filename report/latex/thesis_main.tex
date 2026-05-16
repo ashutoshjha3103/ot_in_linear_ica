@@ -1185,7 +1185,14 @@ The empirical results (Figure \ref{fig:hybrid_mixture_results}) demonstrate that
 in three of the five hybrid environments: full hybrid, zero Gaussian, and discrete-only. In these cases, FastICA fails to converge ($E>0.5$). 
 Conversely, OT-ICA maintains separation ($E < 0.5$) across the dimensions for all but the strictly discrete environments.
 
+To understand the divergence in performance observed in these hybrid environments, 
+the subsequent sections isolate and evaluate the specific algorithmic vulnerabilities of both frameworks. 
+Section \ref{sec: fastica_pitfalls} formally investigates the mathematical conditions under which FastICA's proxy contrast functions fail to converge. 
+Following this, Section \ref{sec: discrete_ica_optimization} isolates the discrete environments to analyze 
+the contrast resolution and optimization bottlenecks for both FastICA and OT-ICA.
+
 \section{Algorithmic Limitations of FastICA}
+\label{sec: fastica_pitfalls}
 The instability of FastICA in hybrid mixtures suggests mathematical limits to its objective function. 
 We evaluate two specific limitations of FastICA's fixed-point iteration resulting from its reliance on proxy contrast functions.
 
@@ -1283,6 +1290,7 @@ OT-ICA, utilizing the L-BFGS Quasi-Newton solver, bypassed the exact Hessian req
 through $d=15$ and $d=20$ in Low- and High-Compute regimes respectively.
 
 \section{Optimization in Discrete Environments}
+\label{sec: discrete_ica_optimization}
 While OT-ICA resolves continuous distributions efficiently, discrete data presents an optimization bottleneck, as observed in the generalized hybrid tests.
 
 \subsection{Empirical Results on Discrete Data}
