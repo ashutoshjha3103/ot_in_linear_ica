@@ -1181,7 +1181,7 @@ confirming OT-ICA is able to extract independent components as well as standard 
     \label{tab:baseline_matrices}
 \end{table}
 
-\section{The Generalized Hybrid Mixture Stress Test}
+\section{Heterogeneous Mixture Tests}
 To evaluate optimization convergence on heterogeneous signals, we tested generalized hybrid mixtures containing concurrent 
 super-Gaussian, sub-Gaussian, continuous, and discrete properties.
 
@@ -1328,7 +1328,7 @@ We quantified the theoretical non-Gaussianity of these distributions to determin
     \centering
     \begin{tabular}{lcc}
         \toprule
-        \textbf{Distribution} & \textbf{$W_2^2$ Distance} & \textbf{Logcosh Proxy Negentropy} \\
+        \textbf{Distribution} & \textbf{$W_2^2$ Distance} & \begin{tabular}{@{}c@{}}\textbf{Logcosh Proxy} \\ \textbf{Negentropy}\end{tabular} \\
         \midrule
         Laplace (Continuous Baseline) & 0.0398 & 0.001214 \\
         Binomial (Standard, $n=10$) & 0.0344 & 0.000031 \\
@@ -1436,21 +1436,84 @@ The raw frontal electrodes contain synchronized high-amplitude spikes (Figure \r
 The OT-ICA framework successfully isolated the ocular artifact into a single independent component (Comp 1), allowing for the analysis of the underlying brain waves.
 
 \section{Application: Price Discovery and Information Shares}
-In fragmented financial markets, identical assets trade across multiple venues. 
-While the short-term price changes are correlated, they are driven by an unobserved 'efficient price' random walk. 
-Determining which market contributes most to this price discovery requires measuring Information Shares.
 
-Standard Vector Error Correction Models (VECMs) define the vector of price changes $\Delta P_t$ as:
+In fragmented financial markets, an identical asset is often traded simultaneously across multiple venues. 
+While short-term price changes across these markets may deviate due to microstructure noise, arbitrage ensures they are bound together by an unobserved ``efficient price'' random walk. 
+A central problem in market microstructure is determining the Information Share (IS) \cite{hasbrouck1995, baillie2002}, that is, 
+quantifying the proportional contribution of each market to the variance of this fundamental price discovery process. 
+Recently, Zema and Cordoni \cite{zema2025} demonstrated that this econometric identification problem can be uniquely resolved by 
+leveraging the non-Gaussian properties of the underlying price innovations.
+
+To model this cointegrated system, we adopt the standard Vector Error Correction Model (VECM) \cite{engle1987, johansen1991}. 
+Let $P_t = [p_{1,t}, p_{2,t}, \dots, p_{n,t}]^\top$ be the vector of logarithmic prices across $n$ markets at time $t$. The price dynamics are formulated as:
 \begin{equation}
-    \Delta P_t = \boldsymbol{\Pi} P_{t-1} + \epsilon_t
+    \Delta P_t = \boldsymbol{\alpha} \boldsymbol{\beta}^\top P_{t-1} + \sum_{i=1}^{k} \boldsymbol{\Phi}_i \Delta P_{t-k} + u_t
 \end{equation}
-where $\boldsymbol{\Pi}$ is the impact matrix governing the long-term cointegrating relationships between the assets. 
-The reduced-form residuals $\epsilon_t$ must be decomposed into structural market shocks:
+where $\boldsymbol{\beta}$ contains the cointegrating vectors that enforce the long-term equilibrium between the markets, 
+and $\boldsymbol{\alpha}$ represents the speed of adjustment to this equilibrium. 
+The term $u_t$ represents the reduced-form price innovations (residuals) with a contemporaneous covariance matrix $\boldsymbol{\Omega} = \mathbb{E}[u_t u_t^\top]$. 
+
+In order to measure the true Information Share of each venue, these reduced-form residuals $u_t$ must be decomposed into mutually independent, 
+structural market shocks $\epsilon_t$ (where $\mathbb{E}[\epsilon_t] = \mathbf{0}$ and $\operatorname{Cov}(\epsilon_t) = \mathbf{I}_n$). 
+This decomposition requires identifying an instantaneous impact matrix $\mathbf{B}$ such that:
 \begin{equation}
-    \epsilon_t = \mathbf{A} e_t
+    u_t = \mathbf{B} \epsilon_t
 \end{equation}
-VECMs rely solely on decorrelation (Cholesky decomposition), which leaves an orthogonal rotation unidentified. 
-By exploiting the non-Gaussian properties of financial market innovations, OT-ICA locks this orthogonal rotation, identifying the matrix $\mathbf{A}$.
+Expanded into full matrix notation, this relationship is expressed as:
+\begin{equation}
+    \begin{bmatrix}
+    u_{1,t} \\
+    u_{2,t} \\
+    \vdots \\
+    u_{n,t}
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+    b_{11} & b_{12} & \cdots & b_{1n} \\
+    b_{21} & b_{22} & \cdots & b_{2n} \\
+    \vdots & \vdots & \ddots & \vdots \\
+    b_{n1} & b_{n2} & \cdots & b_{nn}
+    \end{bmatrix}
+    \begin{bmatrix}
+    \epsilon_{1,t} \\
+    \epsilon_{2,t} \\
+    \vdots \\
+    \epsilon_{n,t}
+    \end{bmatrix}
+\end{equation}
+
+By substituting this relationship into the contemporaneous covariance matrix of the residuals, and utilizing the assumption that 
+the structural shocks are mutually independent with unit variance ($\mathbb{E}[\epsilon_t \epsilon_t^\top] = \mathbf{I}_n$), the covariance constraint emerges in three steps:
+\begin{align}
+    \boldsymbol{\Omega} &= \mathbb{E}[u_t u_t^\top] \nonumber \\
+    &= \mathbf{B} \, \mathbb{E}[\epsilon_t \epsilon_t^\top] \, \mathbf{B}^\top \\
+    &= \mathbf{B} \mathbf{I}_n \mathbf{B}^\top = \mathbf{B}\mathbf{B}^\top \nonumber
+\end{align}
+
+Because $\boldsymbol{\Omega}$ is symmetric, knowing the covariance matrix only partially identifies $\mathbf{B}$. 
+Standard econometric approaches resolve this ambiguity using a Cholesky decomposition, forcing $\mathbf{B}$ to be a lower-triangular matrix. 
+However, this imposes an arbitrary, recursive causal ordering on the markets, leading to different Information Share results 
+depending on how the markets are ordered in the vector $P_t$.
+
+To achieve a unique, order-invariant identification, any valid mixing matrix $\mathbf{B}$ can be factored into two components:
+\begin{equation}
+    \mathbf{B} = \mathbf{S}\mathbf{C}
+\end{equation}
+where $\mathbf{S}$ is an arbitrary whitening matrix satisfying $\boldsymbol{\Omega} = \mathbf{S}\mathbf{S}^\top$ (such as 
+the Cholesky factor or an eigenvalue decomposition), and $\mathbf{C}$ is a strict orthogonal rotation matrix ($\mathbf{C}\mathbf{C}^\top = \mathbf{I}_n$). 
+
+By substituting this into our structural model, we get $u_t = \mathbf{S}\mathbf{C}\epsilon_t$, which can be rearranged as:
+\begin{equation}
+    \mathbf{S}^{-1}u_t = \mathbf{C}\epsilon_t
+\end{equation}
+The term $\mathbf{S}^{-1}u_t$ represents the whitened price innovations. Identifying the structural shocks $\epsilon_t$ now reduces  
+to a search over the Orthogonal Group for the rotation matrix $\mathbf{C}$. 
+
+Classical models relying exclusively on Gaussian assumptions cannot identify this orthogonal rotation, as any orthogonal rotation of 
+a spherically symmetric Gaussian vector yields another valid Gaussian vector. 
+However, high-frequency financial market innovations exhibit highly non-Gaussian, heavy-tailed properties. 
+By applying the OT-ICA framework to the whitened residuals, we leverage this non-Gaussianity to lock the orthogonal rotation $\mathbf{C}$, 
+thereby recovering the true structural matrix $\mathbf{B}$ and enabling a unique, order-invariant calculation of the market Information Shares.
 
 \subsection{Empirical Results on Simulated Market Data}
 We simulated a fragmented scenario targeting three markets with pre-defined Information Shares of $12\%$, $24\%$, and $64\%$. 
@@ -1497,7 +1560,7 @@ the true parameter values across the simulation runs (Figure \ref{fig:is_distrib
     \label{fig:is_distribution}
 \end{figure}
 
-We conclude that by exploiting non-Gaussianity to resolve the orthogonal ambiguities inherent in standard VECMs, 
+Thus, we conclude that by exploiting non-Gaussianity to resolve the orthogonal ambiguities inherent in standard VECMs, 
 OT-ICA provides a reliable framework for measuring price discovery across markets.
 
 % -----------------------------------------------------------------
