@@ -89,9 +89,11 @@ def amari_error(W, A):
         return np.nan
     P = np.abs(W @ A)
     n = P.shape[0]
-    row_max = np.max(P, axis=1, keepdims=True)
-    col_max = np.max(P, axis=0, keepdims=True)
-    return (np.sum(P / row_max - 1.0) + np.sum(P / col_max - 1.0)) / (2.0 * n)
+    # Sum each normalised row/column first, THEN subtract 1 once per row/column.
+    # (Subtracting 1 inside np.sum would apply it to every element — d× too many.)
+    row_terms = np.sum(P / np.max(P, axis=1, keepdims=True), axis=1) - 1.0
+    col_terms = np.sum(P / np.max(P, axis=0, keepdims=True), axis=0) - 1.0
+    return (np.sum(row_terms) + np.sum(col_terms)) / (2.0 * n)
 
 
 # =============================================================================
@@ -505,14 +507,16 @@ CONFIG_ORDER = [CONFIG_LABELS[p] for p in POOLS]
 # At \columnwidth (3.5") this renders at ~3.5" wide × ~4.2" tall.
 fig, ax = plt.subplots(
     1, 1,
-    figsize=(COLUMN_IN * SCALE, COLUMN_IN * SCALE * 1.2)
+    figsize=(COLUMN_IN * SCALE, COLUMN_IN * SCALE * 1.2),
+    constrained_layout=True,        # avoids "Axes not compatible" tight_layout warning
 )
 
 sns.barplot(
     data=df_abl, x='Config_short', y='Error', hue='Method',
     hue_order=METHOD_ORDER, order=CONFIG_ORDER,
     palette=PALETTE, ax=ax,
-    errorbar='ci', capsize=0.04, errwidth=1.2 * SCALE,
+    errorbar='ci', capsize=0.04,
+    err_kws={'linewidth': 1.2 * SCALE},   # replaces deprecated errwidth
     alpha=0.85, edgecolor='white',
 )
 ax.axhline(0.3, color='#444', ls=':', lw=1.0 * SCALE, alpha=0.8)
@@ -524,12 +528,10 @@ ax.set_ylim(0, 1.6)
 ax.set_xlabel('Mixture Regime')
 ax.set_ylabel('Amari Error  (↓ better)')
 ax.set_title(f'Robustness Across Mixture Types  (d = {ABL_DIM})')
-# 4-column legend fits across the top of the figure
 ax.legend(title='', loc='upper left', ncol=2, frameon=True,
           handlelength=1.2, handletextpad=0.4, columnspacing=0.8)
 ax.tick_params(axis='x', which='both', length=0)
 
-fig.tight_layout()
 out = SAVE_DIR + 'general_hybrid_test.pdf'
 fig.savefig(out, format='pdf', bbox_inches='tight')
 plt.show()
