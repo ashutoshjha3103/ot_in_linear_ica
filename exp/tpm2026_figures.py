@@ -664,21 +664,27 @@ Z_hat = W_eeg.cpu().numpy() @ model_eeg.X_white.cpu().numpy()
 # Identify artifact component: highest kurtosis (most impulsive = blinks)
 kurtoses = scipy.stats.kurtosis(Z_hat, axis=1)
 artifact_idx = int(np.argmax(kurtoses))
-comp_colors  = ['#D55E00' if i == artifact_idx else '#444444'
-                for i in range(dim_eeg)]
-comp_labels  = [f'Comp {i+1} ← artifact' if i == artifact_idx
-                else f'Comp {i+1}'
-                for i in range(dim_eeg)]
+
+# ICA is sign-ambiguous. Align artifact component so the blink spike is
+# positive (matching the upward deflection seen in the raw frontal channels).
+peak_sample = np.argmax(np.abs(Z_hat[artifact_idx]))
+if Z_hat[artifact_idx, peak_sample] < 0:
+    Z_hat[artifact_idx] = -Z_hat[artifact_idx]
+
+# Plain labels — artifact identity described in title and caption, not tick
+comp_colors = ['#D55E00' if i == artifact_idx else '#444444'
+               for i in range(dim_eeg)]
+comp_labels = [f'Comp {i+1}' for i in range(dim_eeg)]
 
 # ---- Plot ------------------------------------------------------------------
 set_tpm_theme()
 
-OFFSET = 5.5   # vertical spacing between traces
+OFFSET = 5.5
 fig, axes_eeg = plt.subplots(
     2, 1,
     figsize=(COLUMN_IN * SCALE, COLUMN_IN * SCALE * 0.85),
     sharex=True,
-    gridspec_kw={'hspace': 0.35}
+    constrained_layout=True,   # avoids tight_layout warning
 )
 
 # Raw EEG
@@ -696,15 +702,14 @@ for i in range(dim_eeg):
 axes_eeg[1].set_yticks([-OFFSET * i for i in range(dim_eeg)])
 axes_eeg[1].set_yticklabels(comp_labels)
 axes_eeg[1].set_xlabel('Time (s)')
-axes_eeg[1].set_title('(b) OT-ICA Recovered Components')
+# Title names the artifact component explicitly; label in caption
+axes_eeg[1].set_title(
+    f'(b) OT-ICA Recovered Components  (Comp {artifact_idx+1} = ocular artifact)'
+)
 
-# Highlight the artifact component band
-y_top = 1.5
-y_bot = -(artifact_idx * OFFSET) - OFFSET * 0.5
 for ax in axes_eeg:
     ax.tick_params(axis='y', labelsize=6.5 * SCALE)
 
-fig.tight_layout()
 out = SAVE_DIR + 'eeg_artifact_removal.pdf'
 fig.savefig(out, format='pdf', bbox_inches='tight')
 plt.show()
