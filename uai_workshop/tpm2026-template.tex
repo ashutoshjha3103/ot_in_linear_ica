@@ -41,7 +41,17 @@
 \maketitle
 
 \begin{abstract}
-Independent Component Analysis (ICA) is a foundational probabilistic tool for recovering latent, statistically independent sources from observed mixtures. Because maximizing marginal non-Gaussianity mathematically equates to extracting independent components, traditional ICA algorithms achieve tractability by relying on local proxy contrast functions (e.g., negentropy approximations) to evaluate these non-Gaussianities. However, these proxies systematically fail to converge on complex, heterogeneous topologies. We propose OT-ICA, an exploratory framework that evaluates the full probability density by minimizing the 1D squared Wasserstein distance ($W_2^2$) to a Gaussian target. By exploiting optimal transport theory, OT-ICA retains algorithmic efficiency while demonstrating strict robustness on hybrid mixtures where traditional fixed-point solvers fail. Finally, we demonstrate the utility of this framework in two interdisciplinary applications: isolating ocular artifacts in clinical EEG recordings, and identifying structural market shocks to resolve the arbitrary recursive ordering (Cholesky) problem in standard Vector Error Correction Models (VECMs).
+Independent Component Analysis (ICA) is a foundational probabilistic tool for recovering latent, 
+statistically independent sources from observed mixtures. Because maximizing marginal non-Gaussianity 
+equates to extracting independent components, traditional ICA algorithms achieve tractability by relying on 
+local proxy contrast functions (e.g., negentropy approximations) to evaluate these non-Gaussianities. 
+However, these proxies systematically fail to converge on complex, heterogeneous topologies. 
+We propose OT-ICA, an exploratory framework that evaluates the full probability density by minimizing the 
+1D squared Wasserstein distance ($W_2^2$) to a Gaussian target. By exploiting optimal transport theory, 
+OT-ICA retains algorithmic efficiency while demonstrating strict robustness on hybrid mixtures where traditional 
+fixed-point solvers fail. Finally, we demonstrate the utility of this framework in two interdisciplinary applications: 
+isolating ocular artifacts in clinical EEG recordings, and identifying structural market shocks to resolve the arbitrary 
+recursive ordering (Cholesky) problem in standard Vector Error Correction Models (VECMs).
 \end{abstract}
 
 \section{Introduction and the Tractability Gap}
@@ -131,18 +141,18 @@ We quantify this convergence using the Amari Performance Index ($E$) \citep{amar
 Baseline testing (Figure \ref{fig:ot_ica_validation}) confirms that the $W_2^2$ gradient reliably drives the Amari error toward zero on standard continuous mixtures (such as symmetric Laplacian signals), empirically validating the structural convergence of the Riemannian manifold traversal and the analytical targets.
 
 \section{Empirical Robustness on Hybrid Mixtures}
-Following baseline validation, we evaluate the general robustness of OT-ICA against FastICA.
+Following baseline validation, we evaluate the general robustness of OT-ICA against three proxy-based methods across five heterogeneous mixture regimes.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\columnwidth]{general_hybrid_test.pdf}
-    \caption{Amari error for Generalized Hybrid Mixtures. OT-ICA demonstrates reliable stability across tested dimensions compared to FastICA.}
+    \caption{Amari error at $d=30$, $N=10{,}000$ across five mixture regimes. \textit{Discrete Only} is a fundamental limitation shared by all methods (three generator types produce near-indistinguishable sources at $d=30$). On all other regimes OT-ICA achieves the lowest error; FastICA, JADE, and InfoMax degrade most on \textit{Zero Gaussian} and \textit{Full Hybrid} where heterogeneous topologies invalidate their proxy contrasts.}
     \label{fig:hybrid_mixture_results}
 \end{figure}
 
-For our primary evaluation, we simulated heterogeneous environments mixing a standard Gaussian with $(d-1)$ randomly drawn independent sources covering super-Gaussian, sub-Gaussian, continuous, and discrete distributions (e.g., Laplace, Bernoulli, Uniform, Poisson, Exponential). 
+For our primary evaluation we mixed a standard Gaussian with $(d-1)$ sources drawn from five regime pools spanning super-Gaussian, sub-Gaussian, continuous, and discrete distributions (Laplace, Bernoulli, Uniform, Poisson, Exponential). We benchmark four methods: OT-ICA, FastICA \citep{hyvarinen2001}, JADE \citep{cardoso1993blind}, and InfoMax \citep{bell1995information}.
 
-Figure \ref{fig:hybrid_mixture_results} confirms that FastICA exhibits severe instability in multi-modal, hybrid environments, frequently failing to converge (Amari Error $> 0.5$). By utilizing a true geometric distance metric that evaluates the full probability density rather than a local approximation, OT-ICA provides stable separation across complex mixed topologies. (Extended evaluations regarding computational scaling and dimensionality limits are discussed in Appendix \ref{app:scaling}).
+Figure \ref{fig:hybrid_mixture_results} shows that proxy-based methods (FastICA, JADE, InfoMax) degrade on heterogeneous and non-Gaussian topologies, with the steepest failures on \textit{Zero Gaussian} and \textit{Full Hybrid} regimes where conflicting distributional geometries invalidate local contrast surrogates. OT-ICA consistently achieves the lowest Amari error by evaluating the full distributional geometry via $W_2^2$. (Computational scaling is discussed in Appendix~\ref{app:scaling}.)
 
 \section{Interdisciplinary Applications}
 

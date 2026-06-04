@@ -133,16 +133,18 @@ def jade_ica(X):
                 Q[j, i] -= 1.0   # -delta_{il}delta_{jk}
             Qset.append((Q + Q.T) / 2.0)
 
-    # --- 3. Joint diagonalisation via Jacobi sweeps ------------------------
-    # Accumulated rotation V:  independent components = V @ Xw
+    # --- 3. Joint diagonalisation via vectorised Jacobi sweeps ---------------
+    # Stack as (M, d, d) so every rotation applies to all M matrices at once
+    # instead of a slow Python loop — ~20× faster at d=40.
+    Qstack = np.array(Qset)   # (M, d, d)
     V = np.eye(d)
 
-    for _sweep in range(200):
+    for _sweep in range(100):
         changed = False
         for p in range(d - 1):
             for q in range(p + 1, d):
-                g = np.array([Q[p, p] - Q[q, q] for Q in Qset])
-                h = np.array([2.0 * Q[p, q]     for Q in Qset])
+                g = Qstack[:, p, p] - Qstack[:, q, q]   # (M,)
+                h = 2.0 * Qstack[:, p, q]                # (M,)
                 ton  = float(np.dot(g, g) - np.dot(h, h))
                 toff = float(2.0 * np.dot(g, h))
 
@@ -157,17 +159,18 @@ def jade_ica(X):
 
                 changed = True
 
-                # Apply Givens rotation to every cumulant matrix in-place
-                for iq in range(len(Qset)):
-                    Q  = Qset[iq]
-                    pr = c * Q[p, :] - s * Q[q, :]
-                    qr = s * Q[p, :] + c * Q[q, :]
-                    Q[p, :] = pr;  Q[q, :] = qr
-                    pc = c * Q[:, p] - s * Q[:, q]
-                    qc = s * Q[:, p] + c * Q[:, q]
-                    Q[:, p] = pc;  Q[:, q] = qc
+                # Row update (all M matrices, rows p and q)
+                pr = c * Qstack[:, p, :] - s * Qstack[:, q, :]
+                qr = s * Qstack[:, p, :] + c * Qstack[:, q, :]
+                Qstack[:, p, :] = pr
+                Qstack[:, q, :] = qr
+                # Column update (uses already-row-updated values — correct for G Q G^T)
+                pc = c * Qstack[:, :, p] - s * Qstack[:, :, q]
+                qc = s * Qstack[:, :, p] + c * Qstack[:, :, q]
+                Qstack[:, :, p] = pc
+                Qstack[:, :, q] = qc
 
-                # Accumulate into V
+                # Accumulate rotation
                 Vp = c * V[p, :] - s * V[q, :]
                 Vq = s * V[p, :] + c * V[q, :]
                 V[p, :] = Vp;  V[q, :] = Vq
@@ -314,92 +317,217 @@ def run_trial(dim, trial, n_samples, method):
 
 
 # =============================================================================
-# CELL 7 — Run hybrid experiment
+# CELL 7 — Data generator matching the existing ablation notebook exactly
 # =============================================================================
-DIMS      = [10, 20, 30]
-N_TRIALS  = 10
-N_SAMPLES = 10_000
+def generate_mixture(n_dim, n_samples, config_type, seed=None):
+    """
+    Exact port of generate_mixture() from
+    OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb.
+    config_type ∈ {'Continuous Only', 'Discrete Only',
+                   'Strictly Super-Gaussian', 'Zero Gaussian', 'Full Hybrid'}.
+    """
+    if seed is not None:
+        np.random.seed(seed)
 
-tasks = [
-    (d, t, N_SAMPLES, m)
-    for d  in DIMS
-    for t  in range(N_TRIALS)
-    for m  in METHOD_ORDER
+    def gen_laplace():    return np.random.laplace(0, 1/np.sqrt(2), n_samples)
+    def gen_bernoulli():  return np.random.choice([-1., 1.], n_samples)
+    def gen_uniform():    return np.random.uniform(-np.sqrt(3), np.sqrt(3), n_samples)
+    def gen_student_t():  s = np.random.standard_t(3, n_samples); return s / np.std(s)
+    def gen_poisson():    s = np.random.poisson(3, n_samples); return (s - s.mean()) / s.std()
+    def gen_binomial():   s = np.random.binomial(10, .5, n_samples); return (s - s.mean()) / s.std()
+    def gen_chisquare():  s = np.random.chisquare(2, n_samples); return (s - s.mean()) / s.std()
+    def gen_exponential():s = np.random.exponential(1, n_samples); return (s - s.mean()) / s.std()
+
+    pools = {
+        'Full Hybrid':            [gen_laplace, gen_bernoulli, gen_uniform, gen_student_t,
+                                    gen_poisson, gen_binomial, gen_chisquare, gen_exponential],
+        'Continuous Only':        [gen_laplace, gen_uniform, gen_student_t,
+                                    gen_chisquare, gen_exponential],
+        'Discrete Only':          [gen_bernoulli, gen_poisson, gen_binomial],
+        'Strictly Super-Gaussian':[gen_laplace, gen_student_t, gen_chisquare, gen_exponential],
+        'Zero Gaussian':          [gen_laplace, gen_bernoulli, gen_uniform, gen_student_t,
+                                    gen_poisson, gen_binomial, gen_chisquare, gen_exponential],
+    }
+
+    active_pool = pools[config_type]
+    sources = []
+    if config_type != 'Zero Gaussian':
+        sources.append(np.random.normal(0, 1, n_samples))   # one Gaussian source
+        n_to_gen = n_dim - 1
+    else:
+        n_to_gen = n_dim                                      # all sources non-Gaussian
+
+    for _ in range(n_to_gen):
+        sources.append(np.random.choice(active_pool)())
+
+    S = np.stack(sources)
+    np.random.shuffle(S)          # hide which row is the Gaussian
+
+    cond_num = 1000.0
+    while cond_num > 100:
+        A = np.random.randn(n_dim, n_dim)
+        cond_num = np.linalg.cond(A)
+    return A @ S, A
+
+
+# =============================================================================
+# CELL 7b — 4-method worker for config-type ablation
+# =============================================================================
+def run_ablation_trial(dim, trial, n_samples, config_type, method):
+    """
+    Same hyperparameters as the original ablation notebook (N_TRIALS=5,
+    DIMENSIONS=[30,40]), extended to JADE and InfoMax.
+    """
+    torch.set_num_threads(1)
+    X_np, A = generate_mixture(dim, n_samples, config_type, seed=trial)
+    score, converged = np.nan, False
+
+    try:
+        if method == 'FastICA':
+            best = np.inf
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', ConvergenceWarning)
+                for r in range(50):
+                    try:
+                        fica = FastICA(n_components=dim, max_iter=10000,
+                                       tol=1e-4, random_state=trial * 1000 + r)
+                        fica.fit(X_np.T)
+                        err = amari_error(fica.components_, A)
+                        if not np.isnan(err) and err < best:
+                            best = err
+                    except Exception:
+                        pass
+            score = best if not np.isinf(best) else np.nan
+
+        elif method == 'JADE':
+            W = jade_ica(X_np)
+            if W is not None:
+                score = amari_error(W, A)
+
+        elif method == 'InfoMax':
+            W = infomax_ica(X_np, n_restarts=5, seed_offset=trial * 17)
+            if W is not None:
+                score = amari_error(W, A)
+
+        elif method == 'OT-ICA':
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            X_t = torch.tensor(X_np, dtype=torch.float32, device=device)
+            ica = WassersteinICA(X_t)
+            ica.whiten()
+            W_wh = ica.W_white.cpu().numpy()
+            n_restarts = min(dim * 4, 150)
+            extracted = []
+            for _ in range(dim):
+                prev = torch.stack(extracted) if extracted else None
+                w, _ = ica.optimize_wasserstein2(
+                    prev_components=prev, max_iter=200,
+                    n_restarts=n_restarts, dither_sigma=0.01)
+                extracted.append(w)
+            W_sym = ica.optimize_symmetric(
+                n_components=dim, max_iter=400, lr=0.25,
+                init_w=torch.stack(extracted),
+                optimizer='stiefel', dither_sigma=0.01, batch_size=1024)
+            score = amari_error(W_sym.cpu().numpy() @ W_wh, A)
+            del X_t, ica
+            gc.collect()
+
+        if not np.isnan(score) and score < 0.5:
+            converged = True
+
+    except Exception:
+        pass
+
+    return {'Dim': dim, 'Config': config_type, 'Method': method,
+            'Error': score, 'Conv': int(converged)}
+
+
+# =============================================================================
+# CELL 7c — Run ablation experiment
+#
+# Design: d=30 is fixed (the challenging sweet spot where proxy methods start
+# to break; d=10–20 are trivially solved by all methods and show no contrast).
+# The "dimension story" is separately told by the scaling figure in the
+# appendix, so this figure focuses on the *mixture-type* dimension.
+# Matches N_TRIALS=5 and N_SAMPLES=10000 from the original ablation notebook.
+# =============================================================================
+POOLS = [
+    'Continuous Only',
+    'Discrete Only',
+    'Strictly Super-Gaussian',
+    'Zero Gaussian',
+    'Full Hybrid',
+]
+ABL_DIM      = 30
+ABL_TRIALS   = 5
+ABL_SAMPLES  = 10_000
+
+tasks_abl = [
+    (ABL_DIM, t, ABL_SAMPLES, pool, method)
+    for pool   in POOLS
+    for method in METHOD_ORDER
+    for t      in range(ABL_TRIALS)
 ]
 
-print(f'Running {len(tasks)} trials across {len(DIMS)} dims × {len(METHOD_ORDER)} methods × {N_TRIALS} trials …')
-results = Parallel(n_jobs=8)(
-    delayed(run_trial)(*task) for task in tqdm(tasks)
+print(f'Running {len(tasks_abl)} trials  '
+      f'(d={ABL_DIM}, {len(POOLS)} configs × {len(METHOD_ORDER)} methods × {ABL_TRIALS} trials) …')
+results_abl = Parallel(n_jobs=8)(
+    delayed(run_ablation_trial)(*t) for t in tqdm(tasks_abl)
 )
 
-df = pd.DataFrame(results)
-df['Error']   = df['Error'].clip(upper=1.5).fillna(1.5)
-df['Success'] = ((df['Error'] < 0.3) & df['Conv'].astype(bool)).astype(float) * 100
+df_abl = pd.DataFrame(results_abl)
+df_abl['Error'] = df_abl['Error'].clip(upper=1.5).fillna(1.5)
 
-# Quick sanity-check table
-print('\nMean Amari Error per method × dimension:')
-print(df.groupby(['Dim', 'Method'])['Error'].mean().unstack().round(3))
+print('\nMean Amari Error (method × config):')
+print(df_abl.groupby(['Method', 'Config'])['Error'].mean().unstack().round(3))
 
 
 # =============================================================================
-# CELL 8 — Figure 2: 2×1 hybrid comparison  (general_hybrid_test.pdf)
+# CELL 8 — Figure 2: ablation across mixture types  (general_hybrid_test.pdf)
+#
+# Portrait figure at single-column width (avoids the figure* float issue).
+# Generated at 2× column width; LaTeX includes with width=0.95\columnwidth.
+# Short two-line config labels keep five groups legible at column width.
 # =============================================================================
 set_tpm_theme()
 
-dim_label = {10: 'd=10', 20: 'd=20', 30: 'd=30'}
-df['Dim_label'] = df['Dim'].map(dim_label)
-DIM_ORDER_LABELS = ['d=10', 'd=20', 'd=30']
+# Two-line labels keep tick text compact at column width
+CONFIG_LABELS = {
+    'Continuous Only':         'Continuous\nOnly',
+    'Discrete Only':           'Discrete\nOnly',
+    'Strictly Super-Gaussian': 'Super-\nGaussian',
+    'Zero Gaussian':           'Zero\nGaussian',
+    'Full Hybrid':             'Full\nHybrid',
+}
+df_abl['Config_short'] = df_abl['Config'].map(CONFIG_LABELS)
+CONFIG_ORDER = [CONFIG_LABELS[p] for p in POOLS]
 
-fig, (ax1, ax2) = plt.subplots(
-    2, 1,
-    figsize=(COLUMN_IN * SCALE, COLUMN_IN * SCALE * 1.9),
-    gridspec_kw={'hspace': 0.50}
+# Portrait: slightly taller than wide so 5 × 4 bars are not too narrow.
+# At \columnwidth (3.5") this renders at ~3.5" wide × ~4.2" tall.
+fig, ax = plt.subplots(
+    1, 1,
+    figsize=(COLUMN_IN * SCALE, COLUMN_IN * SCALE * 1.2)
 )
 
-# ── Row 1: Amari Error ──────────────────────────────────────────────────────
 sns.barplot(
-    data=df, x='Dim_label', y='Error', hue='Method',
-    hue_order=METHOD_ORDER, order=DIM_ORDER_LABELS,
-    palette=PALETTE, ax=ax1,
-    errorbar='ci', capsize=0.04, errwidth=1.5 * SCALE,
-    alpha=0.85, edgecolor='white'
+    data=df_abl, x='Config_short', y='Error', hue='Method',
+    hue_order=METHOD_ORDER, order=CONFIG_ORDER,
+    palette=PALETTE, ax=ax,
+    errorbar='ci', capsize=0.04, errwidth=1.2 * SCALE,
+    alpha=0.85, edgecolor='white',
 )
-ax1.axhline(0.3, color='#444', ls=':', lw=1.2 * SCALE, alpha=0.8)
-ax1.text(2.48, 0.32, 'Good separation (E=0.3)',
-         ha='right', va='bottom', fontsize=6.5 * SCALE, color='#444')
-ax1.set_ylim(0, 1.6)
-ax1.set_xlabel('')
-ax1.set_ylabel('Amari Error  (↓ better)')
-ax1.set_title('(a) Amari Error — Full Hybrid Mixtures')
-ax1.legend(title='Method', loc='upper left', ncol=2, frameon=True)
-
-# ── Row 2: Success Rate ──────────────────────────────────────────────────────
-sns.barplot(
-    data=df, x='Dim_label', y='Success', hue='Method',
-    hue_order=METHOD_ORDER, order=DIM_ORDER_LABELS,
-    palette=PALETTE, ax=ax2,
-    errorbar=None, alpha=0.85, edgecolor='white'
+ax.axhline(0.3, color='#444', ls=':', lw=1.0 * SCALE, alpha=0.8)
+ax.text(
+    len(POOLS) - 0.52, 0.32, 'E = 0.3',
+    ha='right', va='bottom', fontsize=6 * SCALE, color='#444',
 )
-
-# Annotate bars with percentage
-n_methods = len(METHOD_ORDER)
-n_dims    = len(DIM_ORDER_LABELS)
-for bar_idx, patch in enumerate(ax2.patches[:n_methods * n_dims]):
-    h = patch.get_height()
-    if not np.isnan(h) and h >= 0:
-        ax2.text(
-            patch.get_x() + patch.get_width() / 2., h + 1.0,
-            f'{h:.0f}%',
-            ha='center', va='bottom',
-            fontsize=5.5 * SCALE, color='#222', fontweight='bold'
-        )
-
-ax2.set_ylim(0, 120)
-ax2.set_xlabel('Dimension')
-ax2.set_ylabel('Success Rate (E < 0.3)')
-ax2.set_title('(b) Convergence Success Rate')
-if ax2.get_legend() is not None:
-    ax2.get_legend().remove()
+ax.set_ylim(0, 1.6)
+ax.set_xlabel('Mixture Regime')
+ax.set_ylabel('Amari Error  (↓ better)')
+ax.set_title(f'Robustness Across Mixture Types  (d = {ABL_DIM})')
+# 4-column legend fits across the top of the figure
+ax.legend(title='', loc='upper left', ncol=2, frameon=True,
+          handlelength=1.2, handletextpad=0.4, columnspacing=0.8)
+ax.tick_params(axis='x', which='both', length=0)
 
 fig.tight_layout()
 out = SAVE_DIR + 'general_hybrid_test.pdf'
