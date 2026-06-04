@@ -107,16 +107,25 @@ This stronger criterion allows ICA to disentangle latent variables that remain m
 The standard ICA pipeline begins by centering and whitening the observed mixture \cite{hyvarinen2001}. 
 Whitening is a necessary preprocessing step that removes linear correlations and scales the marginal variances to unity. 
 Once the data is whitened, the search for independent components is restricted to finding 
-an optimal orthogonal rotation matrix on a space of orthogonal matrices. \cite{absil2008optimization}.
+an optimal orthogonal rotation matrix on a space of orthogonal matrices \cite{absil2008optimization}.
 
 Traditional ICA algorithms navigate this rotational search by optimizing contrast functions to identify non-Gaussian projections \cite[Chapter 8]{hyvarinen2001}. 
 These classical methods rely on surrogate information-theoretic measures, such as negentropy approximations or cumulant-based matching, 
 to quantify the non-Gaussianity of the unmixed components \cite{amari1996new}. 
 
-While computationally efficient, these parametric approximations evaluate approximated information-theoretic contrasts or 
-specific statistical moments rather than the full probability density. 
-Consequently, we find that they fail to capture an accurate structure of the underlying distributions, 
-leading to optimization failures in heterogeneous mixtures.
+While computationally efficient, these parametric approximations evaluate surrogate information-theoretic contrasts or 
+specific statistical moments rather than the full probability density. By projecting complex probability distributions 
+onto a limited set of functional expectations (such as the standard \textit{logcosh} approximation), these methods introduce 
+structural blind spots. For instance, they inherently struggle to resolve the sharp geometric features of discrete or highly 
+multi-modal distributions, effectively smoothing over critical density variations.
+
+More severely, because these proxies rely on expected values, specific non-Gaussian topologies can evaluate to the exact 
+same contrast expectation as a standard Gaussian. This creates flat regions in the objective landscape where the gradient 
+vanishes entirely. Furthermore, the second-order fixed-point solvers typically employed to optimize these surrogates rely 
+on estimating local algorithmic curvature. This expected curvature can degenerate to zero, 
+causing the matrix update steps to become mathematically undefined. Consequently, we find that by failing to map the accurate, 
+geometry of the underlying distributions, these proxy-based methods are prone to algorithmic and  
+optimization failures in complex environments.
 
 \section{Applications}
 
@@ -135,22 +144,26 @@ reliable extraction of the underlying independent components.
 
 \section{Main Contribution}
 
-The primary methodological contribution of this thesis is the formulation of an optimal transport theory based framework for independent component analysis (OT-ICA). 
+The primary methodological contribution of this thesis is the formulation of an optimal transport theory based framework for 
+independent component analysis (OT-ICA). 
 The core objective of the OT-ICA framework reduces to searching the space of orthogonal matrices for the rotation matrix 
-that maximizes the non-Gaussianity of the projected data using metrics form optimal transport as contrasts.
+that maximizes the non-Gaussianity of the projected data using metrics from optimal transport as contrasts. 
+We establish the theoretical soundness of this proposed method and empirically validate its performance, 
+demonstrating that it effectively isolates independent components from a linear mixture.
 
 To achieve this, we propose utilizing the Wasserstein distance \cite{villani2003} as the contrast function for the rotational search.
 \footnote{The complete implementation of the OT-ICA framework is publicly available at: \url{https://gitfront.io/r/ashutosh-jha/4gwwN1sPeeAD/ot-in-linear-ica/}} 
 Our objective is to find the orthogonal candidates that maximize the Wasserstein distance to a standard normal distribution. 
-Because the Wasserstein metric evaluates the global geometry of the empirical distribution using order statistics \cite{villani2003}, 
-it provides a non-parametric, sensitive, and true distance metric, unlike the proxy approximations utilized in classical methods. 
-We demonstrate that this helps to circumvent the algorithmic shortcomings of existing methods that rely on surrogate information-theoretic or moment-based contrasts.
+Because the Wasserstein distance is a proper metric---unlike the proxy approximations utilized in classical methods 
+and allows for highly efficient empirical estimation in one dimension \cite{villani2003}, it successfully evaluates 
+the true global geometry of the distribution.
 
 \section{Structure of the Thesis}
 
 The remainder of this thesis is structured as follows. Chapter 2 establishes the theoretical foundations of linear ICA, information geometry, 
-and optimal transport. Chapter 3 formalizes the OT-ICA framework, and proves that the squared Wasserstein ($W_2^2$) distance reliably bounds mixture non-Gaussianity. 
-Chapter 4 details the algorithmic enhancements required to optimize this metric efficiently on the Stiefel manifold. 
+and optimal transport. Chapter 3 formalizes the OT-ICA framework, and proves that the squared Wasserstein ($W_2^2$) distance 
+between a linear mixture and a standard Gaussian distribution is strictly upper-bounded by the weighted sum of the individual source distances. 
+Chapter 4 details the algorithmic enhancements required to optimize this metric efficiently on the Orthogonal Group or Orthogonal Matrices space. 
 Chapter 5 presents our empirical evaluation, demonstrating the failure modes of standard proxy optimization and how OT-ICA addresses these limitations. 
 Finally, Chapter 6 concludes the thesis with a summary of findings and directions for future research.
 
@@ -206,9 +219,10 @@ Expanded into vector notation, the structural mixing represents the observed var
 \end{equation}
 
 The core objective of ICA is to estimate an unmixing matrix $\mathbf{B} \approx \mathbf{A}^{-1}$ such that the recovered components $\mathbf{Z} = \mathbf{B}\mathbf{X}$ 
-are as statistically independent as possible, thereby reconstructing the original sources $\mathbf{S}$.
+are mutually independent, thereby reconstructing the original sources $\mathbf{S}$ up to an arbitrary permutation and scaling
 
 \subsection{The Insufficiency of Principal Component Analysis}
+
 Principal Component Analysis (PCA) is frequently utilized as a baseline technique to decorrelate observed data. 
 This corresponds to finding the orthogonal matrix $\mathbf{V}^\top$ derived from the eigenvalue decomposition of 
 the data's covariance matrix. However, decorrelating a sample is mathematically insufficient for 
@@ -217,19 +231,19 @@ achieving blind source separation when the underlying data is non-Gaussian.
 As noted by MacKay \citeyear{mackay2003}, PCA is fundamentally an $L_2$-norm variance maximization technique; 
 it is inherently sensitive to variable scaling and heavily influenced by outliers. More critically, 
 PCA relies exclusively on second-order statistics. Once the data is decorrelated and scaled such that $\mathbb{E}[\mathbf{X}\mathbf{X}^\top] = \mathbf{I}_d$, 
-the PCA criterion is satisfied for any arbitrary orthogonal rotation. While decorrelation implies independence 
-for multivariate Gaussian distributions, higher-order dependencies remain intact for non-Gaussian data. Consequently, 
-ICA must transcend second-order moments, traversing the space of orthogonal matrices to locate the  
-rotation that eliminates these higher-order dependencies and achieves statistical independence.
+the second-order structure becomes invariant to any arbitrary orthogonal rotation. 
+While decorrelation implies strict independence for multivariate Gaussian distributions, 
+higher-order dependencies remain intact for non-Gaussian data. Consequently, ICA must search the space of orthogonal matrices 
+to locate the specific rotation that eliminates these higher-order dependencies and achieves independence for a mixture of non-gaussian sources.
 
 \subsection{Identifiability and Ambiguities}
-The non-Gaussianity constraint defined in Theorem 2.1 is a strict mathematical requirement. If two or more sources are Gaussian, 
+The non-Gaussianity constraint defined in Theorem 2.1 is a strict requirement. If two or more sources are Gaussian, 
 any orthogonal transformation of those specific sources yields another set of independent Gaussian variables, 
 rendering the mixing matrix $\mathbf{A}$ impossible to determine uniquely. 
 
 Furthermore, even when the non-Gaussianity assumption holds, the model has two ambiguities. 
 The first is a scaling ambiguity: because both $\mathbf{A}$ and $\mathbf{S}$ are unknown, any scalar multiplier assigned 
-to a source $s_i$ can be perfectly cancelled by dividing the corresponding column of $\mathbf{A}$ by the same scalar. 
+to a source $s_i$ can be cancelled by dividing the corresponding column of $\mathbf{A}$ by the same scalar. 
 Therefore, the variances of the unobserved sources cannot be inferred. The second is a permutation ambiguity: 
 the model treats the sum of sources symmetrically, meaning the indexing order of the recovered components is arbitrary. 
 
@@ -253,7 +267,7 @@ After whitening, if we define the unmixing operation on the whitened data as $\w
     \mathrm{Cov}(\widetilde{\mathbf{Z}}) = \mathbf{B} \mathrm{Cov}(\widetilde{\mathbf{X}}) \mathbf{B}^\top = \mathbf{B} \mathbf{I}_d \mathbf{B}^\top = \mathbf{B}\mathbf{B}^\top.
 \end{equation}
 Because the independent components must have unit variance, we require $\mathbf{B}\mathbf{B}^\top = \mathbf{I}_d$. 
-This reveals that the unmixing matrix $\mathbf{B}$ must be perfectly orthogonal, thus reducing the ICA optimization to a search over a space of orthogonal matrices.
+This reveals that the unmixing matrix $\mathbf{B}$ must be orthogonal, thus reducing the ICA optimization to a search over a space of orthogonal matrices.
 
 \subsection{Information-Theoretic Intuitions}
 The identifiability limitation in Theorem 2.1 leads to the translation of the challenge of finding independent components into 
@@ -268,13 +282,13 @@ While Theorem 2.2 formally applies to limits of sums, its consequence in ICA is 
 linear mixture of independent, non-Gaussian sources will appear more Gaussian than the underlying sources themselves. \cite[Chapter 1]{hyvarinen2001}.
 Therefore, by extracting the unmixed components that are the least Gaussian, the algorithm effectively isolates the original independent signals.
 
-The use of non-Gaussianity as a proxy for independence is further understood from information-theoretic and statistical-mechanics perspectives. 
-For any continuous random variable with a fixed finite variance, it is a foundational mathematical result that the Gaussian distribution 
-uniquely possesses the maximum possible Shannon entropy \cite[Chapter 8]{cover2006elements}. In thermodynamics, 
-isolated physical systems naturally evolve toward states of maximum entropy. Viewed through this interdisciplinary lens, 
-the Central Limit Theorem serves as the statistical manifestation of this physical principle: the process of 
-mixing independent sources increases the overall entropy of the system, inevitably driving the joint 
-distribution toward the high-entropy Gaussian state. 
+The use of non-Gaussianity as a proxy for independence is further understood from an information-theoretic perspective. 
+For any continuous random variable with a fixed finite variance, the Gaussian distribution uniquely possesses the maximum 
+possible Shannon entropy \cite[Chapter 8]{cover2006elements}. The Central Limit Theorem dictates that the linear mixing of 
+independent variables yields a distribution that is closer to this maximum-entropy Gaussian state than the original 
+constituent sources \cite[Chapter 8]{hyvarinen2001}. Therefore, the process of unmixing is equivalent to searching for the rotation 
+matrix that reverses this entropy increase, identifying the original sources by locating the projections 
+with the maximum non-Gaussianity.
 
 \section{An Information Geometry Perspective on ICA}
 
@@ -335,7 +349,7 @@ we can swap their probability measures in the remaining integral without alterin
 \end{equation}
 
 Substituting this identity back into the expansion yields the final Pythagorean theorem. 
-The divergence to the arbitrary target perfectly decomposes into the divergence to the projection and the divergence between the Gaussians:
+The divergence to the arbitrary target decomposes into the divergence to the projection and the divergence between the Gaussians:
 \begin{equation}\label{eq:pythagoras_gaussian}
     D_{\mathrm{KL}}\big(P_Y \Vert \mathcal{N}(\Sigma)\big) = D_{\mathrm{KL}}\big(P_Y \Vert \mathcal{N}(\operatorname{Cov} Y)\big) + D_{\mathrm{KL}}\big(\mathcal{N}(\operatorname{Cov} Y) \Vert \mathcal{N}(\Sigma)\big).
 \end{equation}
@@ -345,7 +359,7 @@ These geometric identities can be combined to relate independence directly to no
 We define the non-Gaussianity of the joint variable $Y$ as $G(Y) = D_{\mathrm{KL}}(P_Y \,\Vert\, \mathcal{N}(\operatorname{Cov} Y))$, 
 and the scalar measure of correlation as $C(Y) = D_{\mathrm{KL}}(\mathcal{N}(\operatorname{Cov} Y) \,\Vert\, \mathcal{N}(\operatorname{diag\,Cov} Y))$. 
 
-To establish the fundamental balance between these quantities, we evaluate the KL divergence from the empirical distribution $P_Y$ 
+To establish the relation between these quantities, we evaluate the KL divergence from the empirical distribution $P_Y$ 
 to a fully factorized Gaussian target $Q = \mathcal{N}(\operatorname{diag\,Cov} Y)$. 
 We can compute this divergence via two distinct geometric paths shown in Figure \ref{fig:cardoso_geometry}. 
 
@@ -374,10 +388,17 @@ Applying these constraints, the relationship rearranges into a direct subtractio
 \end{align}
 Because $G(Y)$ remains constant under orthogonal rotation, minimizing the mutual information $\mathscr{I}(Y)$, finding independent components, 
 is mathematically equivalent to maximizing the sum of the marginal non-Gaussianities $\sum_i G(Y_i)$. 
-This shows that centering and whitening constrain the data to a subspace where true statistical 
+This shows that centering and whitening constrain the data to a subspace where statistical 
 independence can be achieved solely by maximizing non-Gaussianity.
 
 \section{Optimal Transport Theory}
+
+As established in the previous sections, the core objective of ICA is to identify independent components by maximizing 
+the non-Gaussianity of linear projections. While classical methods rely on surrogate approximations to 
+evaluate this divergence from a Gaussian state, we propose adopting a true metric on the space of probability distributions. 
+Optimal transport theory provides this metric, which evaluates the distance of probability measures. 
+By replacing local proxy contrasts with this true metric, we can quantify non-Gaussianity as the 
+optimal transportation cost between a projected empirical distribution and a standard Gaussian target.
 
 \subsection{The Monge Problem: Push-Forwards and Pull-Backs}
 While information geometry utilizes Kullback-Leibler divergence, optimal transport provides an alternative metric 
@@ -418,6 +439,16 @@ proposing instead a probabilistic transport that permits mass splitting.
 The Kantorovich formulation replaces the deterministic map $T$ with a joint probability distribution, 
 or coupling, $\pi \in \Pi(\mu, \nu)$, which dictates how fractions of mass are distributed from the source to the target.
 
+\vspace{0.5em}
+\noindent\textbf{Definition 2.1 The Kantorovich Coupling Space.} \textit{Let $\mathcal{X}$ and $\mathcal{Y}$ be the source and target measurable spaces. 
+The space of valid couplings $\Pi(\mu, \nu)$ is formally defined as the collection of all joint probability measures $\pi$ on the product 
+space $\mathcal{X} \times \mathcal{Y}$ whose marginal distributions are exactly $\mu$ and $\nu$. Mathematically, for any measurable 
+subsets $A \subset \mathcal{X}$ and $B \subset \mathcal{Y}$:}
+\begin{equation}
+    \Pi(\mu, \nu) = \big\{ \pi \in \mathcal{P}(\mathcal{X} \times \mathcal{Y}) \mid \pi(A \times \mathcal{Y}) = \mu(A), \text{ and } \pi(\mathcal{X} \times B) = \nu(B) \big\}.
+\end{equation}
+\vspace{0.5em}
+
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=1.0\textwidth]{ot_coupling_cases.pdf}
@@ -449,7 +480,7 @@ a cumulative distribution function (CDF) is strictly a one-dimensional phenomeno
 universal ordering of coordinates in $\mathbb{R}^d$ ($d > 1$). 
 
 However, in the specific one-dimensional setting, the geometry of optimal transport drastically simplifies \cite[Chapter 2]{villani2003}. 
-Because the data can be unambiguously sorted, the $W_1$ distance analytically collapses to the integral of 
+Because the data can be sorted, the $W_1$ distance simplifies to the integral of 
 the absolute difference between the univariate cumulative distribution functions $F_\mu$ and $F_\nu$:
 \begin{equation}
     W_1(\mu, \nu) = \int_{-\infty}^\infty |F_\mu(x) - F_\nu(x)| \, dx.
@@ -462,9 +493,11 @@ which are the inverses of the cumulative distributions ($F_\mu^{-1}$ and $F_\nu^
     W_2^2(\mu, \nu) = \int_0^1 |F_\mu^{-1}(t) - F_\nu^{-1}(t)|^2 \, dt.
 \end{equation}
 
-By circumventing the need to construct multi-dimensional couplings, the 1D $W_2^2$ metric provides an  
-computationally efficient mechanism for measuring structural divergence. When evaluating empirical linear projections 
-against standard normal noise, the 1D squared Wasserstein distance serves as the primary optimization function for the framework utilized in this thesis.
+By avoiding the need to construct multi-dimensional couplings, the 1D $W_2^2$ metric provides 
+a computationally efficient mechanism for measuring structural divergence. Crucially, unlike the local proxy approximations utilized 
+in classical ICA algorithms, the Wasserstein distance is a true metric on the space of probability distributions \cite[Chapter 7]{villani2003}. 
+Therefore, by evaluating linear projections against standard normal, the 1D squared Wasserstein distance emerges as a reliable 
+contrast function for our proposed optimal transport ICA framework.
 
 % -----------------------------------------------------------------
 % CHAPTER 3: THE OPTIMAL TRANSPORT ICA (OT-ICA) FRAMEWORK
@@ -1043,7 +1076,7 @@ the target recovery is not the identity matrix, but rather a generalized permuta
 \vspace{0.5em}
 \noindent\textbf{Definition 5.1 Generalized Permutation Matrix.} \textit{A generalized permutation matrix is a square matrix containing 
 exactly one non-zero entry in each row and each column. This structure indicates that the original independent components have 
-been perfectly isolated, up to an arbitrary scalar multiplier and ordering.}
+been isolated, up to an arbitrary scalar multiplier and ordering.}
 \vspace{0.5em}
 
 To quantify the divergence from this ideal structure, we utilize the Amari Performance Index \cite{amari1996new}. 
