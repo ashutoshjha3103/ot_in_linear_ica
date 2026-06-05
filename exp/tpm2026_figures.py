@@ -507,7 +507,7 @@ CONFIG_ORDER = [CONFIG_LABELS[p] for p in POOLS]
 # At \columnwidth (3.5") this renders at ~3.5" wide × ~4.2" tall.
 fig, ax = plt.subplots(
     1, 1,
-    figsize=(COLUMN_IN * SCALE, COLUMN_IN * SCALE * 1.2),
+    figsize=(COLUMN_IN * SCALE, COLUMN_IN * SCALE * 0.85),
     constrained_layout=True,        # avoids "Axes not compatible" tight_layout warning
 )
 
