@@ -4,134 +4,141 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.10+-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Master's thesis project**  
+**Master's thesis project — TPM UAI 2026 workshop paper**  
 **Author:** Ashutosh Jha  
 **Program:** M.Sc. Quantitative Data Science Methods  
 **Affiliations:** Eberhard Karls University of Tübingen & Empirical Inference Dept., Max Planck Institute for Intelligent Systems
 
 ---
 
-## About this project
+## Overview
 
-In **linear independent component analysis (ICA)**, the goal is to recover unknown non-Gaussian sources from observed mixtures. Classical algorithms such as FastICA typically rely on contrast functions or moment-based proxies for non-Gaussianity.
+**OT-ICA** recovers independent source signals from linear mixtures by maximizing the 1D squared Wasserstein distance ($W_2^2$) between each projected component and a standard Gaussian — computed exactly by quantile sorting, without density estimation or parametric assumptions.
 
-This repository implements a **Wasserstein / optimal-transport–based linear ICA** approach implemented in PyTorch: sources are sought by comparing projected data to a reference distribution in a transport-aware way, with optimization on the constraint set appropriate for ICA (e.g., normalized directions or orthogonal unmixing). The core library lives under `src/wasserstein_ica/`; `exp/` holds the main experimental notebooks that compare methods, validate behavior, and illustrate applications. The written thesis and LaTeX sources are under `report/`.
+Classical algorithms (FastICA, JADE, InfoMax) replace the true non-Gaussianity measure with surrogates (logcosh, fourth-order cumulants, parametric log-likelihoods) that fail on heterogeneous source distributions. OT-ICA bypasses this by using an exact, assumption-free contrast function. Optimization runs on the Orthogonal Group via Riemannian gradient ascent with symmetric-decorrelation retraction.
+
+The core library is in `src/wasserstein_ica/`. Experimental notebooks are in `exp/`. The master thesis and UAI workshop paper are in `report/` and `uai_workshop/` respectively.
 
 ---
 
 ## Requirements
 
-- **Python** 3.8 or newer  
-- **pip** (recommended: recent `pip`, `setuptools`, and `wheel`)
-
-Runtime dependencies are declared in [`pyproject.toml`](pyproject.toml). They include **NumPy**, **SciPy**, **PyTorch** (≥ 1.10), **POT** (Python Optimal Transport), **scikit-learn**, **pandas**, **matplotlib**, **seaborn**, **tqdm**, **joblib**, and **Jupyter** tooling (`jupyter`, `ipykernel`).
-
-If you need a **GPU build of PyTorch** or a specific CUDA version, install PyTorch from the [official install matrix](https://pytorch.org/get-started/locally/) before or after the editable install (see below), so it matches your system.
+- **Python** 3.8 or newer
+- Runtime dependencies are declared in [`pyproject.toml`](pyproject.toml): NumPy, SciPy, PyTorch (≥ 1.10), POT, scikit-learn, pandas, matplotlib, seaborn, tqdm, joblib, Jupyter.
+- EEG application additionally requires `mne` (listed in [`exp/requirements.txt`](exp/requirements.txt)).
 
 ---
 
-## Set up a Python environment
-
-From the repository root:
-
-```bash
-# Create and activate a virtual environment (example with venv)
-python3 -m venv .venv
-source .venv/bin/activate   # Linux / macOS
-# .venv\Scripts\activate    # Windows (cmd/PowerShell)
-
-python -m pip install --upgrade pip setuptools wheel
-```
-
----
-
-## Install `wasserstein-ica`
-
-Clone the repository, enter it, then install in **editable** mode so changes under `src/` are picked up immediately:
+## Installation
 
 ```bash
 git clone https://github.com/ashutoshjha3103/OT_IN_LINEAR_ICA.git
 cd OT_IN_LINEAR_ICA
+
+python3 -m venv .venv
+source .venv/bin/activate          # Linux / macOS
+# .venv\Scripts\activate           # Windows
+
+pip install --upgrade pip setuptools wheel
 pip install -e .
+pip install -r exp/requirements.txt   # for EEG notebook
 ```
 
-This installs the package name **`wasserstein-ica`** (import as `wasserstein_ica`) and pulls in all dependencies from `pyproject.toml`.
-
-Verify the install:
-
+Verify:
 ```bash
 python -c "from wasserstein_ica import WassersteinICA; print('OK')"
 ```
 
 ---
 
-## Repository layout
-
-```text
-OT_IN_LINEAR_ICA/
-├── src/
-│   └── wasserstein_ica/    # Installable package (WassersteinICA, core logic)
-├── exp/                    # Main experiment notebooks (+ optional data next to notebooks)
-│   ├── requirements.txt    # Notebook-specific dependencies (e.g., mne for EEG)
-│   └── other/              # Extra / exploratory notebooks
-├── report/                 # Thesis text and LaTeX sources
-├── pyproject.toml          # Package metadata and dependencies
-├── LICENSE
-└── README.md
-```
-
----
-
-## Quick start (code)
+## Quick start
 
 ```python
 import numpy as np
 import torch
 from wasserstein_ica import WassersteinICA
 
-# Example: 2 sources, 1000 samples (Laplace sources)
 rng = np.random.default_rng(0)
-S = rng.laplace(0, 1, size=(2, 1000))
-A = np.array([[0.8, 0.2], [0.3, 0.7]])
+S = rng.laplace(0, 1, size=(3, 2000))          # 3 Laplace sources
+A = rng.standard_normal((3, 3))
 X = torch.tensor(A @ S, dtype=torch.float32)
 
 ica = WassersteinICA(X)
 ica.whiten()
-w_est, distance = ica.optimize_wasserstein2(continuous=True)
+W_est, w2_score = ica.optimize_wasserstein2(continuous=True)
 
-print("Recovered direction:", w_est)
-print("Wasserstein objective:", float(distance))
+print("Estimated unmixing row:", W_est)
+print("W2² objective:         ", float(w2_score))
 ```
 
 ---
 
-## Run the experimental notebooks
+## Repository layout
 
-Start Jupyter from an environment where `wasserstein-ica` is installed.
-
-**Recommended:** launch Jupyter with the **`exp/`** directory as the working directory so notebook-relative paths (for example data files next to notebooks) resolve correctly.
-
-To run the experimental notebooks (which require additional data-fetching libraries like mne for the clinical EEG application and Jupyter itself), install the experiment-specific requirements.
-
-```bash
-pip install -r exp/requirements.txt
-cd exp
-jupyter lab
-# or: jupyter notebook
+```
+OT_IN_LINEAR_ICA/
+├── src/
+│   └── wasserstein_ica/       # WassersteinICA — core optimization and contrast functions
+├── exp/                       # Experiments and figures (run from here)
+│   ├── OT-ICA_Methodology_Validation.ipynb         # [1] Sanity check — start here
+│   ├── OT-ICA_W1_vs_W2.ipynb                       # [2] Why W2 over W1
+│   ├── OT-ICA_stiefel_vs_FastICA_scaling.ipynb     # [3] Scaling with dimension
+│   ├── FastICA_failure_modes.ipynb                 # [4] FastICA contrast failures
+│   ├── OT-ICA_multi_algorithm_ablation.ipynb       # [5] 5-method × 5-regime benchmark
+│   ├── OT-ICA_EEG_Artifact_application.ipynb       # [6] EEG blink artifact removal
+│   ├── OT-ICA_price_discovery_application.ipynb    # [7] VECM price discovery
+│   ├── OT-ICA_causal_discovery_application.ipynb   # [8] LiNGAM causal ordering
+│   ├── TPM2026_workshop_paper_figures.ipynb         # [9] All paper figures (run last)
+│   ├── w1_vs_w2_figure.py                          # Script: compact W1/W2 figure
+│   ├── tpm2026_figures.py                          # Script: full ablation figure
+│   ├── figs/                                       # Output PDFs
+│   └── other/                                      # Exploratory / development notebooks
+├── uai_workshop/              # TPM UAI 2026 workshop paper (LaTeX + compiled PDF)
+├── report/                    # Master thesis (PDF + LaTeX)
+├── slides/                    # Presentation slides
+├── pyproject.toml
+└── README.md
 ```
 
-The table lists notebooks in the top level of `exp/` in a **recommended reading order** (core validation and comparisons first, then applications). Additional exploratory notebooks live under `exp/other/`.
+---
 
-| Notebook | What it does |
-| --- | --- |
-| [OT-ICA_Methodology_Validation.ipynb](exp/OT-ICA_Methodology_Validation.ipynb) | End-to-end sanity check of the OT-ICA pipeline in a manageable **4-dimensional** linear ICA instance, with plots and comparison to FastICA.<br>Run this first to confirm installs, whitening, and optimization behave as expected. |
-| [OT-ICA_W1_vs_W2.ipynb](exp/OT-ICA_W1_vs_W2.ipynb) | Rotates a whitened 2D mixture through angles and compares **Wasserstein-1 vs Wasserstein-2** as ICA objectives via landscapes and numerical gradients.<br>Makes the case for W₂ here through smoother objectives and more reliable gradient structure for optimization. |
-| [OT-ICA_stiefel_vs_FastICA_scaling.ipynb](exp/OT-ICA_stiefel_vs_FastICA_scaling.ipynb) | Benchmarks **scaling with dimension** for Stiefel-constrained OT-ICA versus FastICA on continuous Laplace mixtures, including accuracy (e.g. Amari error) and compute or wall-clock style summaries.<br>Documents how the transport-based approach trades off against the classical solver as problem size grows. |
-| [FastICA_failure_modes.ipynb](exp/FastICA_failure_modes.ipynb) | Builds distributions that trigger **vanishing curvature** and related FastICA pitfalls (e.g. negentropy collapse), then measures unmixing quality (e.g. Amari error) versus OT-ICA across settings and dimensions.<br>Shows failures rooted in the contrast objective rather than iteration limits, and how OT-ICA behaves on the same data. |
-| [OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb](exp/OT-ICA_vs_FasICA_hybrid_and_discrete_dist_ablation_study.ipynb) | **Experiment 1** stresses OT-ICA and FastICA on a high-dimensional mixture of many source types (heavy tails, bounded, skewed, and discrete marginals). **Experiment 2** targets discrete-source failure modes.<br>Together they test robustness when source statistics are heterogeneous rather than drawn from a single parametric family. |
-| [causal_comp_analysis_application.ipynb](exp/causal_comp_analysis_application.ipynb) | Simulates a small linear SCM with location–scale (heteroskedastic) noise, mixes the latent variables orthogonally, and uses OT-ICA as a robust route to LiNGAM-style causal ordering where contrast-based ICA can fail.<br>Compares recovery of structure to illustrate when geometry-based separation helps causal component analysis. |
-| [econometrics_application.ipynb](exp/econometrics_application.ipynb) | Applies OT-ICA to a simulated multi-market **price discovery** setting: observed prices are mixtures of latent shocks, and the notebook checks whether recovered components align with the underlying economic structure.<br>Use it as a stylized econometrics example beyond toy ICA benchmarks. |
-| [OT-ICA_EEG_Artifact_application.ipynb](exp/OT-ICA_EEG_Artifact_application.ipynb) | Applies OT-ICA to real-world clinical MEG/EEG sensor data (fetched via the mne library) to demonstrate its ability to isolate and remove massive, sparse super-Gaussian ocular artifacts (eye-blinks) from continuous brain wave recordings.|
+## Experiments — recommended order
+
+Launch Jupyter from the `exp/` directory:
+
+```bash
+cd exp
+jupyter lab
+```
+
+| # | Notebook | What it covers | Paper figure |
+|---|----------|----------------|--------------|
+| 1 | [OT-ICA_Methodology_Validation.ipynb](exp/OT-ICA_Methodology_Validation.ipynb) | End-to-end pipeline on a 4D mixture: whitening, W2² optimization, convergence, Amari error vs FastICA. **Run this first** to confirm the install works. | Fig. 1 (baseline convergence) |
+| 2 | [OT-ICA_W1_vs_W2.ipynb](exp/OT-ICA_W1_vs_W2.ipynb) | Rotates a 2D mixture through 180° and plots the W1 vs W2² landscape and gradient profiles. Shows why W2² is a better ICA contrast. | App. Fig. (W1 vs W2) |
+| 3 | [OT-ICA_stiefel_vs_FastICA_scaling.ipynb](exp/OT-ICA_stiefel_vs_FastICA_scaling.ipynb) | Amari error and wall-clock time vs dimension ($d = 5 \to 40$) for Laplace sources at $N=10{,}000$. Documents the curse-of-dimensionality ceiling shared by all empirical ICA methods. | App. Figs. (scaling) |
+| 4 | [FastICA_failure_modes.ipynb](exp/FastICA_failure_modes.ipynb) | Constructs the zero-negentropy and vanishing-curvature distributions that analytically break FastICA; measures Amari error vs OT-ICA across dimensions. | App. Figs. (failure modes) |
+| 5 | [OT-ICA_multi_algorithm_ablation.ipynb](exp/OT-ICA_multi_algorithm_ablation.ipynb) | 5-method × 5-mixture-regime × 3-dimension benchmark ($d \in \{10,20,30\}$, $N=10{,}000$, 10 trials). The main empirical comparison of the paper. | **Fig. 2 (main result)** |
+| 6 | [OT-ICA_EEG_Artifact_application.ipynb](exp/OT-ICA_EEG_Artifact_application.ipynb) | Applies OT-ICA to frontal EEG (MNE sample dataset): isolates the ocular blink component by kurtosis, reconstructs the cleaned signal, reports RMS reduction. | Fig. 3 (EEG) |
+| 7 | [OT-ICA_price_discovery_application.ipynb](exp/OT-ICA_price_discovery_application.ipynb) | Simulates a 3-market VECM, applies OT-ICA to recover structural shocks and Information Shares, compares to Cholesky. | Fig. 4 / Table 1 (VECM) |
+| 8 | [OT-ICA_causal_discovery_application.ipynb](exp/OT-ICA_causal_discovery_application.ipynb) | Uses OT-ICA as a robust front-end to LiNGAM-style causal ordering on a linear SCM with heteroskedastic noise. | Thesis Ch. 6 |
+| 9 | [TPM2026_workshop_paper_figures.ipynb](exp/TPM2026_workshop_paper_figures.ipynb) | Generates all final PDF figures for the workshop paper. Runs the full 750-trial ablation (compute-intensive; use a powerful machine). | All paper figures |
+
+The scripts `exp/w1_vs_w2_figure.py` and `exp/tpm2026_figures.py` are standalone equivalents of notebooks 2 and 9 respectively, suitable for headless execution on a server.
+
+---
+
+## Reproducing paper figures
+
+All figures in the UAI TPM 2026 workshop paper are produced by **notebook 9** (`TPM2026_workshop_paper_figures.ipynb`) or its script equivalent. The output PDFs are written to `exp/figs/` and copied to `uai_workshop/`. Running the full 750-trial ablation (3 dims × 5 configs × 5 methods × 10 trials) requires roughly 2–4 hours on a multi-core machine; set `ABL_TRIALS = 2` at the top of the script for a quick smoke test.
+
+Thesis figures additionally use notebooks 3–8 and the exploratory notebooks under `exp/other/`.
+
+---
+
+## Key references
+
+- Jha et al. (2026). *Linear ICA via Optimal Transport Metric as Contrast*. TPM @ UAI 2026. [`uai_workshop/tpm2026-template.pdf`](uai_workshop/tpm2026-template.pdf)
+- Jha, A. (2025). *Optimal Transport for Linear ICA* (Master's Thesis, University of Tübingen). [`report/Optimal_Transport_ICA_Master_Thesis_Ashutosh_Jha_v4.pdf`](report/Optimal_Transport_ICA_Master_Thesis_Ashutosh_Jha_v4.pdf)
 
 ---
 
@@ -143,4 +150,4 @@ Ashutosh Jha — [ashutosh.jha@student.uni-tuebingen.de](mailto:ashutosh.jha@stu
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
