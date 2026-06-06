@@ -41,20 +41,22 @@
 \maketitle
 
 \begin{abstract}
-Independent Component Analysis (ICA) is a foundational probabilistic tool for recovering latent, 
-statistically independent sources from observed mixtures. Because maximizing marginal non-Gaussianity 
-equates to extracting independent components, traditional ICA algorithms achieve tractability by relying on 
-local proxy contrast functions (e.g., negentropy approximations) to evaluate these non-Gaussianities. 
-However, these proxies systematically fail to converge on complex, heterogeneous topologies. 
-We propose OT-ICA, an exploratory framework that evaluates the full probability density by minimizing the 
-1D squared Wasserstein distance ($W_2^2$) to a Gaussian target. By exploiting optimal transport theory, 
-OT-ICA retains algorithmic efficiency while demonstrating strict robustness on hybrid mixtures where traditional 
-fixed-point solvers fail. Finally, we demonstrate the utility of this framework in two interdisciplinary applications: 
-isolating ocular artifacts in clinical EEG recordings, and identifying structural market shocks to resolve the arbitrary 
-recursive ordering (Cholesky) problem in standard Vector Error Correction Models (VECMs).
+Independent Component Analysis (ICA) recovers statistically independent sources from observed linear mixtures.
+Classical algorithms---FastICA, JADE, and InfoMax---approximate non-Gaussianity via proxy contrast functions
+(negentropy approximations, fourth-order cumulants, parametric log-likelihoods) that fail systematically on
+heterogeneous source distributions.
+We propose OT-ICA, which quantifies marginal non-Gaussianity using the 1D squared Wasserstein distance
+($W_2^2$) to a standard Gaussian, computed exactly by quantile sorting without density estimation.
+We prove $W_2^2$ satisfies a weighted mixture upper bound and a strict inequality for non-Gaussian sources,
+establishing it as a valid ICA contrast.
+Across $d \in \{10, 20, 30\}$ and five mixture regimes ($N=10{,}000$, 10 trials),
+OT-ICA achieves lower Amari error than FastICA, JADE, InfoMax, and Picard on all continuous and
+heterogeneous distributions.
+Two applications are presented: ocular artifact isolation in frontal EEG recordings, and structural
+shock identification in Vector Error Correction Models for financial price discovery.
 \end{abstract}
 
-\section{Introduction and the Tractability Gap}
+\section{Introduction}
 Blind source separation, specifically formulated as Independent Component Analysis (ICA) \citep{jutten1985, comon1994}, is a fundamental problem in unsupervised probabilistic modeling. The objective is to recover a set of hidden, mutually independent source signals $\mathbf{S}$ from an observed linear mixture $\mathbf{X}$. The theoretical foundation of this recovery relies on strict identifiability conditions.
 
 \begin{theorem}[The Linear ICA Model and Identifiability \citep{comon1994}]
@@ -67,7 +69,7 @@ Let the observed data be denoted by a random vector $\mathbf{X} \in \mathbb{R}^d
 Under these conditions, the mixing matrix $\mathbf{A}$ can be uniquely identified from the observations $\mathbf{X}$, up to a permutation and scaling of its columns.
 \end{theorem}
 
-Because of the Central Limit Theorem, mixtures of independent non-Gaussian variables are mathematically more Gaussian than the constituent sources. Standard ICA isolates these sources by navigating the space of orthogonal rotation matrices to maximize the non-Gaussianity of the projected data \citep{hyvarinen2001}. This heuristic search is mathematically rigorous, as formalized by information geometry.
+Because of the Central Limit Theorem, mixtures of independent non-Gaussian variables are mathematically more Gaussian than the constituent sources. Standard ICA isolates these sources by navigating the space of orthogonal rotation matrices to maximize the non-Gaussianity of the projected data \citep{hyvarinen2001}. This search for maximum non-Gaussianity is grounded in information geometry.
 
 \begin{theorem}[Equivalence of Independence and Non-Gaussianity \citep{cardoso2022}]
 Let $Y$ be a zero-mean random vector with an identity covariance matrix (whitened). 
@@ -80,10 +82,10 @@ Because joint non-Gaussianity $G(Y)$ is invariant under orthogonal rotation, min
 \end{theorem}
 \textit{(A comprehensive proof of this theorem using Kullback-Leibler Pythagorean identities on the Product and Gaussian manifolds is provided in Appendix \ref{app:info_geometry}.)}
 
-However, evaluating the full density of a continuous distribution to measure non-Gaussianity is computationally expensive. To remain tractable, classical algorithms such as FastICA \citep{hyvarinen2001, amari1996new}, InfoMax \citep{bell1995information}, and JADE \citep{cardoso1993blind} rely on surrogate information-theoretic contrast functions (e.g., \textit{logcosh} approximations, log-likelihood surrogates, and fourth-order cumulants). Consequently, they fail to capture the global geometry of underlying distributions, leading to optimization failures in heterogeneous mixtures (detailed in Appendix \ref{app:proxy_limits}).
+However, evaluating the full marginal density is computationally expensive. Classical algorithms—FastICA \citep{hyvarinen2001, amari1996new}, InfoMax \citep{bell1995information}, JADE \citep{cardoso1993blind}, and Picard \citep{ablin2018faster}---replace it with surrogate contrast functions (\textit{logcosh} approximations, log-likelihood surrogates, fourth-order cumulants, and adaptive nonlinearities). These proxies fail systematically on heterogeneous source distributions (detailed in Appendix~\ref{app:proxy_limits}).
 
-Prior work uses 1D $W_2$ for normality testing \citep{delbarrio1999} or marginal distribution comparison \citep{peyre2019computational}, but none formalizes $W_2^2$-to-Gaussian as an ICA contrast.
-To bridge this gap, we explore OT-ICA. In optimal transport theory, the Monge problem \citep{monge1781} and its Kantorovich relaxation \citep{kantorovich1942} define the general Wasserstein distance $W_p$ \citep{villani2003} between a source measure $\mu$ and a target $\nu$ over the space of optimal probabilistic couplings $\Pi(\mu, \nu)$ as:
+Prior work applies 1D $W_2$ to normality testing \citep{delbarrio1999} and marginal distribution comparison \citep{peyre2019computational}, but does not formalize $W_2^2$-to-Gaussian as an ICA contrast function.
+We propose OT-ICA. In optimal transport theory, the Monge problem \citep{monge1781} and its Kantorovich relaxation \citep{kantorovich1942} define the general Wasserstein distance $W_p$ \citep{villani2003} between a source measure $\mu$ and a target $\nu$ over the space of optimal probabilistic couplings $\Pi(\mu, \nu)$ as:
 \begin{equation}
     W_p(\mu, \nu) = \left( \inf_{\pi \in \Pi(\mu, \nu)} \int \|x - y\|^p \, d\pi(x, y) \right)^{1/p}
 \end{equation}
@@ -91,16 +93,16 @@ While calculating this coupling is intractable in high dimensions, in the 1D set
 \begin{equation}
     W_2^2(\mu, \nu) = \int_0^1 |F_\mu^{-1}(t) - F_\nu^{-1}(t)|^2 \, dt
 \end{equation}
-By relying strictly on 1D projections, OT-ICA provides a highly tractable, proxy-free metric capable of robust structural identification. 
+By restricting to 1D projections, OT-ICA computes a proxy-free metric exactly via quantile sorting, without density estimation.
 
-\section{The Exploratory OT-ICA Framework}
+\section{The OT-ICA Framework}
 
 Once observed data $\mathbf{X}$ is centered and whitened to yield unit-variance and uncorrelated components $\widetilde{\mathbf{X}}$, the search for independent components is strictly constrained to the Orthogonal Group $\mathcal{S}$ \citep{cardoso2022}. The OT-ICA objective is to find the orthogonal projection $\mathbf{b}$ that maximizes the distance to the standard normal distribution $\Gamma \equiv \mathcal{N}(0,1)$:
 \begin{equation}
     \hat{\mathbf{b}} = \arg\max_{\mathbf{b} \in \mathcal{S}} W_2^2\big(\mathbb{P}_{\mathbf{b}^\top \widetilde{\mathbf{X}}}, \Gamma\big).
 \end{equation}
 
-This optimization is mathematically justified by bounding the non-Gaussianity of the mixture. 
+This maximisation is justified by the following bounds on $W_2^2$ for linear mixtures.
 
 \begin{theorem}[$W_2$ Upper Bound]
 Let $\mathbf{Z} = (Z_1, \dots, Z_d)^\top$ be a vector of mutually independent latent sources, and let $\mathbf{b}$ be a weight vector on the unit sphere ($\sum_{i=1}^d b_i^2 = 1$). The squared Wasserstein distance between the linear mixture $\mathbf{b} \cdot \mathbf{Z}$ and the standard normal distribution $\Gamma$ is bounded by the weighted sum of the source distances to $\Gamma$:
@@ -116,15 +118,13 @@ Assuming at most one source $Z_i$ is Gaussian, and the source distributions poss
 \end{equation}
 \end{theorem}
 
-Because the mixture is strictly less non-Gaussian than its parts, finding the global maximum forces the weight vector to collapse to a canonical axis, successfully isolating the independent component. \textit{(The full mathematical proofs of these inequalities, demonstrating comonotonicity contradictions under Caffarelli's regularity theory, are provided in Appendix \ref{app:proofs}).}
+The global maximum is therefore attained when $\mathbf{b}$ aligns with a single source direction, isolating one independent component. \textit{(Full proofs via comonotonicity contradictions under Caffarelli's regularity theory are in Appendix~\ref{app:proofs}.})
 
 \subsection{Methodological Enhancements}
-Efficient optimization of $W_2^2$ on the Space of Orthogonal Matrices or the Othogonal Group requires three enhancements: (i)~\textbf{Analytical Gaussian Targets} \citep{fournier2015rate} to eliminate target-sampling noise; (ii)~\textbf{Riemannian Gradient Retraction} onto the Orthogonal Group \citep{absil2008optimization}; and (iii)~\textbf{Gaussian Dithering} to smooth discrete-CDF plateaus \citep{schuchman1964dither}. Full formulations and pseudocode are in Appendix~\ref{app:methodology}.
+Optimization of $W_2^2$ on the Orthogonal Group requires three enhancements: (i)~\textbf{Analytical Gaussian Targets} \citep{fournier2015rate} to eliminate target-sampling noise; (ii)~\textbf{Riemannian Gradient Retraction} onto the Orthogonal Group \citep{absil2008optimization}; and (iii)~\textbf{Gaussian Dithering} to smooth discrete-CDF plateaus \citep{schuchman1964dither}. Full formulations and pseudocode are in Appendix~\ref{app:methodology}.
 
 \section{OT-ICA Methodology Validation}
-To empirically evaluate the success of source separation, we quantify the structural distance between the estimated unmixing matrix $\mathbf{B}_{\text{est}}$ and the true mixing matrix $\mathbf{A}$. Because ICA is fundamentally subject to scaling and permutation ambiguities (as defined in Theorem 1), perfect unmixing mathematically results in a \textit{generalized permutation matrix} $\mathbf{P} = \mathbf{B}_{\text{est}}\mathbf{A} \in \mathcal{P}$, where $\mathcal{P}$ is the set of matrices with exactly one non-zero entry in each row and column. 
-
-We quantify this convergence using the Amari Performance Index ($E$) \citep{amari1996new}, a standardized metric that measures the deviation of the gain matrix $\mathbf{P}$ from the nearest permutation matrix. An index of $E < 0.1$ indicates near-perfect separation, while $E \ge 0.5$ indicates a failure to unmix the signals (full formal definitions and experimental regimes are provided in Appendix \ref{app:experimental_setup}).
+We evaluate separation quality via the Amari Performance Index ($E$) \citep{amari1996new}, which measures the deviation of the gain matrix $\mathbf{P} = \mathbf{B}_{\text{est}}\mathbf{A}$ from a generalized permutation matrix. $E < 0.1$ indicates near-perfect separation; $E \ge 0.5$ indicates failure (formal definition in Appendix~\ref{app:experimental_setup}).
 
 \begin{figure}[t]
     \centering
@@ -133,30 +133,31 @@ We quantify this convergence using the Amari Performance Index ($E$) \citep{amar
     \label{fig:ot_ica_validation}
 \end{figure}
 
-Baseline testing (Figure \ref{fig:ot_ica_validation}) confirms that the $W_2^2$ gradient reliably drives the Amari error toward zero on standard continuous mixtures (such as symmetric Laplacian signals), empirically validating the structural convergence of the Riemannian manifold traversal and the analytical targets.
+Figure~\ref{fig:ot_ica_validation} shows that $W_2^2$ drives the Amari error to near zero on four standard continuous source types, confirming convergence of the Riemannian solver with analytical Gaussian targets.
 
 \section{Empirical Robustness on Hybrid Mixtures}
-We benchmark OT-ICA, FastICA \citep{hyvarinen2001}, JADE \citep{cardoso1993blind}, and InfoMax \citep{bell1995information} across five mixture regimes at $d=30$, $N=10{,}000$.
+\label{sec:empirical}
+We benchmark OT-ICA, FastICA \citep{hyvarinen2001}, JADE \citep{cardoso1993blind}, InfoMax \citep{bell1995information}, and Picard \citep{ablin2018faster} across five mixture regimes at $d \in \{10, 20, 30\}$, $N=10{,}000$, 10 trials per condition.
 
-\begin{figure}[t]
+\begin{figure*}[t]
     \centering
-    \includegraphics[width=0.95\columnwidth]{general_hybrid_test.pdf}
-    \caption{Amari error across five mixture regimes ($d=30$, $N=10{,}000$). OT-ICA achieves the lowest error on all continuous regimes. On \textit{Discrete Only} all methods fail — see Appendix~\ref{app:proxy_limits} for the contrast vs.\ optimization analysis.}
+    \includegraphics[width=0.98\textwidth]{general_hybrid_test.pdf}
+    \caption{Amari error ($\downarrow$ better) across five mixture regimes and $d \in \{10, 20, 30\}$ ($N=10{,}000$, 10 trials, 95\% CI). OT-ICA achieves the lowest error on all continuous and heterogeneous regimes at every dimension. At $d=30$ the proxy-based methods separate into three failure modes (Section~\ref{sec:empirical}). On \textit{Discrete Only} all methods degrade---a gradient plateau in the $W_2^2$ optimization surface, not a contrast failure (Appendix~\ref{app:proxy_limits}).}
     \label{fig:hybrid_mixture_results}
-\end{figure}
+\end{figure*}
 
-Figure~\ref{fig:hybrid_mixture_results} confirms three structurally distinct proxy failures. \textbf{FastICA} fails via (i)~\textit{zero negentropy}: specific non-Gaussian sources satisfy $\mathbb{E}[G(x)]=\mathbb{E}[G(\nu)]$, zeroing the contrast gradient; and (ii)~\textit{vanishing curvature}: the Newton-update denominator $\mathbb{E}[s g(s) - g'(s)] \to 0$, rendering the fixed-point step undefined (Appendix~\ref{app:proxy_limits}). \textbf{JADE} requires $\mathcal{O}(d^4)$ samples for reliable fourth-order cumulant estimation \citep{cardoso1993blind} — ${\approx}810{,}000$ at $d=30$ versus $N=10{,}000$ available — so its joint diagonalization is dominated by noise. \textbf{InfoMax}'s parametric log-likelihood model \citep{bell1995information} breaks on topologies that mix super- and sub-Gaussian sources simultaneously. OT-ICA succeeds in all continuous and heterogeneous regimes by evaluating the full distributional geometry via $W_2^2$ without any parametric or curvature assumptions.
+Figure~\ref{fig:hybrid_mixture_results} shows three structurally distinct proxy failures at $d=30$, each attributable to a different mechanism. \textbf{FastICA} fails via (i)~\textit{zero negentropy}: sources satisfying $\mathbb{E}[G(x)]=\mathbb{E}[G(\nu)]$ produce no contrast gradient; and (ii)~\textit{vanishing curvature}: the Newton-update denominator $\mathbb{E}[s g(s) - g'(s)] \to 0$, making the fixed-point step undefined (Appendix~\ref{app:proxy_limits}). \textbf{Picard} \citep{ablin2018faster} uses the same tanh nonlinearity as FastICA but with a provably converging orthogonal solver; its performance tracks FastICA on heterogeneous mixtures, confirming that the failure originates in the contrast function rather than the optimizer. \textbf{JADE} requires $\mathcal{O}(d^4)$ samples for reliable cumulant estimation \citep{cardoso1993blind}---${\approx}810{,}000$ at $d=30$ versus $N=10{,}000$ available---so its joint diagonalisation is noise-dominated. \textbf{InfoMax}'s parametric log-likelihood \citep{bell1995information} is misspecified on distributions mixing super- and sub-Gaussian sources simultaneously. OT-ICA achieves the lowest Amari error on all continuous and heterogeneous regimes by evaluating $W_2^2$ directly without parametric assumptions.
 
-The \textit{Discrete Only} failure is mechanistically distinct: a \textit{contrast} failure for FastICA but an \textit{optimization} bottleneck for OT-ICA. Table~\ref{tab:w2_sensitivity} (Appendix~\ref{app:proxy_limits}) shows $W_2^2$ provides ${\gg}10\times$ the non-Gaussianity resolution of logcosh for count-based data — standard Poisson ($\lambda=3$) has near-zero logcosh negentropy yet a clear $W_2^2$ signal of $0.05$. OT-ICA still detects the non-Gaussianity; it is the step-function CDFs of discrete data that create flat gradient plateaus stalling the solver. (Scaling in Appendix~\ref{app:scaling}.)
+The \textit{Discrete Only} failure is distinct: a \textit{contrast} failure for FastICA but an \textit{optimization} problem for OT-ICA. Table~\ref{tab:w2_sensitivity} (Appendix~\ref{app:proxy_limits}) shows $W_2^2$ provides ${\gg}10\times$ the non-Gaussianity resolution of logcosh---standard Poisson ($\lambda=3$) has near-zero logcosh negentropy but a clear $W_2^2$ signal of $0.05$. The step-function CDFs of discrete data create gradient plateaus that stall the solver despite the contrast being present. (Scaling in Appendix~\ref{app:scaling}.)
 
 \section{Interdisciplinary Applications}
 
 \subsection{Structural Identification in Price Discovery}
-In fragmented financial markets, identical assets traded across venues are bound together by an unobserved random walk. Modeling these price dynamics heavily relies on Vector Error Correction Models (VECMs) \citep{engle1987, johansen1991}. To determine the Information Share (IS) \citep{hasbrouck1995, baillie2002} of each market, the reduced-form residuals $u_t$ must be decomposed into mutually independent structural shocks $\epsilon_t$ via an impact matrix $\mathbf{B}$ such that $u_t = \mathbf{B} \epsilon_t$.
+In fragmented financial markets, cointegrated asset prices share an unobserved common random walk. The Information Share (IS) \citep{hasbrouck1995, baillie2002} of each venue quantifies its contribution, but requires decomposing the reduced-form residuals $u_t$ of a Vector Error Correction Model (VECM) \citep{engle1987, johansen1991} into independent structural shocks $\epsilon_t$ via $u_t = \mathbf{B} \epsilon_t$.
 
-Since $\boldsymbol{\Omega} = \mathbf{B}\mathbf{B}^\top$ only partially identifies $\mathbf{B}$, standard Cholesky decomposition imposes an arbitrary recursive market ordering, yielding drastically different IS estimates depending on the market vector's arrangement.
+The covariance constraint $\boldsymbol{\Omega} = \mathbf{B}\mathbf{B}^\top$ leaves $\mathbf{B}$ unidentified up to an orthogonal rotation. Standard Cholesky decomposition fixes this rotation by imposing a recursive market ordering, producing IS estimates that change with the ordering choice.
 
-To achieve unique, order-invariant identification, $\mathbf{B}$ can be factored as $\mathbf{B} = \mathbf{S}\mathbf{C}$, where $\mathbf{S}$ is an arbitrary whitening matrix and $\mathbf{C}$ is a strict orthogonal rotation. This transforms the price discovery problem into a search for $\mathbf{C}$ \citep{zema2025}. Applying OT-ICA leverages the heavy-tailed non-Gaussianity of financial innovations to explicitly lock $\mathbf{C}$, recovering the true structural shocks without imposing Cholesky's recursive assumptions.
+Factoring $\mathbf{B} = \mathbf{S}\mathbf{C}$ (whitening $\times$ orthogonal rotation) reduces identification to finding $\mathbf{C}$ \citep{zema2025}. OT-ICA recovers $\mathbf{C}$ from the heavy-tailed non-Gaussianity of financial innovations without imposing a recursive structure.
 
 \begin{table}[htbp]
     \centering
@@ -175,22 +176,22 @@ To achieve unique, order-invariant identification, $\mathbf{B}$ can be factored 
     \label{tab:simulated_is_results}
 \end{table}
 
-As shown in Table \ref{tab:simulated_is_results}, OT-ICA successfully identifies the independent driving shocks, achieving mean IS estimates tightly converging to the true generative parameters (12.1\%, 23.9\%, 63.8\%).
+Table~\ref{tab:simulated_is_results} shows mean IS estimates within 0.2 percentage points of the true values across 500 Monte Carlo runs, with standard deviations below 0.03.
 
 \subsection{EEG Artifact Removal}
-In electroencephalography, the human skull acts as a linear volume conductor \citep{hyvarinen2001} where ocular artifacts (blinks) mix linearly with brain waves before reaching the scalp electrodes. Because blinks are highly sparse and super-Gaussian, OT-ICA naturally identifies and isolates them.
+The skull acts as a linear volume conductor \citep{hyvarinen2001}: ocular blink artifacts mix linearly with neural signals before reaching scalp electrodes. Blink artifacts are impulsive and super-Gaussian; OT-ICA identifies them by maximising $W_2^2$ without assuming a parametric density model.
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.95\columnwidth]{eeg_artifact_removal.pdf}
-    \caption{OT-ICA applied to five frontal EEG channels (MNE sample dataset). The high-amplitude synchronized blink artifact is isolated into a single super-Gaussian independent component (Comp 1, orange), leaving the underlying brain-wave structure intact in the remaining components.}
+    \caption{OT-ICA on five frontal EEG channels (MNE sample dataset). Panel (b) shows the isolated blink component (orange) with excess kurtosis $\kappa$ reported in the panel title; the remaining components have mean $\kappa$ near zero. Panel (c) shows the reconstructed signal after zeroing the artifact component, with the RMS reduction in the $\pm$250\,ms blink window reported in the panel title.}
     \label{fig:eeg_artifact}
 \end{figure}
 
-As demonstrated in Figure \ref{fig:eeg_artifact}, OT-ICA successfully filters the synchronized high-amplitude spikes into a single independent component, preserving the underlying brain wave structures.
+Figure~\ref{fig:eeg_artifact} shows OT-ICA concentrating the blink artifact into one component with substantially higher excess kurtosis than the remaining four. Zeroing that component and reconstructing the signal produces a measurable RMS reduction in the blink window (quantified in the panel title), with no manual tuning of a density model.
 
 \section{Conclusion}
-By formulating ICA as a tractable 1D optimal transport problem, OT-ICA overcomes geometric limitations of proxy contrast solvers — including FastICA's gradient degeneracy, JADE's sample complexity, and InfoMax's model mismatch — and remains robust on the heterogeneous and zero-Gaussian regimes where all three fail. Applied to VECM price discovery and clinical EEG, it demonstrates practical utility beyond the benchmark. Future work will extend OT-ICA to causal discovery frameworks including LiNGAM \citep{shimizu2006linear} and CauCA \citep{liang2023causal}.
+OT-ICA formulates ICA as a 1D optimal transport problem, replacing proxy contrast functions with the exact $W_2^2$ metric. It avoids FastICA's gradient degeneracy, JADE's fourth-order sample complexity, and InfoMax's parametric model assumptions; the Picard comparison confirms that faster optimisation alone does not close the gap. Across $d \in \{10, 20, 30\}$ and five mixture regimes, OT-ICA achieves lower Amari error on all continuous and heterogeneous distributions. Applications to VECM price discovery and EEG artifact removal extend the method beyond standard benchmarks. Future work will extend OT-ICA to causal discovery (LiNGAM \citep{shimizu2006linear}, CauCA \citep{liang2023causal}).
 
 \bibliography{tpm2026-template}
 
