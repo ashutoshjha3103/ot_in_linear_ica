@@ -145,7 +145,7 @@ def jade_ica(X):
                 denom = ton + np.sqrt(ton**2 + toff**2 + 1e-30)
                 if abs(toff) < 1e-12 * (abs(denom) + 1e-12):
                     continue
-                theta = 0.5 * np.arctan2(toff, denom)
+                theta = 0.5 * np.arctan2(-toff, denom)
                 c, s  = np.cos(theta), np.sin(theta)
                 if abs(s) < 1e-12:
                     continue
