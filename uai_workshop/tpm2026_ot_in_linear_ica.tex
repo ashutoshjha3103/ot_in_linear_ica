@@ -1,5 +1,5 @@
 \documentclass{tpm2026} % for initial submission
-% \documentclass[accepted]{tpm2026} % after acceptance
+%\documentclass[accepted]{tpm2026} % after acceptance
 
 \usepackage[american]{babel}
 \usepackage{natbib} 
@@ -8,15 +8,20 @@
 \usepackage{mathtools} 
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{stfloats}
 \usepackage{graphicx}
 \usepackage{amssymb,amsmath,amsfonts,amsthm}
 \usepackage{mathrsfs}
 \usepackage{algorithm, algpseudocode}
+\usepackage[font={small,it},labelfont=bf]{caption}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{definition}{Definition}
 
-\title{Linear Independent Component Analysis via Optimal Transport Metric as Contrast}
+\renewcommand{\dbltopfraction}{0.92}
+\renewcommand{\textfraction}{0.05}
+
+\title{Linear Independent Component Analysis via Optimal Transport Metric as Contrast\thanks{Code: \url{https://anonymous.4open.science/r/ot_in_linear_ica-3DBC}}}
 
 % The standard author block has changed for TPM 2026 to provide
 % more space for long author lists and allow for complex affiliations
@@ -138,9 +143,9 @@ with a narrow Gaussian kernel to smooth step-function CDFs. Full formulations an
 \section{OT-ICA Methodology Validation}
 Separation quality is measured by the Amari Performance Index ($E$) \citep{amari1996new}, 
 the deviation of the gain matrix $\mathbf{P} = \mathbf{B}_{\text{est}}\mathbf{A}$ from a 
-generalized permutation matrix ($E < 0.1$: near-perfect; $E \ge 0.5$: failure; definition in Appendix~\ref{app:experimental_setup}).
+generalized permutation matrix ($E < 0.1$: near-perfect; $E < 0.3$: good separation; $E \ge 0.5$: failure; definition in Appendix~\ref{app:experimental_setup}).
 
-\begin{figure}[t]
+\begin{figure}[h]
     \centering
     \includegraphics[width=0.95\columnwidth]{otica_baseline_recovery.pdf}
     \caption{OT-ICA convergence on four standard continuous source types. $W_2^2$ provides a smooth contrast that drives the Amari error to near zero across optimization iterations.}
@@ -149,18 +154,18 @@ generalized permutation matrix ($E < 0.1$: near-perfect; $E \ge 0.5$: failure; d
 
 Figure~\ref{fig:ot_ica_validation} shows $W_2^2$ driving the Amari error to near zero on Laplace, Uniform, Student-$t$, and Beta sources, confirming that the Riemannian solver with analytical Gaussian targets converges reliably on continuous distributions. On this 4D mixture, OT-ICA achieves an Amari error of $0.016$ against FastICA's $0.019$; both global transfer matrices are within $10^{-2}$ of a generalized permutation matrix (Table~\ref{tab:baseline_matrices}, Appendix~\ref{app:experimental_setup}).
 
-\section{Empirical Performance on Heterogeneous Mixtures}
-\label{sec:empirical}
-
-\begin{figure*}[t]
+\begin{figure*}[!b]
     \centering
     \includegraphics[width=0.88\textwidth]{general_hybrid_test.pdf}
     \caption{Mean Amari error ($\downarrow$ better, clipped at $1.5$) across five mixture regimes and $d \in \{10, 20, 30\}$ ($N=10{,}000$, 10 trials, 95\% CI).
     OT-ICA achieves the lowest error on all continuous and heterogeneous regimes at every dimension.
     On \textit{Discrete Only}, the $W_2^2$ contrast is present but step-function CDFs produce gradient plateaus that stall the solver
-    (Table~\ref{tab:w2_sensitivity}, Appendix~\ref{app:discrete_contrast}). At $d=30$, all proxy-based methods saturate the clip ceiling on discrete and several heterogeneous regimes; OT-ICA is the only method below the ceiling on Discrete Only ($E=1.486$).}
+    (Table~\ref{tab:w2_sensitivity}, Appendix~\ref{app:discrete_contrast}). At $d=30$, all proxy-based methods saturate the clip ceiling on discrete and several heterogeneous regimes; OT-ICA is the only method below the ceiling on Discrete Only ($E=1.486$). Dotted line at $E=0.3$ marks the good-separation threshold.}
     \label{fig:hybrid_mixture_results}
 \end{figure*}
+
+\section{Empirical Performance on Heterogeneous Mixtures}
+\label{sec:empirical}
 
 We compare OT-ICA against FastICA \citep{hyvarinen2001}, JADE \citep{cardoso1993blind}, InfoMax \citep{bell1995information}, and 
 Picard \citep{ablin2018faster} on five mixture regimes at $d \in \{10, 20, 30\}$, $N = 10{,}000$, 10 trials per condition (Figure~\ref{fig:hybrid_mixture_results}).
@@ -235,17 +240,16 @@ substantially above the remaining four. Zeroing that component and inverting the
 the RMS reduction quantified in the panel title, without tuning a density model.
 
 \section{Conclusion}
-OT-ICA replaces proxy contrast functions with the exact $W_2^2$ metric computed by quantile sorting, 
-avoiding FastICA's gradient degeneracy, JADE's $\mathcal{O}(d^4)$ sample complexity, and InfoMax's distributional misspecification. 
-The Picard comparison isolates the contrast as the failure mode: a faster solver on the same tanh nonlinearity does not reduce Amari error. 
-Across $d \in \{10, 20, 30\}$ and five mixture regimes ($N=10{,}000$, 10 trials), OT-ICA achieves the lowest Amari error on all continuous and 
-heterogeneous configurations. On purely discrete sources, the contrast is present but gradient plateaus stall the solver, 
-an open optimization problem. OT-ICA's sorting-based contrast incurs $\mathcal{O}(K \cdot dN\log N)$ per iteration against 
-FastICA's $\mathcal{O}(dN)$; on purely continuous homogeneous sources, FastICA is faster. This tradeoff reverses at high dimensions 
-on heterogeneous and hybrid mixtures, where proxy-based methods saturate the error ceiling while OT-ICA maintains separation (Appendix~\ref{app:scaling}). 
-Applications to VECM structural identification and EEG artifact removal confirm the method transfers to real data without distributional assumptions. 
+OT-ICA replaces proxy contrast functions with the exact $W_2^2$ metric computed by quantile sorting,
+avoiding FastICA's gradient degeneracy, JADE's $\mathcal{O}(d^4)$ sample complexity, and InfoMax's distributional misspecification.
+The Picard comparison isolates the contrast as the failure mode: a faster solver on the same tanh nonlinearity does not reduce Amari error.
+Across $d \in \{10, 20, 30\}$ and five mixture regimes ($N=10{,}000$, 10 trials), OT-ICA achieves the lowest Amari error on all continuous and
+heterogeneous configurations; on purely discrete sources, gradient plateaus stall the solver, an open optimization problem.
+OT-ICA incurs higher per-iteration cost than FastICA at large $d$ (Appendix~\ref{app:scaling}), but this tradeoff reverses on heterogeneous mixtures where proxy-based methods saturate the error ceiling.
+Applications to VECM structural identification and EEG artifact removal confirm the method transfers to real data without distributional assumptions.
 Future work will extend OT-ICA to causal discovery, including as a front-end for LiNGAM \citep{shimizu2006linear}, Causal Component Analysis \citep{liang2023causal}, and identifiable nonlinear ICA \citep{buchholz2022function}.
 
+\newpage
 \bibliography{references}
 
 \newpage
