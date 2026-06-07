@@ -47,16 +47,16 @@
 \maketitle
 
 \begin{abstract}
-Independent Component Analysis (ICA) recovers mutually independent sources from linear mixtures. 
-Classical algorithms like FastICA, JADE, and InfoMax compute non-Gaussianity via surrogate contrast functions e.g. negentropy approximations, 
-fourth-order cumulants, parametric log-likelihoods, that fail on heterogeneous source distributions. 
-We propose OT-ICA, which uses the 1D squared Wasserstein distance ($W_2^2$) to a standard Gaussian as the contrast function, 
-computed by quantile sorting without density estimation. 
-We prove $W_2^2$ satisfies a weighted mixture upper bound with strict inequality for non-Gaussian sources, establishing it as a valid ICA contrast. 
-Across $d \in \{10, 20, 30\}$ and five mixture regimes at sample size ($N = 10{,}000$, 10 trials), 
-OT-ICA achieves better independent component extraction scores than FastICA, JADE, InfoMax, and Picard on all continuous and heterogeneous distributions. 
-On purely discrete sources, while the contrast via Wasserstein metric is present, the step-function CDFs produce gradient plateaus that stall the OT-ICA solver. 
-Two applications are presented: ocular artifact removal from frontal EEG, and structural shock identification in Vector Error Correction Models for financial price discovery.
+Linear Independent Component Analysis (ICA) recovers mutually independent sources from linear mixtures.
+Classical algorithms like FastICA, JADE, and InfoMax compute non-Gaussianity via surrogate contrast functions like negentropy approximations,
+fourth-order cumulants, parametric log-likelihoods, that fail on heterogeneous and high-dimensional mixtures.
+We propose Optimal Transport metric for ICA, OT-ICA, using the 1D squared Wasserstein distance ($W_2^2$) to a standard Gaussian as contrast,
+computed by quantile sorting without density estimation.
+We prove $W_2^2$ satisfies a weighted mixture upper bound with strict inequality for non-Gaussian sources, establishing it as a valid ICA contrast.
+Across $d \in \{10, 20, 30\}$ and five mixture regimes ($N = 10{,}000$),
+OT-ICA outperforms FastICA, JADE, InfoMax, and Picard on all continuous and heterogeneous distributions.
+On purely discrete sources, while $W_2^2$ retains high contrast resolution, step-function CDFs produce gradient plateaus that hinder convergence.
+Two applications are presented: EEG ocular artifact removal and structural shock identification in Vector Error Correction Models for financial price discovery.
 \end{abstract}
 
 \section{Introduction}
@@ -89,7 +89,9 @@ InfoMax \citep{bell1995information} a parametric log-likelihood, and
 Picard \citep{ablin2018faster} an adaptive nonlinearity with a provably converging solver. 
 Each proxy fails on specific source geometries (Appendix~\ref{app:proxy_limits}).
 
-We propose OT-ICA, using $W_2^2$ to a standard Gaussian as the contrast. Unlike proxy contrasts, OT provides a true metric on the space of probability distributions, quantifying non-Gaussianity as the cost of transporting the empirical projection to a Gaussian target \citep{villani2003}. The Kantorovich relaxation \citep{monge1781, kantorovich1942} defines the $p$-Wasserstein distance as the minimum-cost coupling \citep{villani2003}:
+We propose OT-ICA, using squared Wasserstein metric, $W_2^2$ to a standard Gaussian as the contrast. Unlike proxy contrasts, Optimal Transport \citep{monge1781, kantorovich1942}
+provides a true metric on the space of probability distributions,
+quantifying non-Gaussianity as the cost of transporting the empirical projection to a Gaussian target. The $p$-Wasserstein distance \citep{villani2003} is the minimum-cost coupling:
 \begin{equation}
     W_p(\mu, \nu) = \left( \inf_{\pi \in \Pi(\mu, \nu)} \int \|x - y\|^p \, d\pi(x, y) \right)^{1/p}
 \end{equation}
@@ -133,7 +135,7 @@ The global maximum is attained when $\mathbf{b}$ aligns with a single source dir
 Proofs via comonotonicity contradictions under Caffarelli's regularity theory are in Appendix~\ref{app:proofs}.
 
 \subsection{Optimization on Orthogonal Group $\mathcal{S}$}
-Three components are required for optimization on $\mathcal{S}$: (i)~\textbf{Analytical Gaussian Targets} \citep{fournier2015rate}, 
+Three components are required for optimization on the Orthogonal Group $\mathcal{S}$: (i)~\textbf{Analytical Gaussian Targets} \citep{fournier2015rate}, 
 replacing sampled quantile targets with their closed-form bin expectations to eliminate approximation noise; 
 (ii)~\textbf{Riemannian Gradient Retraction} \citep{absil2008optimization}, projecting gradients onto the tangent space 
 of $\mathcal{S}$ and retracting via symmetric decorrelation; and 
@@ -152,7 +154,10 @@ generalized permutation matrix ($E < 0.1$: near-perfect; $E < 0.3$: good separat
     \label{fig:ot_ica_validation}
 \end{figure}
 
-Figure~\ref{fig:ot_ica_validation} shows $W_2^2$ driving the Amari error to near zero on Laplace, Uniform, Student-$t$, and Beta sources, confirming that the Riemannian solver with analytical Gaussian targets converges reliably on continuous distributions. On this 4D mixture, OT-ICA achieves an Amari error of $0.016$ against FastICA's $0.019$; both global transfer matrices are within $10^{-2}$ of a generalized permutation matrix (Table~\ref{tab:baseline_matrices}, Appendix~\ref{app:experimental_setup}).
+Figure~\ref{fig:ot_ica_validation} shows $W_2^2$ driving the Amari error to near zero on Laplace, Uniform, Student-$t$, and Beta sources, 
+confirming that the Riemannian solver with analytical Gaussian targets converges reliably on continuous distributions. On this 4D mixture, 
+OT-ICA achieves an Amari error of $0.016$ against FastICA's $0.019$; with it's global transfer matrix within $10^{-2}$ 
+of a generalized permutation matrix. (Table~\ref{tab:baseline_matrices}, Appendix~\ref{app:experimental_setup}).
 
 \begin{figure*}[!b]
     \centering
@@ -199,7 +204,7 @@ The covariance constraint $\boldsymbol{\Omega} = \mathbf{B}\mathbf{B}^\top$ leav
 Standard Cholesky decomposition resolves this by imposing a recursive market ordering, but IS estimates change with the ordering choice.
 
 Factoring $\mathbf{B} = \mathbf{S}\mathbf{C}$ (whitening times orthogonal rotation) reduces identification to finding $\mathbf{C}$ \citep{zema2025}. 
-OT-ICA recovers $\mathbf{C}$ from the heavy-tailed non-Gaussianity of financial innovations without imposing a recursive ordering.
+OT-ICA recovers $\mathbf{C}$ from the heavy-tailed non-Gaussianity of financial innovations without imposing a recursive ordering (DGP, IS definition, and estimation procedure in Appendix~\ref{app:price_discovery}).
 
 \begin{table}[htbp]
     \centering
