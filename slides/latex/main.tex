@@ -1,0 +1,1137 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+
+\usepackage{multimedia}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+
+\title{Master Thesis Presentation}
+\subtitle{Optimal Transport in Linear Independent Component Analysis}
+\author{Ashutosh Jha}
+\institute{University of Tuebingen}
+\date{October 2025}
+
+\begin{document}
+
+% Title frame
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% Table of Contents
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+
+\section{Introduction}
+
+\begin{frame}{Introduction (1/3)}
+  \begin{itemize}
+    \item Linear Independent Component Analysis (ICA) seeks to recover a set of statistically independent components from their linear mixtures.
+    \item Unlike Principal Component Analysis (PCA), which only ensures uncorrelated components, ICA imposes the stronger condition of full statistical independence.
+    \item This stronger criterion allows ICA to disentangle latent variables that PCA cannot fully separate.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Introduction (2/3)}
+  \begin{itemize}
+    \item The approach builds upon intuition from the Central Limit Theorem: mixtures of independent random variables tend towards Gaussian distributions regardless of original distributions.
+    \item Consequently, any mixture of independent \textbf{non-Gaussian} sources appears more Gaussian than the original sources themselves.
+    \item After whitening the mixed signal to remove correlations, the problem reduces to finding a rotation on the unit sphere that maximizes non-Gaussianity.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Introduction (3/3)}
+  \begin{itemize}
+    \item The goal is to identify directions where projected data are least Gaussian, corresponding to candidate statistically independent components.
+    \item To formalize this as an optimization problem, we measure Gaussianity using the Wasserstein-2 (W2) distance between the empirical distribution of projections and a Gaussian distribution.
+    \item This distance comes from Optimal Transport theory, which quantifies the minimal “cost” of morphing one probability distribution into another.
+  \end{itemize}
+\end{frame}
+
+\section{Independent Component Analysis Problem}
+
+\begin{frame}{ICA Model}
+The linear ICA model assumes that the observed signals are linear mixtures of statistically independent sources:
+\[
+\mathbf{X} = \mathbf{A} \mathbf{S}
+\]
+where
+\[
+\mathbf{X} = 
+\begin{bmatrix}
+x_1 \\
+x_2 \\
+\vdots \\
+x_n
+\end{bmatrix},
+\quad
+\mathbf{S} = 
+\begin{bmatrix}
+s_1 \\
+s_2 \\
+\vdots \\
+s_n
+\end{bmatrix},
+\quad
+\mathbf{A} = 
+\begin{bmatrix}
+a_{11} & a_{12} & \cdots & a_{1n} \\
+a_{21} & a_{22} & \cdots & a_{2n} \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{n1} & a_{n2} & \cdots & a_{nn}
+\end{bmatrix}
+\]
+
+The sources \( s_i \) are assumed to be statistically independent, and at most one \( s_i \) can be Gaussian, since a mixture of Gaussian signals remains Gaussian and cannot be separated by ICA \cite{JuttenHerault1985}.
+\end{frame}
+
+\section{Mathematical Foundations ICA}
+
+\begin{frame}{Centering}
+  \begin{itemize}
+    \item Observed mixtures: $\mathbf{X} \in \mathbb{R}^d$.
+    \item Center before further processing: $\mathbb{E}[\mathbf{X}] = \mathbf{0}$.
+    \item Covariance formula:
+      \[
+        \mathrm{Cov}(\mathbf{X}) = \mathbb{E}[\mathbf{X}\mathbf{X}^\top] - \mathbb{E}[\mathbf{X}]\mathbb{E}[\mathbf{X}]^\top
+      \]
+    \item If $\mathbb{E}[\mathbf{X}] = 0$ then
+      \[
+        \mathrm{Cov}(\mathbf{X}) = \mathbb{E}[\mathbf{X}\mathbf{X}^\top]
+      \]
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Whitening: Decorrelating with Eigenvalue Decomposition}
+  \begin{itemize}
+    \item Start with centered data $\mathbf{X} \in \mathbb{R}^d$.
+    \item Compute the covariance matrix:
+    \[
+      \mathrm{Cov}(\mathbf{X}) = \mathbb{E}[\mathbf{X}\mathbf{X}^\top]
+    \]
+    \item Eigenvalue decomposition of covariance:
+    \[
+      \mathrm{Cov}(\mathbf{X}) = \mathbf{V}\mathbf{\Lambda}\mathbf{V}^\top
+    \]
+    where $\mathbf{U}$: eigenvectors, $\mathbf{\Lambda}$: diagonal matrix of eigenvalues.
+    \item Apply decorrelation transform:
+    \[
+      \mathbf{W} = \mathbf{V}^\top
+    \]
+    \item $\mathbf{W}\mathbf{X}$ yields a diagonal covariance matrix with variance entries $\lambda_j$, but not necessarily unit variance.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Whitening: Scaling to Identity Covariance}
+  \begin{itemize}
+    \item To "whiten" data, rescale each decorrelated dimension to have unit variance.
+    \item Whitening transformation:
+    \[
+      \mathbf{W} = \mathbf{\Lambda}^{-1/2} \mathbf{V}^\top
+    \]
+    Here, $\mathbf{\Lambda}^{-1/2}$ scales diagonal entries by $1/\sqrt{\lambda_j}$.
+    \item Whitened data:
+    \[
+      \widetilde{\mathbf{X}} = \mathbf{W}\mathbf{X}
+    \]
+    \item Covariance after whitening:
+    \[
+      \mathrm{Cov}(\widetilde{\mathbf{X}}) = \mathbf{W}\mathrm{Cov}(\mathbf{X})\mathbf{W}^\top = \mathbf{I}_d
+    \]
+    \item Eigenvalue decomposition decorrelates data; scaling by $\mathbf{\Lambda}^{-1/2}$ gives unit variance.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Whitening and Scaling}
+  \begin{itemize}
+    \item Scaling the data so all dimensions have unit variance and are uncorrelated.
+    \item Found (with ED/SVD) a linear $\mathbf{W}$ that gives $\widetilde{\mathbf{X}} = \mathbf{W}\mathbf{X}$ s.t.
+      \[
+         \mathrm{Cov}(\widetilde{\mathbf{X}}) = \mathbb{E}[\widetilde{\mathbf{X}} \widetilde{\mathbf{X}}^\top] = \mathbb{E}[\mathbf{W}\mathbf{X}\mathbf{X}^\top\mathbf{W}^\top]
+         = \mathbf{W}\mathbb{E}[\mathbf{X}\mathbf{X}^\top]\mathbf{W}^\top
+      \]
+
+      \[
+         \mathrm{Cov}(\widetilde{\mathbf{X}})
+         = \mathbf{W}\mathrm{Cov}(\mathbf{X})\mathbf{W}^\top
+      \]
+    \item Diagonalized covariance:
+      \[
+        \mathrm{Cov}(\widetilde{\mathbf{X}}) = 
+        \mathbf{W} \mathrm{Cov}(\mathbf{X}) \mathbf{W}^\top = \mathbf{D}
+      \]
+      but we choose scaling ($\mathbf{\Lambda}^{-1/2}$) such that $\mathbf{D} = \mathbf{I}_d$.
+    \item \textbf{Why this scaling?}
+      \begin{itemize}
+        \item Ensures all dimensions are comparable.
+        \item Reduces ICA problem to a rotation (orthogonal search, next slide).
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Unmixing}
+  \begin{itemize}
+    \item After whitening, seek a matrix $\mathbf{U}$ to "unmix" such that:
+      \[
+        \widetilde{\mathbf{Z}} = \mathbf{U} \widetilde{\mathbf{X}}
+      \]
+      where $\widetilde{\mathbf{Z}}$ is an estimated candidate vector for independent components.
+    \item Covariance after unmixing:
+      \[
+        \mathrm{Cov}(\widetilde{\mathbf{Z}}) = \mathbf{U}\, \mathrm{Cov}(\widetilde{\mathbf{X}}) \, \mathbf{U}^\top = \mathbf{U} \mathbf{I}_d \mathbf{U}^\top = \mathbf{U}\mathbf{U}^\top
+      \]
+    \item When $\mathbf{U}$ is orthogonal ($\mathbf{U}\mathbf{U}^\top = \mathbf{I}_d$), recovered components are uncorrelated and ready for independence optimization.
+    \item ICA then finds the rotation that makes elements of $\widetilde{\mathbf{Z}}$ as independent as possible.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Why PCA is not sufficient?}
+\begin{enumerate}
+  \item Make sample decorrelated and whitened, i.e. \( E[\mathbf{X}] = 0 \), \( E[\mathbf{X} \mathbf{X}^T] = \mathbf{I} \). At this point, any orientation is good enough for PCA, so it is not sufficient for ICA, when the data are non gaussian. For multivariate gaussian data decorrelation implies independence, so there is not much more for ICA to do.
+  \item For ICA, find local optima of the function \( f(\mathbf{u}) = E[(\mathbf{u}^T \mathbf{X})^4] \) where \( \mathbf{u} \in S_n \) (unit sphere). Gradient descent can be used to find candidate components.
+\end{enumerate}
+
+\end{frame}
+
+
+\section{Information Geometry and ICA}
+
+\begin{frame}{Information Geometry Perspective on ICA}
+  \begin{itemize}
+    \item ICA aims to find a linear transform \(B\) such that \(Y = BX\) has maximally independent components.
+    \item Standard decorrelation (whitening) gives uncorrelated axes, but not full independence unless data are Gaussian.
+    \item Information geometry relates independence and non-Gaussianity: ICA projects distributions onto product and Gaussian manifolds to quantify both phenomena \cite{cardoso2022}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Manifolds of Product and Gaussian Distributions}
+  \begin{itemize}
+    \item \(\mathcal{P}\): Product manifold -- distributions where all components are independent.
+    \item \(\mathcal{G}\): Gaussian manifold -- all multivariate Gaussians (zero mean, fixed covariance).
+    \item ICA seeks a projection of the empirical distribution onto \(\mathcal{P}\): the closest independent representation.
+    \item After whitening, ICA operates on the intersection where covariance is identity and independence must be achieved via some optimization on rotated candidates.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{KL Pythagorean Identity on Product Manifold}
+  \begin{itemize}
+    \item For any random vector \(Y\) with density \(P_Y\), mutual information is denoted by \(\mathscr{L}(Y)\):
+      \[
+        \mathscr{I}(Y) = D_{\mathrm{KL}}(P_Y \,\Vert \, \prod_{i} P_{Y_i})
+      \]
+    \item More generally, for any product candidate \(Q = \prod_{i} q_i\):
+      \begin{align*}
+      D_{\mathrm{KL}}\left(P_Y \Vert Q\right)
+      &= D_{\mathrm{KL}}\left(P_Y \Vert \prod_{i} P_{Y_i}\right) + D_{\mathrm{KL}}\left(\prod_{i} P_{Y_i} \Vert \prod_{i} q_{i}\right) \\
+      &= D_{\mathrm{KL}}\left(P_Y \Vert \prod_{i} P_{Y_i}\right) + \sum_{i} D_{\mathrm{KL}}\left(P_{Y_i} \Vert q_i\right) \\
+      &= \mathscr{I}(Y) + \sum_{i} D_{\mathrm{KL}}\left(P_{Y_i} \Vert q_i\right)
+    \end{align*}
+    \item Minimizing KL to a product model first projects onto marginals; the leftover is mutual information.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{KL Pythagorean Identity on Gaussian Manifold}
+  $$
+      D_{\mathrm{KL}}\big(P_Y \Vert N(\Sigma)\big) = D_{\mathrm{KL}}\big(P_Y \Vert N(\operatorname{Cov} Y)\big) + D_{\mathrm{KL}}\big(N(\operatorname{Cov} Y) \Vert N(\Sigma)\big)
+    $$
+  \begin{itemize}
+    \item $N(\Sigma)$ denotes the multivariate Gaussian distribution with covariance $\Sigma$ and zero mean.
+    \item $N(\operatorname{Cov} Y)$ is the Gaussian with the empirical mean and covariance matrix of $Y$.
+    \item This formula expresses that KL divergence from $P_Y$ to any Gaussian splits into the divergence to the best Gaussian fit (same covariance as $Y$) and the divergence between two Gaussian distributions (with covariances $\operatorname{Cov} Y$ and $\Sigma$).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Combining Pythagorean Theorems}
+  
+  Let us combine the Pythagorean theorem for independence with the one for Gaussianity, interpreting ICA as successive geometric approximations:
+  \begin{itemize}
+    \item For an $N$-vector with complicated joint distribution $P_Y$, two simplifying approximations are:
+      \begin{itemize}
+        \item \textbf{Gaussian}: $P^G_Y \equiv \mathcal{N}(\operatorname{Cov}Y)$  -- best Gaussian fit (project onto $\mathcal{G}$).
+        \item \textbf{Product}: $P^P_Y \equiv \prod_i P_{Y_i}$ -- distribution with independent marginals (project onto $\mathcal{P}$).
+      \end{itemize}
+    \item Applying both approximations yields $P^{PG}_Y \equiv \mathcal{N}(\operatorname{diag\,Cov}Y)$, a Gaussian with independent marginals matching those of $Y$.
+    \item These yield two triangles through distribution space: $[P_Y \to P^G_Y \to P^{PG}_Y]$ and $[P_Y \to P^P_Y \to P^{PG}_Y]$, sharing the hypotenuse $[P_Y \to P^{PG}_Y]$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Information Geometry in ICA}
+  \begin{center}
+    \includegraphics[width=0.7\textwidth]{pythagorean_ig_ica.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Combining Pythagorean Theorems}
+    The KL divergence to the product-Gaussian approximation admits two complementary decompositions:
+    \[
+      D\big[P_Y \Vert P^{PG}_Y\big] = D\big[P_Y \Vert P^P_Y\big] + D\big[P^P_Y \Vert P^{PG}_Y\big] = D\big[P_Y \Vert P^G_Y\big] + D\big[P^G_Y \Vert P^{PG}_Y\big]
+    \]
+
+  \begin{itemize}
+    \item \textbf{Mutual Information:} $I(Y) = D[P_Y \Vert P^P_Y]$  
+    \item \textbf{Non-Gaussianity:} $G(Y) = D[P_Y \Vert P^G_Y]$
+    \item \textbf{Correlation Scalar:}
+      \[
+      C(Y) = D\big[P^G_Y \Vert P^{PG}_Y\big] = D[\mathcal{N}(\operatorname{Cov}Y) \Vert \mathcal{N}(\operatorname{diag\,Cov}Y)]
+      \]
+      Measures how far the $\operatorname{Cov}Y$ matrix is from just it's diagonal part and appears as the natural scalar measure of the correlation between entries of $Y$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Non-Gaussianity, correlation and independence}
+  \begin{itemize}
+    \item Define non-Gaussianity of \(Y\):
+      \[
+        G(Y) = D_{\mathrm{KL}}(P_Y \,\Vert\, N(\operatorname{Cov}(Y)))
+      \]
+    \item Cardoso's pythagorean theorem relates independence, correlation, and non-Gaussianity:
+      \[
+        \mathscr{L}(Y) + \sum_{i} G(Y_i) = C(Y) + G(Y)
+      \]
+    \item Where
+      \begin{itemize}
+        \item \(C(Y) = D_{\mathrm{KL}}(N(\operatorname{Cov}(Y)) \,\Vert\, N(\operatorname{diag\,Cov}(Y)))\) measures how correlated the Gaussian approximation of Y and decorrelated? Y is.
+        \item \(G(Y)\) is joint non-Gaussianity; \(G(Y_i)\) is marginal non-Gaussianity.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Invariant KL Divergence of Gaussian Projection}
+    If $Y$ undergoes an invertible linear transformation, then its Gaussian projection $N(\operatorname{Cov}Y)$ undergoes the same transformation.
+    The Kullback-Leibler divergence to the Gaussian projection is invariant:
+    \[
+      D_{\mathrm{KL}}\big(P_Y \,\Vert\, N(\operatorname{Cov}Y)\big)
+      = D_{\mathrm{KL}}\big(P_{A^{-1}Y} \,\Vert\, N(A^{-1} \operatorname{Cov}Y (A^{-1})^\top)\big)
+    \]
+    
+    That is, $G(Y)$ does not change under invertible linear transformations.
+\end{frame}
+
+
+\begin{frame}{Whitening Reduces ICA to Maximizing Non-Gaussianity}
+  \begin{itemize}
+    \item After whitening, \(\operatorname{Cov}(Y) = I\), so \(C(Y) = 0\): Pythagorean identity reduces to
+      \[
+        \mathscr{L}(Y) = 0 - \sum_{i} G(Y_i) + \text{const}
+      \]
+    \item ICA in whitened space therefore reduces to maximizing non-Gaussianity of the marginals, subject to orthogonality constraints.
+    \item Contrast functions (kurtosis, negentropy, Wasserstein distances) measure this non-Gaussianity and solve ICA.
+    \item Thus, Centering and whitening constrain data to the space where independence can be achieved solely by maximizing non-Gaussianity \cite{cardoso2022}.
+  \end{itemize}
+\end{frame}
+
+
+
+\section{Motivations from the Central Limit Theorem}
+
+%-------------------------------------------------------------
+\begin{frame}{Motivations from Central Limit Theorem}
+\begin{itemize}
+    \item Let \( X_1, X_2, \ldots, X_n \) be independent and identically distributed (i.i.d.) random variables drawn from a non-Gaussian distribution with mean \( \mu \) and variance \( \sigma^2 \).
+    \item Define the sample mean as
+    \[
+        \bar{X}_n = \frac{1}{n} \sum_{i=1}^{n} X_i
+    \]
+    \item The CLT states that as \( n \to \infty \), the distribution of
+    \[
+        \sqrt{n} \left(\bar{X}_n - \mu \right) 
+        \xrightarrow[]{\,d\,} 
+        Z \sim \mathcal{N}(0, \sigma^2)
+    \]
+    where the arrow \(\xrightarrow[]{d}\) denotes convergence in distribution.
+\end{itemize}
+\end{frame}
+
+
+%-------------------------------------------------------------
+\begin{frame}{Weighted Sum Interpretation of CLT}
+\begin{itemize}
+    \item The sample mean can be seen as a weighted sum:
+    \[
+        \bar{X}_n = \sum_{i=1}^{n} \frac{1}{n} X_i
+    \]
+    where all weights \( \frac{1}{n} \) are equal.
+    \item If viewed as an expectation, this weighted sum is
+    \[
+        \mathbb{E}[X] = \sum_{i=1}^{n} w_i X_i, \quad \text{where} \quad w_i = \frac{1}{n}, \quad \sum_{i=1}^n w_i = 1.
+    \]
+    \item \textbf{Conclusion:} Any weighted mixture of non-Gaussian sources tends to be closer to a Gaussian distribution than the original sources themselves.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Why Independent Components Cannot be Gaussian}
+\begin{itemize}
+    \item The fundamental assumption in Independent Component Analysis (ICA) is that the independent components must be non-Gaussian for the model to be identifiable and ICA to work.
+    \item Gaussian components cannot be separated since any linear combination of Gaussian variables is also Gaussian. This means the mixing matrix cannot be uniquely estimated.
+    \item For Gaussian Multivariate distributions decorrelation implies independence, so after PCA, decorrelation, there is not much more ICA can achieve.
+    \item Motivation from the CLT: weighted sums of independent non-Gaussian variables tend toward Gaussianity, so we seek sources that are maximally non-Gaussian.\cite{hyvarinen2001independent}.
+\end{itemize}
+\end{frame}
+
+\section{Optimal Transport}
+
+%-------------------------------------------------------------
+\begin{frame}{Introduction to Optimal Transport}
+\begin{itemize}
+    \item Optimal Transport (OT) is about moving "mass" in the most efficient way, akin to how one might move sand with minimal effort.
+    \item The earth mover distance (EMD) quantifies this cost, measuring how much "work" it takes to transform one distribution into another.
+    \item The problem was first formulated by Gaspard Monge in 1781, conceptualizing the minimal cost of moving soil \cite{monge1781}.
+\end{itemize}
+\end{frame}
+
+%-------------------------------------------------------------
+\begin{frame}{Optimal Transport for Probability Distributions}
+\begin{itemize}
+    \item The core idea is to measure distances between probability measures using the cost of transporting one distribution into another.
+    \item This led to metrics such as the Wasserstein distance, which quantify meaningful differences between distributions.
+    \item The Kantorovich relaxation generalized Monge's formulation using transport plans, allowing greater mathematical and computational tractability \cite{kantorovich1942, villani2003, villani2006}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Introducing Distance \(W_1\)}
+\begin{itemize}
+    \item \(W_1\) distance (Earth Mover's Distance) measures the minimal total "effort" to move one distribution into another.
+    \item For one-dimensional distributions with CDFs \(F\) and \(G\), it can be written as:
+    \[
+        W_1(\mu, \nu) = \int_{-\infty}^\infty |F(x) - G(x)| \, dx
+    \]
+    \item Intuitively, \(W_1\) sums the absolute vertical differences between the cumulative distribution functions.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Introducing Distance \(W_2\) and Comparison}
+\begin{itemize}
+    \item \(W_2\) distance uses squared differences and is given by:
+    \[
+        W_2(\mu, \nu) = \left( \int_0^1 |F^{-1}(t) - G^{-1}(t)|^2 \, dt \right)^{1/2}
+    \]
+    where \(F^{-1}, G^{-1}\) are the quantile functions (inverse CDFs).
+    \item \(W_2\) is more sensitive to differences in spread (variance) and central location (mean).
+    \item When comparing distributions with \(\mathcal{N}(0,1)\), \(W_2\) better captures deviations than \(W_1\), making it more reliable for Gaussianity measures.
+    \item \(W_1\) can be more robust to outliers but might underestimate such deviations.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------
+% Proof Section: Motivations for using W2 in ICA
+% ----------------------------------------------------------------------
+
+\section{Theoretical Motivation: W2 Upper Bound}
+
+\begin{frame}{Motivation: Bounding Mixture Non-Gaussianity}
+  \begin{itemize}
+    \item \textbf{Goal:} We want to justify why maximizing $W_2$ recovers independent sources.
+    \item \textbf{Claim:} The non-Gaussianity of a mixture $w \cdot Z$ is upper bounded by the weighted sum of the non-Gaussianity of its independent parts.
+    \item 
+      \[
+        W_2^2(w \cdot Z, \mathcal{N}) \le \sum_{i=1}^{d} w_i^2 W_2^2(Z_i, \mathcal{N})
+      \]
+    \item \textbf{Interpretation?:} By the Central Limit Theorem, mixtures are "more Gaussian" (have lower $W_2$ distance to $\mathcal{N}$) than the sources. Maximizing the LHS forces the weight vector $w$ to align with a single source $Z_i$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Proof Construction: The Common Source}
+  To prove the bound, we construct a specific coupling using a common source of randomness.
+  \begin{itemize}
+    \item Let $\mathbf{N} = (N_1, \dots, N_d)$ be a vector of $d$ independent Standard Normal variables.
+    \item Let $T_i$ be the Optimal Transport map such that $(T_i)_{\#} \mathcal{N} = Z_i$.
+    \item \textbf{Constructing the Mixture Variable $X$:}
+      \[
+        X = \sum_{i=1}^d w_i T_i(N_i)
+      \]
+      Since $T_i(N_i) \sim Z_i$, it follows that $X \sim w \cdot Z$.
+    \item \textbf{Constructing the Gaussian Target $Y$:}
+      Using the \textit{same} noise vector $\mathbf{N}$:
+      \[
+        Y = \sum_{i=1}^d w_i N_i
+      \]
+      Since $\sum w_i^2 = 1$, it follows that $Y \sim \mathcal{N}(0,1)$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Proof Step: The Coupling Inequality}
+  \begin{itemize}
+    \item The pair $(X, Y)$ creates a valid joint distribution (coupling) $\pi_{X,Y}^{\mathbf{N}}$.
+    \item \textbf{Definition of Wasserstein-2:} The infimum of cost over \textit{all possible} couplings.
+      \[
+        W_2^2(w \cdot Z, \mathcal{N}) = \inf_{\pi} \mathbb{E}_{\pi}[|x - y|^2]
+      \]
+    \item \textbf{The Inequality:} Since the infimum is the cost of the \textit{best} plan, it must be less than or equal to the cost of \textit{our specific} plan.
+      \[
+        \underbrace{W_2^2(w \cdot Z, \mathcal{N})}_{\text{Cost of Optimal Plan}} \le \underbrace{\mathbb{E}[|X - Y|^2]}_{\text{Cost of our constructed plan}}
+      \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Proof Step: Expanding the Square}
+  Let us expand the expected squared difference $\mathbb{E}[|X - Y|^2]$:
+  \begin{align*}
+    |X - Y|^2 &= \left| \sum_{i=1}^d w_i T_i(N_i) - \sum_{i=1}^d w_i N_i \right|^2 \\
+              &= \left( \sum_{i=1}^d w_i (T_i(N_i) - N_i) \right)^2
+  \end{align*}
+  Squaring the sum yields diagonal terms ($i=j$) and cross terms ($i \neq j$):
+  \[
+    = \sum_{i=1}^d w_i^2 (T_i(N_i) - N_i)^2 + \sum_{i \neq j} w_i w_j (T_i(N_i) - N_i)(T_j(N_j) - N_j)
+  \]
+\end{frame}
+
+\begin{frame}{Proof Conclusion: Vanishing Cross Terms}
+  Taking the expectation $\mathbb{E}$:
+  \begin{itemize}
+    \item \textbf{Cross Terms ($i \neq j$):} vanish due to independence and zero mean.
+      \[
+        \mathbb{E}[\text{Cross}] \propto \mathbb{E}[T_i(N_i) - N_i] \cdot \mathbb{E}[T_j(N_j) - N_j] = 0 \cdot 0 = 0
+      \]
+    \item \textbf{Diagonal Terms:}
+      \[
+        \mathbb{E}[|X - Y|^2] = \sum_{i=1}^d w_i^2 \mathbb{E}[ |T_i(N_i) - N_i|^2 ]
+      \]
+    \item Recall that $\mathbb{E}[ |T_i(N_i) - N_i|^2 ]$ is exactly $W_2^2(Z_i, \mathcal{N})$.
+    \item \textbf{Result:}
+      \[
+        W_2^2(w \cdot Z, \mathcal{N}) \le \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N})
+      \]
+      This convexity adjacent property confirms that mixtures reduce the Wasserstein distance to Gaussianity.
+  \end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------
+%  Proof of Equality vs Strict Inequality
+% ----------------------------------------------------------------------
+
+\section{Proof of Strict Inequality}
+
+\begin{frame}{Condition for Equality (1D Case)}
+  \textbf{Brenier's Theorem and Comonotonicity:}
+  \begin{itemize}
+    \item We compare two scalar variables, $X$ and $Y$, constructed from the random vector $\mathbf{N} \in \mathbb{R}^d$.
+    \item In the 1D case, the Wasserstein-2 distance satisfies $W_2^2(X, Y) = \mathbb{E}[|X-Y|^2]$ \textbf{if and only if} $X$ and $Y$ are \textbf{comonotonic}.
+    \item This means there exists a strictly increasing function $f$ such that $X = f(Y)$.
+    \item \textbf{Implication:} For this to hold, the gradients of $X$ and $Y$ with respect to the source noise $\mathbf{N}$ must be parallel at every point $\mathbf{N}$:
+    \[ \nabla X(\mathbf{N}) = \lambda(\mathbf{N}) \nabla Y(\mathbf{N}) \]
+    \textit{Note: The scaling factor $\lambda(\mathbf{N})$ is a scalar function of $\mathbf{N}$.}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Definitions and Regularity}
+  \textbf{Assumption (Regularity):}
+  We assume the source distributions possess smooth, strictly positive densities. This guarantees that the optimal transport maps $T_i$ are \textbf{differentiable} functions (Luis Caffarelli regularity).
+
+  \vspace{0.2cm}
+  \textbf{Definitions:}
+  \begin{itemize}
+    \item Noise Vector: $\mathbf{N} = [N_1, N_2, \dots, N_d]^\top$
+    \item Projection Vector: $\mathbf{w} = [w_1, w_2, \dots, w_d]^\top$
+  \end{itemize}
+  
+  \textbf{1. The Gaussian Target Gradient:}
+  \[ Y(\mathbf{N}) = \sum w_i N_i \implies \nabla Y = \mathbf{w} \]
+  
+  \textbf{2. The Source Mixture Gradient:}
+  \[ X(\mathbf{N}) = \sum w_i T_i(N_i) \implies \nabla X = [w_1 T'_1(N_1), \dots, w_d T'_d(N_d)]^\top \]
+\end{frame}
+
+\begin{frame}{Applying the Product Rule}
+  \textbf{The Equality Condition:}
+  We require $\nabla X = \lambda(\mathbf{N}) \nabla Y(\mathbf{N}) = \lambda(\mathbf{N}) \mathbf{w}$.
+  
+  To test if this holds, we differentiate both sides with respect to $\mathbf{N}$ to compute the Hessian matrices.
+  
+  \begin{itemize}
+    \item \textbf{LHS (Hessian of $X$):}
+      Since $X$ separates into independent terms $w_i T_i(N_i)$, the cross-derivatives $\frac{\partial^2 X}{\partial N_i \partial N_j}$ are zero. This yields a \textbf{Diagonal Matrix}.
+
+    \item \textbf{RHS (Product Rule):}
+      We differentiate the product $\lambda(\mathbf{N}) \mathbf{w}$. Since $\mathbf{w}$ is constant:
+      \[ \frac{\partial}{\partial \mathbf{N}} \left( \lambda(\mathbf{N}) \mathbf{w} \right) = \mathbf{w} (\nabla \lambda)^\top \]
+      This yields a \textbf{Rank-1 Matrix} (Outer Product).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Visualizing the Matrix Equation}
+  We equate the LHS (Diagonal) and the RHS (Outer Product):
+  
+  \[
+    \underbrace{
+    \begin{bmatrix} 
+    w_1 T''_1 & 0 & \cdots & 0 \\
+    0 & w_2 T''_2 & \cdots & 0 \\
+    \vdots & \vdots & \ddots & \vdots \\
+    0 & 0 & \cdots & w_d T''_d
+    \end{bmatrix}
+    }_{\text{Hessian of } X \text{ (Diagonal)}}
+    =
+    \underbrace{
+    \begin{bmatrix}
+    w_1 \frac{\partial \lambda}{\partial N_1} & w_1 \frac{\partial \lambda}{\partial N_2} & \cdots & w_1 \frac{\partial \lambda}{\partial N_d} \\
+    w_2 \frac{\partial \lambda}{\partial N_1} & w_2 \frac{\partial \lambda}{\partial N_2} & \cdots & w_2 \frac{\partial \lambda}{\partial N_d} \\
+    \vdots & \vdots & \ddots & \vdots \\
+    w_d \frac{\partial \lambda}{\partial N_1} & w_d \frac{\partial \lambda}{\partial N_2} & \cdots & w_d \frac{\partial \lambda}{\partial N_d}
+    \end{bmatrix}
+    }_{\text{Outer Product } \mathbf{w} (\nabla \lambda)^\top \text{ (Rank-1)}}
+  \]
+  
+  \vspace{0.3cm}
+\end{frame}
+
+\begin{frame}{The Contradiction}
+  Let us look at any \textbf{off-diagonal} term (row $i$, column $j$ where $i \neq j$) from the matrix equation on the previous slide.
+  
+  \begin{itemize}
+      \item \textbf{LHS says:} The entry is $\mathbf{0}$.
+      \item \textbf{RHS says:} The entry is $w_i \cdot \frac{\partial \lambda}{\partial N_j}$.
+  \end{itemize}
+  
+  \textbf{The Implication:}
+  \[ w_i \cdot \frac{\partial \lambda}{\partial N_j} = 0 \]
+  
+  Since we are in a mixture, the weights are non-zero ($w_i \neq 0$). Therefore, it must be that:
+  \[ \frac{\partial \lambda}{\partial N_j} = 0 \quad \text{for all } j \neq i \]
+  
+  \textbf{Conclusion:} $\nabla \lambda = \mathbf{0}$. The function $\lambda(\mathbf{N})$ is actually a \textbf{scalar}.
+\end{frame}
+
+\begin{frame}{Conclusion: Proof of Strict Inequality}
+  We have proven that equality holds \textbf{if and only if} $\lambda$ is constant.
+  \[ T'_i(N_i) = \lambda \implies T_i(x) = \lambda x + c \]
+  
+  \vspace{0.2cm}
+  \textbf{1. The Gaussian Case (Identity Map):}
+  \begin{itemize}
+      \item Sources are Gaussian $\to$ $T_i(x) = x$. This is linear ($\lambda=1$).
+      \item The condition is met. \textbf{Equality holds.}
+  \end{itemize}
+  
+  \textbf{2. The Non-Gaussian Case (Curved Map):}
+  \begin{itemize}
+      \item Sources are non-Gaussian $\to$ $T_i$ is non-linear (curved).
+      \item The derivative $T'_i$ is not constant.
+      \item The condition fails.
+  \end{itemize}
+  
+  \begin{alertblock}{Strict Inequality Result}
+  For any mixture of non-Gaussian independent sources, the bound is strict:
+  \[
+    W_2^2(w \cdot Z, \mathcal{N}) < \sum_{i=1}^d w_i^2 W_2^2(Z_i, \mathcal{N})
+  \]
+  \end{alertblock}
+\end{frame}
+
+% ----------------------------------------------------------------------
+% Empirical Comparison W1 vs W2
+% ----------------------------------------------------------------------
+
+\section{Empirical Comparison: W1 vs W2}
+
+\begin{frame}{Empirical Comparison: Experimental Setup}
+  \begin{itemize}
+    \item To select the optimal contrast function, we empirically compared the optimization landscape of $W_1$ (Mean Absolute Error) versus squared $W_2$ (Mean Squared Error).
+    \item \textbf{Setup:}
+      \begin{itemize}
+        \item Synthetic data generated from Student-t distributions.
+        \item We varied the degrees of freedom ($\nu$) to control "non-Gaussianity":
+        \begin{itemize}
+            \item $\nu=2$: Heavy tails (Strong non-Gaussian signal).
+            \item $\nu=10$: Approaching Normal (Weak non-Gaussian signal).
+        \end{itemize}
+        \item We plotted the distance metric over the rotation angle $\theta$ relative to the first Principal Component.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Case 1: Strong Non-Gaussianity ($\nu=2$)}
+  \begin{columns}
+    \begin{column}{0.6\textwidth}
+      \includegraphics[width=\textwidth]{student_t_df2_strong.png} % Replace with image_9f1e5b.png
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \textbf{Observation:}
+      \begin{itemize}
+        \item Both $W_1$ and $W_2$ successfully identify the source (peaks align).
+        \item $W_2$ (orange) exhibits a significantly sharper peak and higher curvature around the optimum.
+        \item This suggests $W_2$ provides stronger gradients for optimization when the signal is distinct.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Case 2: Medium Non-Gaussianity ($\nu=4$)}
+  \begin{columns}
+    \begin{column}{0.6\textwidth}
+      \includegraphics[width=\textwidth]{student_t_df4_mid.png} % Replace with image_9f1b39.png
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \textbf{Observation:}
+      \begin{itemize}
+        \item As tails become lighter, the signal weakens.
+        \item $W_2$ maintains a smooth, convex-like profile around the optimum.
+        \item $W_1$ begins to show irregularities in the landscape, though the global maximum is still recoverable.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Case 3: Weak Non-Gaussianity ($\nu=10$)}
+  \begin{columns}
+    \begin{column}{0.6\textwidth}
+      \includegraphics[width=\textwidth]{student_t_df10_weak.png} % Replace with image_9f17ed.png
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \textbf{Crucial Difference:}
+      \begin{itemize}
+        \item The signal is now very close to Gaussian noise.
+        \item \textbf{$W_1$ (blue dashed):} Becomes jagged and noisy. This "rough" landscape traps gradient-based solvers in spurious local optima.
+        \item \textbf{$W_2$ (orange):} Remains smooth and unimodal.
+        \item \textbf{Conclusion:} $W_2$ is slightly robust for weak signals, enabling recovery where $W_1$ fails.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+
+
+
+\section{Core Idea}
+
+\begin{frame}{Core Idea: Optimization Problem with W2}
+\begin{itemize}
+    \item Traditional ICA formulations optimize kurtosis or negentropy contrast functions.
+    \item Our approach formulates ICA as finding the rotation \(\mathbf{u} \in S_n\) that maximizes the W2 distance \((W_2)\) from the standard Gaussian \(\mathcal{N}(0,1)\):
+    \[
+        \hat{\mathbf{u}} = \arg\max_{\mathbf{u} \in S_n} W_2\big(\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}, \mathcal{N}(0,1)\big)
+    \]
+    \item This perspective leverages the optimal transport metric's ability to capture deviations from Gaussianity in a geometrically meaningful way.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Core Idea: Algorithm}
+\begin{algorithm}[H]
+\caption{ICA with W2 Distance Optimization}
+\begin{algorithmic}[1]
+\State Obtain observed mixture data \(\mathbf{X}\)
+\State Perform whitening/decorrelation on \(\mathbf{X}\)
+\State Initialize empty set of recovered components \(\mathcal{U} = \emptyset\)
+\While{number of components not found}
+    \State Find local optimum (Gradient Descent) \(\mathbf{u}^* \in S_n\) maximizing
+    \[
+        W_2\left(\mathbb{P}_{\mathbf{u}^\top \mathbf{X}}, \mathcal{N}(0,1)\right)
+    \]
+    \State Store candidate: \(\mathcal{U} \leftarrow \mathcal{U} \cup \{\mathbf{u}^*\}\)
+    \State Restrict search space by enforcing orthogonality:
+    \[
+        \mathbf{u} \perp \mathrm{span}(\mathcal{U})
+    \]
+\EndWhile
+\State \textbf{return} \(\mathcal{U}\) as estimated independent components
+\end{algorithmic}
+\end{algorithm}
+\end{frame}
+
+
+
+% ----------------------------------------------------------------------
+% Algorithmic Advancements & Performance Optimization
+% ----------------------------------------------------------------------
+
+\section{Algorithmic Enhancements}
+
+\begin{frame}{Why W2-ICA? A Comparison with FastICA}
+  \begin{itemize}
+    \item \textbf{The FastICA Approach:} Relies on proxy contrast functions (e.g., Kurtosis or Negentropy approximations). These capture specific moments (fat tails, peaks) but ignore the full geometric structure of the distribution.
+    \item \textbf{The W2-ICA Advantage:} The Wasserstein-2 metric quantifies the true global geometric cost of transforming the empirical distribution into a Gaussian.
+    
+    \item \textbf{Robustness to Weak Signals:} For highly complex, multimodal, or weakly non-Gaussian signals where polynomial proxies fail or create jagged optimization landscapes, $W_2$ provides a smooth, globally aware gradient.
+    \item \textbf{Trade-off:} $W_2$ involves sorting operations $\mathcal{O}(N \log N)$, making it computationally heavier. We introduce several mathematical optimizations to close this performance gap.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 1: Exact Analytical Gaussian Target}
+  \begin{itemize}
+    \item \textbf{Previous Bottleneck:} Approximating the target Gaussian involved sampling or using the standard empirical quantile function: $q_i = \Phi^{-1}((i - 0.5)/N)$. This introduces approximation noise into the gradient.
+    \item \textbf{Analytical Solution:} We compute the \textit{exact} expected value of a Standard Normal variable within each discrete quantile bin using integral calculus.
+    \item Let the bin edges be $p_i = \frac{i}{N}$, with corresponding Gaussian boundaries $z_i = \Phi^{-1}(p_i)$.
+    \item The exact target value $T_i$ for the $i$-th sorted sample is:
+      \[
+        T_i = N \int_{z_{i-1}}^{z_i} x \phi(x) \, dx = N \left( \phi(z_{i-1}) - \phi(z_i) \right)
+      \]
+      where $\phi(x)$ is the standard normal PDF.
+    \item \textbf{Result:} Eliminates sampling noise.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 2: Batched Vectorization}
+  \begin{itemize}
+    \item \textbf{The Challenge:} Finding the global optimum requires multiple random initializations (restarts). Evaluating these sequentially via standard iterative loops is highly inefficient.
+    \item \textbf{Vectorized Approach:} We aggregate $B$ random restarts into a single tensor $\mathbf{W}_{\text{batch}} \in \mathbb{R}^{B \times d}$.
+    \item \textbf{Parallel Execution:} 
+      \begin{enumerate}
+          \item \textbf{Projection:} $\mathbf{Y} = \mathbf{W}_{\text{batch}} \mathbf{X}$ is computed for all $B$ restarts simultaneously.
+          \item \textbf{Sorting:} PyTorch sorts all $B$ rows of $\mathbf{Y}$ in parallel.
+          \item \textbf{Broadcasting:} The exact analytical target $\mathbf{T}$ is broadcast-subtracted across the batch to compute distances and gradients in one step.
+      \end{enumerate}
+    \item \textbf{Result:} Fully saturates CPU/GPU hardware, calculating dozens of trajectories in the time it previously took to compute one.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 3: Riemannian Gradient on the Stiefel Manifold}
+  
+  \textbf{Formal Math:}
+  \begin{itemize}
+    \item Unmixing matrices must be orthogonal: $\mathbf{W}\mathbf{W}^\top = \mathbf{I}$. The space of such matrices forms the \textbf{Stiefel Manifold} $\mathcal{S}$.
+    \item The standard Euclidean gradient $\mathbf{G} = \nabla_{\mathbf{W}} W_2^2$ points into flat space, violating orthogonality constraints.
+    \item We project $\mathbf{G}$ directly onto the tangent space of the manifold at $\mathbf{W}$:
+      \[
+        \nabla_{\mathcal{S}} \mathbf{W} = \mathbf{G} - \frac{1}{2}\left(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top \right)\mathbf{W}
+      \]
+    \item \textbf{Intuitive Vector View:} The term $(\mathbf{G}\mathbf{W}^\top + \mathbf{W}\mathbf{G}^\top)$ measures the exact symmetric violation of orthogonality. We subtract this violation from $\mathbf{G}$, ensuring our update step perfectly hugs the curvature of the manifold.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 3: Retraction via Symmetric Decorrelation}
+  \begin{itemize}
+    \item After stepping along the flat tangent plane ($\mathbf{W}_{\text{step}} = \mathbf{W} + \eta \nabla_{\mathcal{S}} \mathbf{W}$), the matrix slightly lifts off the curved manifold. We must "retract" it.
+    \item \textbf{Formal Retraction:}
+      \[
+        \mathbf{W}_{\text{new}} = (\mathbf{W}_{\text{step}}\mathbf{W}_{\text{step}}^\top)^{-1/2} \mathbf{W}_{\text{step}}
+      \]
+    \item \textbf{Why not Gram-Schmidt?} 
+      \begin{itemize}
+          \item Gram-Schmidt is asymmetric; it permanently fixes the first vector and modifies the rest to fit, which inherently biases simultaneous optimization.
+          \item Symmetric decorrelation computes the overlap covariance $(\mathbf{W}\mathbf{W}^\top)$ and applies a uniform, symmetric push $(-1/2 \text{ power})$ to all vectors simultaneously, treating all independent components equally.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization 4: Novel OT Fixed-Point Iteration}
+  
+  \begin{itemize}
+    \item We formulated a gradient-free-like update rule that exploits the Optimal Transport mapping directly, acting as a Wasserstein-specific fixed-point step.
+    \item \textbf{Step 1 (The Ideal Target):} Sort current projections $\mathbf{Y} = \mathbf{W}\mathbf{X}$ to find the permutation matrix $\mathbf{P}$. The ideal Gaussian target mapped back to the original data order is:
+      \[ \mathbf{Y}_{\text{ideal}} = \mathbf{P}^{-1} \mathbf{T} \]
+    \item \textbf{Step 2 (The Pull):} The cross-covariance computes the exact linear transformation required to push our data toward pure Gaussian noise:
+      \[ \mathbf{G}_{\text{OT}} = \frac{1}{N-1} \mathbf{Y}_{\text{ideal}} \mathbf{X}^\top \]
+    \item \textbf{Step 3 (The Anti-Gaussian Step):} ICA maximizes non-Gaussianity. We subtract this transformation to step directly \textit{away} from the Gaussian valley:
+      \[ \mathbf{W}_{\text{new}} = \text{Retract}(\mathbf{W} - \eta \mathbf{G}_{\text{OT}}) \]
+  \end{itemize}
+\end{frame}
+
+
+% ----------------------------------------------------------------------
+% FastICA Failure Modes & W-ICA Robustness
+% ----------------------------------------------------------------------
+
+\section{Failure Modes of Proxy Optimization}
+
+\begin{frame}{The Blind Spot of FastICA}
+  \begin{itemize}
+    \item FastICA is the industry standard due to its fast, scale-invariant Newton-step optimizer.
+    \item It maximizes Negentropy using proxy contrast functions, typically the \texttt{logcosh} function: $G(x) = \frac{1}{a} \log \cosh(ax)$.
+    \item \textbf{The Mathematical Trap:} FastICA relies on \textbf{Assumption A.5} for its Newton step to converge. The denominator of its update rule is proportional to:
+    \[
+      \mathbb{E}[x \cdot g(x) - g'(x)] 
+    \]
+    where $g(x) = \tanh(x)$ and $g'(x) = 1 - \tanh^2(x)$.
+    \item If a non-Gaussian source distribution naturally causes this expectation to equal zero, the algorithmic curvature vanishes. FastICA is mathematically blinded and will fail to converge.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Engineering the A.5 Trap: The Trimodal Gaussian}
+  \begin{itemize}
+    \item To prove this limitation, we engineered a continuous distribution that forces the A.5 expectation to exactly zero.
+    \item The target function $h(x) = x \tanh(x) - 1 + \tanh^2(x)$ is negative near zero ($|x| < 0.82$) and positive elsewhere.
+    \item We constructed a \textbf{Trimodal Gaussian Mixture} parameterized by peak locations $\{-b, 0, b\}$ and variance $\sigma^2$.
+    \item By solving $\int h(x) \text{PDF}(x) dx = 0$ subject to the unit variance constraint ($E[X^2] = 1$), we found the exact probability masses that perfectly balance the negative center against the positive tails.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Experimental Results: Breaking FastICA}
+  \begin{itemize}
+    \item \textbf{Setup:} We mixed the engineered Trimodal Gaussians in 10, 20, and 30 dimensions with 50,000 samples and compared FastICA to W-ICA.
+    \item \textbf{FastICA Results:} As mathematically predicted, FastICA hit its maximum iteration limit without converging, yielding unmixing matrices with catastrophically high Amari Errors ($>1.0$).
+    \item \textbf{W-ICA Results:} W-ICA successfully unmixed the 10D and 20D signals (Amari Error $\sim 0.1$). 
+    \item \textbf{Why W-ICA Succeeds:} W-ICA maps the \textit{entire global geometry} of the empirical CDF to a Gaussian. It uses first-order optimization on the Stiefel manifold, completely bypassing the local zero-curvature traps that destroy Newton-step proxy methods.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Dimensionality Ceiling of W-ICA}
+  \begin{itemize}
+    \item While W-ICA bypassed the mathematical trap, its performance degraded significantly at 30 dimensions with 50,000 samples.
+    \item \textbf{The Cause:} The Central Limit Theorem.
+    \item A linear mixture of 30 independent trimodal sources creates a highly complex, overwhelmingly Gaussian-looking geometry.
+    \item \textbf{Sample Starvation:} To distinguish the microscopic "steps" of this 30D discrete-like mixture from a true continuous Gaussian, the empirical CDF requires a massive sample size. Without it, the Wasserstein gradients become overwhelmed by sample noise.
+    \item W-ICA's limitation is empirical (resolution), whereas FastICA's is structural (mathematical).
+  \end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------
+% Robust Optimal Transport
+% ----------------------------------------------------------------------
+
+\section{Robust Optimal Transport}
+
+\begin{frame}{The Outlier Problem in Exact Wasserstein}
+  \begin{itemize}
+    \item We established that $W_2$ provides superior, smooth gradients for weak signals compared to $W_1$.
+    \item However, because $W_2$ uses an L2 ground cost $c(x,y) = |x - y|^2$, it is highly sensitive to outliers (e.g., sensor artifacts). 
+    \item A single massive outlier forces the optimal transport plan to expend immense gradient effort to "pull" the outlier, destroying the unmixing matrix for the normal data.
+    \item The fact that $W_2$ is a strict mathematical metric guarantees geometric stability, but \textbf{not} statistical robustness.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{W-Huber: Robust Geometry via Ground Cost Modification}
+  \begin{itemize}
+    \item To combine the smooth gradients of $W_2$ with the outlier resistance of $W_1$, we modify the Optimal Transport ground cost.
+    \item We replace the L2 cost with a stable \texttt{logcosh} formulation:
+    \[
+      c(x,y) = \log(\cosh(x-y)) \approx |x-y| + \log(1 + e^{-2|x-y|}) - \log(2)
+    \]
+    \item \textbf{Result:} For small distances (normal data), it behaves like an L2 penalty, preserving the smooth Stiefel gradients. For large distances (outliers), it behaves like an L1 penalty, ignoring extreme noise.
+    \item Unlike FastICA, using \texttt{logcosh} as a ground cost inside W-ICA \textit{does not} trigger the A.5 trap, as W-ICA relies on first-order global matching rather than second-order local curvature.
+  \end{itemize}
+\end{frame}
+
+
+% ----------------------------------------------------------------------
+% Challenges with Discrete Distributions
+% ----------------------------------------------------------------------
+
+\section{Challenges with Discrete Distributions}
+
+\begin{frame}{The Discrete Case: A Pathological Landscape}
+  \begin{itemize}
+    \item Real-world signals can be discrete (e.g., binary states, digital communication). To test this, we evaluated a mixture of independent Bernoulli sources ($\{-1, 1\}$).
+    \item \textbf{FastICA Dominates:} The Bernoulli distribution has an excess kurtosis of $-2$ (the absolute theoretical minimum). FastICA's proxy metrics act as heat-seeking missiles for this extreme, sharp "hypercube" geometry.
+    \item \textbf{W-ICA Fails:} Optimal Transport matches the empirical CDF to a continuous Gaussian. For binary data, any 1D projection creates a step-like, rigid "staircase" CDF, which fundamentally breaks the continuous $W_2$ geometry.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Shattered Optimization Landscape}
+  \begin{itemize}
+    \item \textbf{The Sorting Problem:} $W_2$ relies on sorting projected points. As the optimizer rotates the unmixing matrix, clumps of discrete points slide past each other, causing the sorting order to abruptly jump.
+    \item \textbf{Spurious Maxima:} Every sorting jump instantly changes the gradient direction. This shatters the smooth $W_2$ landscape into a jagged mountain range of combinatorial local optima.
+    \item \textbf{The Hypercube Trap:} W-ICA climbs the nearest peak (often a diagonal projection of the hypercube that vaguely approximates a binomial step-curve) and becomes permanently trapped, yielding catastrophic Amari errors.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Algorithmic Fix 1: Gaussian Dithering}
+  \begin{itemize}
+    \item \textbf{The Goal:} Restore the smooth gradients of the Stiefel manifold without resorting to computationally expensive $O(N^2)$ Entropic Regularization (Sinkhorn distances).
+    \item \textbf{The Method:} We inject a microscopic amount of continuous, zero-mean Gaussian noise ($\sigma \approx 0.01$) to the projections immediately before sorting.
+    \item \textbf{Geometric Effect:} This mathematically convolves the discrete Dirac spikes with a Gaussian kernel, "melting" the rigid staircase into a strictly increasing, smooth continuous curve.
+    \item \textbf{Result:} Eliminates non-differentiable sorting ties and restores stable gradients while maintaining $O(N \log N)$ computational efficiency.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Algorithmic Fix 2: Stochastic Mini-Batching}
+  \begin{itemize}
+    \item \textbf{The Limitation of Full-Batch:} Evaluating the exact $W_2$ distance on all $N$ samples guarantees convergence to the \textit{nearest} local maximum, which is fatal in a landscape riddled with shallow discrete traps.
+    \item \textbf{The Method:} We replace full-batch gradient ascent with Stochastic Mini-Batching (evaluating random subsets of $512$ or $1024$ samples per step).
+    \item \textbf{Simulated Annealing:} The random subsampling introduces stochastic gradient noise. A trap for the full dataset may not be a trap for a random subset, allowing the optimizer to "bounce" out of local hypercube diagonals.
+    \item \textbf{Conclusion:} Combining dithering (smoothing the steps) with stochastic batching (escaping the traps) allows W-ICA to successfully separate discrete mixtures up to strict high-dimensional sample limits.
+  \end{itemize}
+\end{frame}
+
+
+% ----------------------------------------------------------------------
+% The Generalized Hybrid Mixture Experiment
+% ----------------------------------------------------------------------
+
+\section{The Generalized Hybrid Mixture}
+
+\begin{frame}{The Ultimate Stress Test: Generalized Mixtures}
+  \begin{itemize}
+    \item Real-world signals rarely belong to a single statistical family. To test the true robustness of W-ICA, we designed a highly chaotic, generalized mixture.
+    \item \textbf{The Setup:} We evaluated mixtures across $10$ to $75$ dimensions with $10,000$ samples.
+    \item \textbf{Source Composition:} 
+      \begin{itemize}
+          \item Exactly \textbf{one} Standard Gaussian source $\mathcal{N}(0,1)$.
+          \item The remaining sources were randomly drawn from a diverse pool of $8$ distinct distributions: Laplace, Bernoulli, Uniform, Student-t, Poisson, Binomial, Chi-squared, and Exponential.
+      \end{itemize}
+    \item \textbf{W-ICA Configuration:} We maintained the robust settings engineered for the discrete case ($\sigma_{\text{dither}} = 0.01$, batch size $= 1024$) to handle the unpredictable presence of discrete and light-tailed components.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Results: W-ICA Stability vs. FastICA Degradation}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      % [AMARI ERROR GRAPH HERE]
+      \includegraphics[width=\textwidth]{ot_vs_fast_ica_general_mix.png} 
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Key Observations:}
+      \begin{itemize}
+        \item \textbf{W-ICA (Orange):} Successfully maintains a low Amari error ($< 0.25$) up to $35$ dimensions, proving the geometric $W_2$ metric generalizes across highly diverse topological landscapes.
+        \item \textbf{FastICA (Blue):} Performance degrades rapidly, crossing the critical $0.5$ Amari error threshold immediately after $20$ dimensions.
+        \item At higher dimensions, the hyper-complex mixture completely blinds FastICA's proxy contrast functions.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Diagnosing FastICA: The Oscillation Problem}
+  \begin{itemize}
+    \item During the generalized experiment, FastICA consistently triggered non-convergence warnings.
+    \item \textbf{The Hypothesis:} FastICA's Newton-Raphson solver assumes a relatively uniform curvature. When forced to simultaneously evaluate highly kurtotic (Laplace) and negatively kurtotic (Uniform, Bernoulli) signals, the gradient updates contradict each other, causing the solver to oscillate indefinitely.
+    \item \textbf{The Deep-Dive Test:} To prove this was a structural failure and not merely a lack of compute time, we evaluated FastICA under extreme optimization parameters:
+      \begin{enumerate}
+          \item Baseline (\texttt{max\_iter=2000, tol=1e-4})
+          \item High Iterations (\texttt{max\_iter=10000, tol=1e-4})
+          \item Relaxed Tolerance (\texttt{max\_iter=2000, tol=1e-3})
+      \end{enumerate}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Convergence Failure in Complex Landscapes: Results}
+  \begin{center}
+    \includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{fastica_general_convergence.png} 
+  \end{center}
+\end{frame}
+
+\begin{frame}{Convergence Failure in Complex Landscapes: Conclusions}
+  \textbf{Conclusion:}
+  \begin{itemize}
+    \item Even when granted 5x the normal iteration limit ($10,000$ steps), FastICA's convergence rate plummets to $0\%$ past 30 dimensions.
+    \item Relaxing the tolerance only marginally delays this collapse.
+    \item This definitively proves that FastICA is structurally oscillating. 
+    \item In unpredictable, hybrid environments, proxy-based Newton solvers become trapped in contradictory gradient loops, whereas W-ICA's first-order global CDF matching remains stable.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Why Does FastICA Fail in General setting?}
+    \begin{itemize}
+        \item \textbf{Top Performers:} \textit{Continuous Only} and \textit{Strictly Super-Gaussian} are the definitive best, consistently achieving 100\% convergence and maintaining the lowest Amari Errors across both dimensions.
+        \item \textbf{Complete Failure:} The \textit{Discrete Only} pool type failed entirely, with 0\% convergence and exceptionally high errors at both dimensions.
+        \item \textbf{Struggling Performers:} \textit{Full Hybrid} and \textit{Zero Gaussian} showed inconsistent convergence rates (varying between 40\% and 60\%) and significantly higher errors than the top performers.
+        \item \textbf{Dimensionality Impact:} Increasing the dimension from 30 to 40 degraded performance across the board, resulting in higher Amari Errors for all methods and dropping the convergence rate for the Full Hybrid model.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance Visualizations}
+    \begin{figure}
+        \centering
+        % Replace 'image.png' with the actual filename of your graph
+        \includegraphics[width=\textwidth,height=0.9\textheight,keepaspectratio]{fast_ica_failures.png}
+        \caption{Amari Error (left) and Convergence Success Rate (right)}
+    \end{figure}
+\end{frame}
+
+% ----------------------------------------------------------------------
+% Deep Dive: Isolating Discrete Failure Modes
+% ----------------------------------------------------------------------
+
+\section{Deep Dive: Isolating Discrete Failure Modes}
+
+\begin{frame}{Deconstructing the Discrete Failure}
+  \begin{itemize}
+    \item We established that pure discrete pools cause catastrophic failure. To understand \textit{why}, we isolated the three discrete distributions (Bernoulli, Poisson, Binomial) in independent tests.
+    \item \textbf{Setup:} We generated mixtures containing 1 Gaussian source and $(N-1)$ sources of a \textit{single} discrete type at Dimensions 30 and 40 (10,000 samples).
+    \item \textbf{The Goal:} Determine if the failure is driven by binary state-flips (Bernoulli) or by count-based discreteness (Poisson/Binomial).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{FastICA: The Bernoulli Catastrophe}
+  \begin{itemize}
+    \item \textbf{Bernoulli (Binary Flips):} FastICA fails catastrophically. It achieved $0\%$ convergence at both Dim 30 and Dim 40, with massive Amari Errors ($\sim 1.0$ and $\sim 1.3$).
+    \item \textbf{Poisson \& Binomial (Count Data):} FastICA performed significantly better, achieving $100\%$ convergence at Dim 30 and $80\%$ at Dim 40, with relatively low errors ($\sim 0.2$).
+    \item \textbf{The Diagnosis:} FastICA's proxy contrast functions break down specifically when faced with the extreme hypercube geometry and minimal kurtosis ($-2$) of purely binary Bernoulli signals.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance Visualization: FastICA Discrete Isolation}
+    \begin{figure}
+        \centering
+        % Replace with the actual filename of your FastICA discrete graph
+        \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{fast_ica_discrete.png}
+        \caption{FastICA: Amari Error and Convergence across isolated discrete types.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{OT-ICA: The Fundamental Sorting Trap}
+  \begin{itemize}
+    \item We ran the exact same isolation study using OT-ICA (W-ICA).
+    \item \textbf{The Result:} OT-ICA failed universally across \textit{all} discrete types (Bernoulli, Poisson, Binomial). 
+    \item While it often reports algorithmic "convergence" (finding a local maximum), it consistently converges to spurious, incorrect unmixing matrices, yielding catastrophic Amari Errors ($>1.2$) across the board.
+    \item \textbf{The Diagnosis:} This confirms our hypothesis regarding the shattered $W_2$ optimization landscape. Any form of discreteness creates step-like empirical CDFs. The continuous Wasserstein metric cannot establish meaningful gradients across these rigid "staircases," trapping the optimizer regardless of the specific discrete shape.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance Visualization: OT-ICA Discrete Isolation}
+    \begin{figure}
+        \centering
+        % Replace with the actual filename of your OT-ICA discrete graph
+        \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{ot_ica_discrete.png}
+        \caption{OT-ICA: High Amari Errors demonstrate failure across all isolated discrete types.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{The OT-ICA Advantage: Hybrid Robustness}
+  \begin{itemize}
+    \item If OT-ICA fails on purely discrete pools, why use it over FastICA?
+    \item \textbf{The Answer: Real-World Hybridization.} Real signals are rarely purely discrete; they are noisy, continuous, or complex mixtures.
+    \item As demonstrated in our Sub-Pool ablation studies:
+      \begin{itemize}
+        \item \textbf{FastICA breaks} when faced with a "Full Hybrid" pool (dropping to $40\%$ convergence with high error).
+        \item \textbf{OT-ICA thrives} in a "Full Hybrid" pool, maintaining perfect stability and low Amari Errors.
+      \end{itemize}
+    \item \textbf{Conclusion:} While pure discreteness breaks the optimal transport sorting mechanism, the presence of continuous distributions in a hybrid mix provides enough smooth geometric structure to guide the $W_2$ metric past the discrete traps—an environment where FastICA's static proxies become overwhelmed.
+  \end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------
+% Limitations: The Intractability of Newton's Method
+% ----------------------------------------------------------------------
+
+\section{Optimization Limits: Why not Fast-Wasserstein-ICA?}
+
+\begin{frame}{Intractability of an Exact Newton Step}
+  \begin{itemize}
+    \item FastICA achieves rapid convergence using a Newton (second-order) fixed-point step because its contrast function $g(\cdot)$ is static.
+    \item To build a "Fast-Wasserstein-ICA", we would need the Hessian of the Wasserstein distance: $\mathbf{H} = \nabla^2_{\mathbf{w}} W_2^2$.
+    \item The first derivative (Gradient) uses the Optimal Transport map $T_{\mathbf{w}}$:
+      \[ \nabla_{\mathbf{w}} \left( \frac{1}{2} W_2^2 \right) = \mathbb{E}\left[ \mathbf{X} \left( \mathbf{w}^\top \mathbf{X} - T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \right) \right] \]
+    \item The Hessian requires differentiating $T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})$ with respect to $\mathbf{w}$. Applying the total derivative yields two terms:
+      \[ \nabla_{\mathbf{w}} [T_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X})] = \underbrace{T'_{\mathbf{w}}(\mathbf{w}^\top \mathbf{X}) \mathbf{X}}_{\text{Argument Derivative}} + \underbrace{(\nabla_{\mathbf{w}} T_{\mathbf{w}})(\mathbf{w}^\top \mathbf{X})}_{\text{Map Derivative}} \]
+    \item Caffarelli's regularity guarantees the first term exists. The second term, however, is structurally problematic.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Density Estimation Bottleneck}
+  Let us expand the problematic Map Derivative. The 1D transport map to a standard Gaussian relies on the empirical CDF $F_{\mathbf{w}}$ of the projection:
+  \[ (\nabla_{\mathbf{w}} T_{\mathbf{w}})(y) = \nabla_{\mathbf{w}} \left[ \Phi^{-1}(F_{\mathbf{w}}(y)) \right] = \frac{1}{\phi(\Phi^{-1}(F_{\mathbf{w}}(y)))} \nabla_{\mathbf{w}} F_{\mathbf{w}}(y) \]
+  
+  \textbf{The Mathematical Trap:}
+  \begin{itemize}
+    \item The term $\nabla_{\mathbf{w}} F_{\mathbf{w}}(y)$ asks: \textit{"How does the cumulative mass change as we rotate the projection plane?"}
+    \item Mathematically, the derivative of a CDF boundary relies strictly on the Probability Density Function (PDF) evaluated exactly at that boundary.
+    \item \textbf{The W-ICA Advantage Defeated:} The primary computational advantage of 1D Optimal Transport is that it uses sorting (empirical CDFs) to \textbf{completely avoid} continuous density estimation (PDFs).
+    \item Requiring the PDF for the Hessian forces us to use Kernel Density Estimation (KDE), which introduces massive statistical noise and bandwidth-tuning fragility.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusion: The Role of Quasi-Newton Methods}
+  \begin{itemize}
+    \item Because the exact Hessian requires unstable density estimation, a true Newton-based fixed-point algorithm for exact W-ICA is mathematically intractable.
+    \item \textbf{Our Solution:} This justifies our reliance on \textbf{Quasi-Newton methods} (like L-BFGS on the Stiefel manifold).
+    \item L-BFGS intelligently approximates the inverse Hessian curvature strictly by observing the history of the stable, first-order Wasserstein gradients.
+    \item This allows us to achieve super-linear convergence rates while strictly preserving the CDF-only, sorting-based elegance of the Optimal Transport formulation.
+  \end{itemize}
+\end{frame}
+
+
+\section{Bibliography}
+
+\begin{frame}[allowframebreaks]{References}
+\bibliographystyle{alpha}
+\bibliography{references.bib} % Your .bib file name here
+\end{frame}
+
+
+\end{document}
