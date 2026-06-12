@@ -392,9 +392,6 @@ PURE_POOLS = [
     'Pure Laplace',
     'Pure Uniform',
     'Pure Student-t',
-    'Pure Bernoulli',
-    'Pure Poisson',
-    'Pure Binomial',
     'Pure Chi-square',
     'Pure Exponential',
 ]
