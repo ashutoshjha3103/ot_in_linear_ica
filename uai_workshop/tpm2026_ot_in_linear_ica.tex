@@ -283,12 +283,16 @@ The $p$-Wasserstein distance is the minimum transport cost over all couplings:
 \begin{equation}
     W_p(\mu,\nu) = \left(\inf_{\pi\in\Pi(\mu,\nu)} \int \|x-y\|^p\,d\pi(x,y)\right)^{1/p}.
 \end{equation}
+The structure of the optimal coupling $\pi$ varies qualitatively depending on whether the marginals are discrete, continuous, or mixed (Figure~\ref{fig:ot_coupling}).
 In 1D, Brenier's theorem guarantees the optimal coupling is induced by the monotone quantile map $T = F_\nu^{-1}\circ F_\mu$, so $W_2^2(\mu,\nu) = \int_0^1 |F_\mu^{-1}(t) - F_\nu^{-1}(t)|^2\,dt$.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.85\textwidth]{ot_coupling_cases.pdf}
-    \caption{Three coupling strategies between an empirical source distribution and the standard Gaussian $\Gamma$: arbitrary coupling (left), independent coupling (center), and the optimal monotone coupling that achieves $W_2^2$ (right).}
+    \caption{A schematic view of the input measures and optimal couplings across
+the three primary scenarios of Kantorovich Optimal Transport: Discrete, Semi-discrete,
+and Continuous. The top row depicts the marginal distributions, while the bottom row
+visualizes the structural nature of the corresponding coupling spaces. Figure adapted from \cite{peyre2019computational}}
     \label{fig:ot_coupling}
 \end{figure}
 
