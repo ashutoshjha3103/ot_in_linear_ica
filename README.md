@@ -5,9 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Master's thesis project — TPM UAI 2026 workshop paper**  
-**Author:** Ashutosh Jha  
+**Author:** Anonymous Author  
 **Program:** M.Sc. Quantitative Data Science Methods  
-**Affiliations:** Eberhard Karls University of Tübingen & Empirical Inference Dept., Max Planck Institute for Intelligent Systems
+**Affiliations:** Anonymous Institute 2 & Anonymous Group, Anonymous Institute 1
 
 ---
 
@@ -17,7 +17,7 @@
 
 Classical algorithms (FastICA, JADE, InfoMax) replace the true non-Gaussianity measure with surrogates (logcosh, fourth-order cumulants, parametric log-likelihoods) that fail on heterogeneous source distributions. OT-ICA bypasses this by using an exact, assumption-free contrast function. Optimization runs on the Orthogonal Group via Riemannian gradient ascent with symmetric-decorrelation retraction.
 
-The core library is in `src/wasserstein_ica/`. Experimental notebooks are in `exp/`. The master thesis and UAI workshop paper are in `report/` and `uai_workshop/` respectively.
+The core library is in `src/wasserstein_ica/`. Experimental notebooks are in `exp/`. The master thesis and UAI workshop paper are in `hidden-folder-2/` and `uai_workshop/` respectively.
 
 ---
 
@@ -32,7 +32,7 @@ The core library is in `src/wasserstein_ica/`. Experimental notebooks are in `ex
 ## Installation
 
 ```bash
-git clone https://github.com/ashutoshjha3103/OT_IN_LINEAR_ICA.git
+git clone https://github.com/anonymous-author/OT_IN_LINEAR_ICA.git
 cd OT_IN_LINEAR_ICA
 
 python3 -m venv .venv
@@ -94,8 +94,8 @@ OT_IN_LINEAR_ICA/
 │   ├── figs/                                       # Output PDFs
 │   └── other/                                      # Exploratory / development notebooks
 ├── uai_workshop/              # TPM UAI 2026 workshop paper (LaTeX + compiled PDF)
-├── report/                    # Master thesis (PDF + LaTeX)
-├── slides/                    # Presentation slides
+├── hidden-folder-2/           # Master thesis (PDF + LaTeX)
+├── hidden-folder-1/           # Presentation slides
 ├── pyproject.toml
 └── README.md
 ```
@@ -137,14 +137,14 @@ Thesis figures additionally use notebooks 3–8 and the exploratory notebooks un
 
 ## Key references
 
-- Jha et al. (2026). *Linear ICA via Optimal Transport Metric as Contrast*. TPM @ UAI 2026. [`uai_workshop/tpm2026-ot_in_linear_ica.pdf`](uai_workshop/tpm2026-template.pdf)
-- Jha, A. (2025). *Optimal Transport for Linear ICA* (Master's Thesis, University of Tübingen). [`report/Optimal_Transport_ICA_Master_Thesis_Ashutosh_Jha_v4.pdf`](report/Optimal_Transport_ICA_Master_Thesis_Ashutosh_Jha_v4.pdf)
+- Anonymous Author et al. (2026). *Linear ICA via Optimal Transport Metric as Contrast*. TPM @ UAI 2026. [`uai_workshop/tpm2026-ot_in_linear_ica.pdf`](uai_workshop/tpm2026-template.pdf)
+- Anonymous Author (2025). *Optimal Transport for Linear ICA* (Master's Thesis, Anonymous Institute 2).
 
 ---
 
 ## Contact
 
-Ashutosh Jha — [ashutosh.jha@student.uni-tuebingen.de](mailto:ashutosh.jha@student.uni-tuebingen.de)
+Anonymous Author — [anonymous@example.com](mailto:anonymous@example.com)
 
 ---
 

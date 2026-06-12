@@ -21,7 +21,7 @@
 \renewcommand{\dbltopfraction}{0.92}
 \renewcommand{\textfraction}{0.05}
 
-\title{Linear Independent Component Analysis via Optimal Transport Metric as Contrast\thanks{Code: \url{https://anonymous.4open.science/r/ot_in_linear_ica-3DBC}}}
+\title{Linear Independent Component Analysis via Optimal Transport Metric as Contrast}
 
 % The standard author block has changed for TPM 2026 to provide
 % more space for long author lists and allow for complex affiliations
@@ -49,10 +49,12 @@
 \begin{abstract}
 Linear Independent Component Analysis (ICA) recovers mutually independent source signals from their linear mixtures.
 Information theory links independence to maximal non-Gaussianity; classical algorithms replace this objective with proxy contrast functions, including negentropy approximations, fourth-order cumulants, and parametric log-likelihoods.
-We propose OT-ICA, which measures non-Gaussianity using a true metric, the squared Wasserstein distance $W_2^2$ to a standard Gaussian, computable by quantile sorting without density estimation.
-We prove that $W_2^2$ of any proper mixture of non-Gaussian sources lies strictly below the weighted sum of the individual component $W_2^2$ values, establishing a unique global maximum at pure source directions and ensuring the ICA optimization is well-posed.
+We propose OT-ICA, which measures non-Gaussianity using the squared Wasserstein distance $W_2^2$ to a standard Gaussian. 
+We prove that the Wasserstein distance of linear projections of the data to a standard normal distribution is maximized when an independent component is recovered.
+$W_2^2$ of any proper mixture of non-Gaussian sources lies strictly below the weighted sum of the individual component $W_2^2$ values, establishing a unique global maximum at pure source directions and ensuring the ICA optimization is well-posed.
 OT-ICA outperforms proxy-based methods on continuous and heterogeneous source distributions; on purely discrete sources, step-function CDFs produce gradient plateaus that hinder convergence, an open optimization problem.
 Real-data applications to EEG artifact removal and econometric price discovery confirm transfer without distributional assumptions.
+
 \end{abstract}
 
 \section{Introduction}
@@ -142,7 +144,7 @@ Figure~\ref{fig:ot_ica_validation} shows $W_2^2$ driving the Amari error to near
 confirming convergence on continuous distributions; OT-ICA achieves $E = 0.016$ against FastICA's $0.019$ on this 4D mixture
 (Table~\ref{tab:baseline_matrices}, Appendix~\ref{app:experimental_setup}).
 
-\begin{figure*}[!b]
+\begin{figure*}[!t]
     \centering
     \includegraphics[width=0.88\textwidth]{general_hybrid_test.pdf}
     \caption{Mean Amari error ($\downarrow$ better, clipped at $1.5$) across five mixture regimes and $d \in \{10, 20, 30\}$ ($N=10{,}000$, 10 trials, 95\% CI). OT-ICA achieves the lowest error on all continuous and heterogeneous regimes at every dimension. On \textit{Discrete Only}, step-function CDFs produce gradient plateaus that stall the solver despite a present $W_2^2$ signal (Appendix~\ref{app:discrete_contrast}); at $d=30$ all methods saturate the clip ceiling. Dotted line marks $E=0.3$, the good-separation threshold.}
@@ -152,6 +154,7 @@ confirming convergence on continuous distributions; OT-ICA achieves $E = 0.016$ 
 \section{Empirical Performance on Heterogeneous Mixtures}
 \label{sec:empirical}
 
+We now study the empirical perfomance of the proposed algorithm\footnote{Code to reproduce the experiments is available under \url{https://anonymous.4open.science/r/ot_in_linear_ica-3DBC}}
 We compare OT-ICA against FastICA \citep{hyvarinen2001}, JADE \citep{cardoso1993blind}, InfoMax \citep{bell1995information}, and 
 Picard \citep{ablin2018faster} on five mixture regimes at $d \in \{10, 20, 30\}$, $N = 10{,}000$, 10 trials per condition (Figure~\ref{fig:hybrid_mixture_results}).
 
