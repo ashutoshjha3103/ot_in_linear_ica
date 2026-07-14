@@ -226,3 +226,6 @@ wica_env/
 
 
 mne_data/
+
+# short talk deck (presentation artifact, not part of paper/thesis source)
+short_ppt/
