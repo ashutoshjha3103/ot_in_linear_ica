@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Linear ICA via Optimal Transport</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="reveal.js/dist/reveal.css" />
+  <link rel="stylesheet" href="reveal.js/dist/theme/white.css" />
+  <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ============================================================ -->
+    <!-- 1. TITLE -->
+    <!-- ============================================================ -->
+    <section class="center-title">
+      <h1 style="margin-bottom:0.1em;">Linear ICA via Optimal Transport</h1>
+      <p class="subtitle">Ashutosh Jha &nbsp;&middot;&nbsp; Joachim Grammig &nbsp;&middot;&nbsp; Michel Besserve &nbsp;&middot;&nbsp; Simon Buchholz</p>
+      <hr style="border-color:#eee; margin: 0.5em 0 1em 0;">
+      <ul style="display:inline-block; text-align:left; max-width:46em;">
+        <li>Linear Independent Component Analysis (ICA) recovers mutually independent sources from their observed linear mixture.</li>
+        <li>Optimal Transport (OT) theory gives a metric, the Wasserstein distance, for the cost of the optimal path from one probability distribution to another.</li>
+        <li><strong>Our Question:</strong> Can an OT-based metric serve as the contrast function for ICA?</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 2. THEOREM 1: ICA IDENTIFIABILITY -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>The problem: linear ICA</h2>
+      <p><strong>Theorem (Linear ICA Identifiability).</strong> <span class="small">[Jutten &amp; Herault 1985; Comon 1994]</span></p>
+      <div class="proof-box" style="font-size:0.58em;">
+        Let $\mathbf{X}\in\mathbb{R}^d$ be observed data and $\mathbf{S}\in\mathbb{R}^d$ latent sources. Assume
+        (i) $\mathbf{X}=\mathbf{A}\mathbf{S}$ with $\mathbf{A}$ invertible,
+        (ii) $s_1,\dots,s_d$ mutually independent, and
+        (iii) at most one $s_i$ Gaussian.
+        Then $\mathbf{A}$ is identifiable up to column permutation and scaling.
+      </div>
+      <ul>
+        <li>Identifiability is only up to <strong>permutation</strong> (source order) and <strong>scale/sign</strong>, inherent ambiguities of the model.</li>
+        <li><strong>Why "at most one Gaussian"?</strong> Any linear combination of Gaussians is Gaussian, and the multivariate Gaussian is rotation-invariant: once decorrelated, there is no preferred direction left to find.</li>
+        <li>So: with $\ge\!2$ non-Gaussian sources, there <em>is</em> a unique direction to search for.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 3. CENTERING / WHITENING / ORTHOGONAL CONSTRAINT -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Centering, whitening, and the search space</h2>
+      <div class="two-col">
+        <div>
+          <ul>
+            <li><strong>Center:</strong> $X \leftarrow X - \mathbb{E}[X]$.</li>
+            <li><strong>Whiten:</strong> linear map so $\operatorname{Cov}(\widetilde{X}) = I$.</li>
+            <li>Whitening removes correlation but not higher-order structure; the cloud becomes isotropic in covariance, not necessarily Gaussian-shaped.</li>
+            <li>What's left to search: a rotation $\mathbf{b}$ on the <strong>orthogonal group</strong> $\mathcal{O}$ <span class="small">[Absil et al. 2008]</span>.</li>
+            <li>$\hat{\mathbf{b}} = \arg\max_{\mathbf{b}\in\mathcal{O}} \ \mathrm{Contrast}\big(\mathbf{b}^\top \widetilde{X}\big)$</li>
+            <li class="small">Contrast is some measure of independence. What should it be?</li>
+          </ul>
+        </div>
+        <div>
+          <video autoplay loop muted playsinline style="width:100%;">
+            <source src="assets/media/whitening.mp4" type="video/mp4" />
+          </video>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 4. THE CARDOSO IDEA -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>The Cardoso idea: independence as non-Gaussianity <span class="small">[Cardoso 2022]</span></h2>
+      <div class="two-col">
+        <div class="col-wide">
+          <img src="assets/figures/cardoso.png" style="width:100%;" />
+        </div>
+        <div>
+          <ul>
+            <li>Project the joint distribution $P_Y$ onto the <strong>Product manifold</strong> $\mathcal{P}$ (closest independent distribution) and the <strong>Gaussian manifold</strong> $\mathcal{G}$ (closest Gaussian).</li>
+            <li>Two KL Pythagorean identities, shared hypotenuse, give Cardoso's unified theorem (shown left).</li>
+            <li>After whitening, $\operatorname{Cov}(Y)=I \Rightarrow C(Y)=0$, simplifying the identity (shown left).</li>
+            <li>$G(Y)$ is rotation-invariant $\Rightarrow$ minimizing mutual information $\equiv$ maximizing $\sum_i G(Y_i)$, the marginal non-Gaussianities.</li>
+            <li>Great! Now we need a contrast for non-Gaussianity in place of independence, where do we find it?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 5. OT BASICS -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Optimal Transport: the basics</h2>
+      <ul>
+        <li><strong>Monge's problem</strong> <span class="small">[Monge 1781]</span>: move a pile of mass onto a target shape at minimal cost, originally via a deterministic map.</li>
+        <li>A <strong>push-forward map</strong> $T$ satisfying $T_\#\mu = \nu$ realizes that idea: it moves all the mass of $\mu$ onto $\nu$. But for many pairs ($\mu,\nu$ discrete with mismatched point masses, for instance) no such single deterministic map exists.</li>
+        <li><strong>Kantorovich relaxation</strong> <span class="small">[Kantorovich 1942]</span> fixes this: let mass <em>split</em> across a <strong>transport plan</strong> (coupling) $\pi\in\Pi(\mu,\nu)$, a joint distribution with marginals $\mu$ and $\nu$. A plan always exists (a push-forward is the special case where $\pi$ concentrates on the graph of $T$).</li>
+        <li><strong>How this captures Monge's cost:</strong> $W_p$ is defined as the cost of the <em>cheapest</em> transport plan, the minimum, over every valid coupling, of the expected cost $\|x-y\|^p$ of moving each unit of mass:
+          $$W_p(\mu,\nu) = \left(\inf_{\pi\in\Pi(\mu,\nu)} \int \|x-y\|^p \, d\pi(x,y)\right)^{1/p}$$
+        </li>
+        <li>$W_p$ is a true <strong>metric</strong> on the space of probability distributions <span class="small">[Villani 2003]</span>: it satisfies the triangle inequality, unlike many density-based divergences.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 6. W2 CONTRAST DEFINITION + OPTIMIZATION OBJECTIVE -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Wasserstein ($W_2^2$) as contrast</h2>
+      <ul>
+        <li>Why $p=2$, not $p=1$? Empirically, the squared penalty in $W_2^2$ acts as a structural smoother on the optimization landscape: its gradient decelerates continuously as the candidate direction rotates. $W_1$'s linear penalty instead produces a jagged, volatile derivative on finite samples that stalls first-order solvers.</li>
+        <li>In 1D, <strong>Brenier's theorem</strong> <span class="small">[Brenier 1991]</span> + Caffarelli regularity guarantee the optimal transport map is monotone, reducing $W_2^2$ to a quantile-matching integral:
+          $$W_2^2(\mu,\nu) = \int_0^1 \big|F_\mu^{-1}(t) - F_\nu^{-1}(t)\big|^2\,dt$$
+        </li>
+        <li><strong>Why monotone helps:</strong> a monotone map preserves order, so it must send the $k$-th smallest sample of $\mu$ to the $k$-th smallest value of $\nu$, rank for rank. Concretely $T = F_\nu^{-1}\circ F_\mu$: applying $F_\mu$ to a sample is just its rank divided by $N$ (the empirical CDF, found by sorting), then $F_\nu^{-1}$ looks up the matching target quantile.</li>
+        <li>Neither step ever evaluates a density $f_\mu(x)$ or its gradient, so there is no kernel density estimate or bandwidth to tune, just sorting <span class="small">[del Barrio et al. 1999; Peyr&eacute; &amp; Cuturi 2019]</span>.</li>
+        <li><strong>Our contrast:</strong> $W_2^2$ distance to a standard Gaussian $\Gamma = \mathcal{N}(0,1)$. The generic objective from Slide 3 becomes concrete:
+          $$\hat{\mathbf{b}} = \arg\max_{\mathbf{b}\in\mathcal{O},\ \sum_i b_i^2=1} \ W_2^2\big(\mathbb{P}_{\mathbf{b}^\top \widetilde{X}},\, \Gamma\big)$$
+        </li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 7. THEOREM 3: W2 UPPER BOUND -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Why maximizing $W_2^2$ recovers sources</h2>
+      <p><strong>Theorem ($W_2$ upper bound).</strong> For mutually independent sources $Z_1,\dots,Z_d$ and weights $\mathbf{b}=(b_1,\dots,b_d)$ with $\sum_{i=1}^d b_i^2=1$ (the unit sphere):</p>
+      <p style="text-align:center; margin-bottom:0.3em;">$$W_2^2(\mathbf{b}\cdot\mathbf{Z}, \Gamma) \le \sum_{i=1}^d b_i^2\, W_2^2(Z_i, \Gamma)$$</p>
+      <p><strong>Theorem (strict inequality).</strong> If at most one source is Gaussian and $\ge\!2$ weights $b_i$ are nonzero, the bound above is strict:</p>
+      <p style="text-align:center; margin-bottom:0.3em;">$$W_2^2(\mathbf{b}\cdot\mathbf{Z}, \Gamma) < \sum_{i=1}^d b_i^2\, W_2^2(Z_i, \Gamma)$$</p>
+      <ul>
+        <li>Proof idea: couple the mixture and a Gaussian target through a <em>shared</em> noise vector $\mathbf{N}$; cross terms vanish by independence. The strict version builds on this bound, asking when equality could hold (full proofs: appendix).</li>
+        <li>Together: the global maximum of $W_2^2$ over $\mathcal{O}$ is attained only at a pure source direction.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8. CLT + MIXING ANIMATION WITH EQUATIONS -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Seeing it happen: mixing two sources</h2>
+      <div class="two-col" style="align-items:flex-start;">
+        <div>
+          <p class="small" style="margin-bottom:0.15em;">Laplace density (unit variance): $f_L(x) = \tfrac{1}{\sqrt2}e^{-\sqrt2|x|}$</p>
+          <p class="small" style="margin-bottom:0.15em;">Uniform density (unit variance): $f_U(x) = \tfrac{1}{2\sqrt3}, \ x\in[-\sqrt3,\sqrt3]$</p>
+          <p class="small" style="margin-bottom:0.15em;">General mixture: $\mathbf{b}\cdot\mathbf{Z} = \sum_i b_i Z_i$</p>
+          <p class="small" style="margin-bottom:0.15em;">Here, two sources on the unit circle: $y(\boldsymbol{\theta}) = s_1\cos\boldsymbol{\theta} + s_2\sin\boldsymbol{\theta},\ \ s_1\!\sim\! f_L,\ s_2\!\sim\! f_U$</p>
+        </div>
+        <div>
+          <ul>
+            <li><strong>CLT:</strong> the mixture $y(\boldsymbol{\theta})$ looks <em>more Gaussian</em> than either pure source.</li>
+            <li><strong>$W_2^2$ provides the contrast:</strong> it dips toward the mixture and peaks at the pure sources.</li>
+          </ul>
+        </div>
+      </div>
+      <video autoplay loop muted playsinline style="width:78%; display:block; margin: 0.3em auto 0;">
+        <source src="assets/media/mixing_clt.mp4" type="video/mp4" />
+      </video>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 9. ICA ALGORITHMS AND THEIR CONTRASTS -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Classical ICA: same goal, different contrasts</h2>
+      <table class="amari" style="font-size:0.58em;">
+        <thead><tr><th>Method</th><th>Contrast function</th></tr></thead>
+        <tbody>
+          <tr><td class="tag-fastica">FastICA</td><td style="text-align:left; padding-left:1em;">logcosh negentropy approximation $G(x)=\tfrac1a\log\cosh(ax)$ <span class="small">[Hyv&auml;rinen et al. 2001; Amari et al. 1996]</span></td></tr>
+          <tr><td class="tag-jade">JADE</td><td style="text-align:left; padding-left:1em;">joint diagonalization of 4th-order cumulant matrices <span class="small">[Cardoso &amp; Souloumiac 1993]</span></td></tr>
+          <tr><td class="tag-infomax">InfoMax</td><td style="text-align:left; padding-left:1em;">parametric log-likelihood, logistic score function <span class="small">[Bell &amp; Sejnowski 1995]</span></td></tr>
+          <tr><td class="tag-picard">Picard</td><td style="text-align:left; padding-left:1em;">same log-likelihood, adaptive nonlinearity + provably converging solver <span class="small">[Ablin et al. 2018]</span></td></tr>
+          <tr><td class="tag-otica">OT-ICA (ours)</td><td style="text-align:left; padding-left:1em;"><strong>$W_2^2$ distance to a standard Gaussian</strong>, a true metric, not a proxy contrast for entropy/negentropy/higher moments.</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:0.6em;">Every proxy above replaces the true non-Gaussianity $G(Y_i)$ with something estimable from low-order statistics or a fixed density assumption; each fails on specific source geometries (next: what that looks like).</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 10. WHAT EACH CONTRAST SEES (2D LAPLACE x UNIFORM TOY) -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>What each contrast function actually does</h2>
+      <p class="small" style="margin-bottom:0.2em;">A toy 2D mixture (Laplace and Uniform), already in source-aligned coordinates: true axes at 0&deg; and 90&deg;.</p>
+      <video autoplay loop muted playsinline style="width:92%; display:block; margin: 0 auto;">
+        <source src="assets/media/contrast_race.mp4" type="video/mp4" />
+      </video>
+      <ul style="margin-top:0.3em;">
+        <li>All four rotate $\mathbf{b}$ and scan for a non-Gaussianity peak, and here all four land on the two independent (source-aligned) candidates, just with different sharpness.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 11. COMPARISON PLOT -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Performance at high dimensions, heterogeneous mixtures</h2>
+      <div class="two-col">
+        <div class="col-wide">
+          <img src="assets/figures/general_hybrid_test.png" style="width:100%;" />
+        </div>
+        <div>
+          <ul>
+            <li>$d\in\{10,20,30\}$, $N=10{,}000$, 10 trials, 5 mixture regimes.</li>
+            <li>Dashed line: Amari error $E<0.3$, the good-separation threshold (definition and full heuristic scale: appendix).</li>
+            <li>As dimension grows and sources get more heterogeneous, OT-ICA's advantage grows with it: lowest Amari error on every continuous/heterogeneous regime.</li>
+            <li>40&ndash;45% lower error than FastICA on continuous sources.</li>
+            <li>2&ndash;5&times; lower error on Full Hybrid mixtures.</li>
+            <li class="small">Discrete Only: JADE leads at $d=10$; OT-ICA leads at $d=20$ and is the only method below the clip ceiling at $d=30$ (full table: appendix).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 12. OPTIMIZATION WITH W2^2: DEFLATION AND JOINT SYMMETRY -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Optimization with $W_2^2$</h2>
+      <ul>
+        <li>Maximizing $W_2^2$ over $\mathbf{b}\in\mathcal{O}$ finds only the single <em>most</em> non-Gaussian direction; recovering all $d$ sources needs an iterative mechanism.</li>
+        <li><strong>Iterative deflation:</strong> after finding $\mathbf{b}_1$, restrict the next search to directions orthogonal to it ($\mathbf{b}_2^\top\mathbf{b}_1=0$); for the $k$-th component, restrict to orthogonal to all $\mathbf{b}_j,\, j \lt k$.</li>
+        <li><strong>Why this is valid, not just convenient:</strong> because $\mathbf{B}$ is constrained to the orthogonal group, the true recovery directions are already mutually orthogonal. Restricting subsequent search to the orthogonal complement of what's already found cannot exclude the true remaining sources.</li>
+        <li><strong>The catch:</strong> naive sequential deflation lets any error in $\mathbf{b}_1$ propagate into the orthogonal complement used to search for $\mathbf{b}_2$, and so on, errors accumulate down the chain.</li>
+        <li><strong>Fix, joint symmetric optimization:</strong> treat the full matrix $\mathbf{B}\in\mathbb{R}^{d\times d}$ as one point on $\mathcal{O}$ and update all $d$ rows together. Every step retracts the <em>whole</em> matrix at once via symmetric decorrelation, $\mathbf{B}_{\text{new}} = (\mathbf{B}\mathbf{B}^\top)^{-1/2}\mathbf{B}$, which spreads any orthogonality violation evenly across all components rather than fixing earlier ones and adjusting the rest around them (as e.g. Gram-Schmidt would).</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 13. OPTIMIZATION ALGORITHMS -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Making $W_2^2$ optimization practical</h2>
+      <p class="small" style="margin-bottom:0.3em;">In the order they're applied, once per optimization step (analytical targets are precomputed once):</p>
+      <table class="amari" style="font-size:0.5em;">
+        <thead><tr><th>Technique</th><th>What it solves</th></tr></thead>
+        <tbody>
+          <tr><td>Analytical Gaussian targets</td><td style="text-align:left; padding-left:1em;">precomputed once: replaces sampled quantile targets with their exact bin expectation, removing target-approximation noise</td></tr>
+          <tr><td>Batched restarts + stochastic mini-batching</td><td style="text-align:left; padding-left:1em;">parallelizes random restarts and subsamples each step, helping escape spurious local optima in non-convex/discrete landscapes</td></tr>
+          <tr><td>Gaussian dithering</td><td style="text-align:left; padding-left:1em;">injects small noise ($\sigma^2{=}0.01$) into the batch before sorting, smoothing discrete step-function CDFs into differentiable curves <span class="small">[Schuchman 1964]</span></td></tr>
+          <tr><td>Riemannian gradient ascent</td><td style="text-align:left; padding-left:1em;">projects the Euclidean gradient onto the tangent space of $\mathcal{O}$, then steps along it, respecting the orthogonality constraint <span class="small">[Absil et al. 2008]</span></td></tr>
+          <tr><td>L-BFGS (quasi-Newton)</td><td style="text-align:left; padding-left:1em;">refines that step: the exact Newton Hessian needs a density estimate at the quantile boundary, so L-BFGS approximates curvature from gradient history instead <span class="small">[Liu &amp; Nocedal 1989]</span></td></tr>
+          <tr><td>Retraction (symmetric decorrelation)</td><td style="text-align:left; padding-left:1em;">maps the stepped matrix back onto $\mathcal{O}$ via $\mathbf{C}^{-1/2}\mathbf{B}_{\text{step}}$, jointly and symmetrically across all components <span class="small">[Absil et al. 2008]</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 14. EEG APPLICATION -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Application: EEG ocular-artifact removal <span class="small">[Hyv&auml;rinen et al. 2001]</span></h2>
+      <div class="two-col">
+        <div>
+          <video autoplay loop muted playsinline style="width:100%;">
+            <source src="assets/media/eeg_scroll.mp4" type="video/mp4" />
+          </video>
+        </div>
+        <div>
+          <ul>
+            <li>The skull is a linear volume conductor: blink artifacts mix with neural signal at the scalp.</li>
+            <li>5 frontal channels, MNE sample dataset; OT-ICA isolates the blink into <strong>one</strong> component, via excess kurtosis $\kappa\!\approx\!60$ vs. $\approx\!0$ for the rest, no density model assumed.</li>
+            <li class="small"><strong>What RMS means:</strong> $\mathrm{RMS}=\sqrt{\tfrac1{|W|}\sum_{t\in W}x_t^2}$, the signal's power in a time window $W$. A blink injects a large transient that inflates RMS locally.</li>
+            <li><strong>Result:</strong> zeroing that one component and reconstructing gives <strong>&gt;90% RMS reduction</strong> in the blink window, leaving the rest of the recording untouched.</li>
+            <li class="small"><strong>Why it matters:</strong> downstream EEG analysis (ERP studies, BCI, clinical reading) needs artifact-free signal; this removes the artifact without discarding the trial or fitting a density model.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15. LIMITATIONS, AMORTIZED SINKHORN, FUTURE WORK -->
+    <!-- ============================================================ -->
+    <section>
+      <h2>Limitations and what's next</h2>
+      <ul>
+        <li><strong>The case for OT-ICA:</strong> $W_2^2$ is a true metric on distributions, not a moment/likelihood proxy; this is why it generalizes better across heterogeneous mixtures where proxy methods are misspecified for at least one source type.</li>
+        <li><strong>Limitation 1, discrete sources:</strong> step-function CDFs create gradient plateaus that stall the solver, even though the $W_2^2$ contrast signal is present. Gaussian dithering <span class="small">[Schuchman 1964]</span> partially smooths this; <strong>Sinkhorn distances</strong> <span class="small">[Cuturi 2013]</span> (entropic OT regularization) may smooth the transport plan further.</li>
+        <li><strong>Limitation 2, speed:</strong> cost scales as $K\cdot dN\log N$ per iteration vs. FastICA's $dN$. <strong>Amortized Sinkhorn</strong> may help: instead of solving the entropic OT problem from scratch at every step, warm-start the dual potentials from the previous iteration's nearby rotation; consecutive steps query very similar projections, so the iterative cost is spread out ("amortized") across the optimization trajectory instead of paid in full every time.</li>
+        <li><strong>Future work:</strong> OT-ICA as a front-end for LiNGAM <span class="small">[Shimizu et al. 2006]</span>, Causal Component Analysis <span class="small">[Liang et al. 2023]</span>, and identifiable nonlinear ICA <span class="small">[Buchholz et al. 2022]</span>.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- APPENDIX -->
+    <!-- ============================================================ -->
+    <section class="center-title">
+      <h1>Appendix</h1>
+      <p class="subtitle">backup slides: proofs, full results table, references</p>
+    </section>
+
+    <!-- A1: Proof of Theorem 3 -->
+    <section>
+      <div class="appendix-tag">Appendix A1</div>
+      <h3>Proof: $W_2$ upper bound</h3>
+      <div class="proof-box">
+        <p>Let $\mathbf{N}=(N_1,\dots,N_d)\sim\mathcal{N}(0,I_d)$, independent of $\mathbf{Z}$. Let $T_i$ be the OT map with $(T_i)_\#\Gamma = Z_i$. Construct, from the <em>same</em> $\mathbf{N}$:</p>
+        $$X = \sum_i b_i T_i(N_i), \qquad Y = \sum_i b_i N_i \sim \Gamma \ \ (\text{since } \textstyle\sum b_i^2=1).$$
+        <p>$(X,Y)$ is a valid coupling of $\mathbf{b}\cdot\mathbf{Z}$ and $\Gamma$, so $W_2^2 \le \mathbb{E}[|X-Y|^2]$. Expanding:</p>
+        $$|X-Y|^2 = \sum_i b_i^2\big(T_i(N_i)-N_i\big)^2 + \sum_{i\ne j} b_i b_j\big(T_i(N_i)-N_i\big)\big(T_j(N_j)-N_j\big).$$
+        <p>Cross terms vanish in expectation ($N_i \perp N_j$, zero mean). The diagonal terms are exactly $W_2^2(Z_i,\Gamma)$:</p>
+        $$W_2^2(\mathbf{b}\cdot\mathbf{Z}, \Gamma) \le \sum_i b_i^2\, W_2^2(Z_i,\Gamma). \qquad \blacksquare$$
+      </div>
+    </section>
+
+    <!-- A2: Proof of Theorem 4 -->
+    <section>
+      <div class="appendix-tag">Appendix A2</div>
+      <h3>Proof: strict inequality (global max = single source)</h3>
+      <div class="proof-box">
+        <p>Appendix A1 established the upper bound $W_2^2(\mathbf{b}\cdot\mathbf{Z},\Gamma) \le \sum_i b_i^2\,W_2^2(Z_i,\Gamma)$ via the coupling $X=\sum_i b_i T_i(N_i)$, $Y=\sum_i b_i N_i$. We now use that same coupling as the starting point and ask: when is it tight?</p>
+        <p>Equality in 1D $W_2^2$ holds iff the two variables are comonotonic (Brenier): $\nabla X(\mathbf{N}) = \lambda(\mathbf{N})\,\nabla Y(\mathbf{N})$.</p>
+        <p>By Caffarelli regularity, $T_i$ are $C^1$. Differentiating again: the Hessian of $X$ is diagonal ($b_i T_i''(N_i)$ on the diagonal, since $X$ separates additively), while the Hessian of $\lambda(\mathbf{N})\mathbf{b}$ is the rank-1 outer product $\mathbf{b}(\nabla\lambda)^\top$.</p>
+        <p>Off-diagonal entries: LHS is $0$, RHS is $b_i\,\partial\lambda/\partial N_j$. Since multiple $b_i\ne 0$ in a true mixture, $\nabla\lambda \equiv 0$, so $\lambda$ is a constant and $T_i(x)=\lambda x + c$, a <em>linear</em> map.</p>
+        <p>A linear map of Gaussian noise is Gaussian. But ICA identifiability assumes $Z_i$ non-Gaussian, a contradiction. So equality cannot hold for a true mixture of non-Gaussian sources, and the bound from A1 is strict:</p>
+        $$W_2^2(\mathbf{b}\cdot\mathbf{Z},\Gamma) < \sum_i b_i^2\,W_2^2(Z_i,\Gamma) \quad\text{whenever} \ge 2 \text{ weights } b_i\ne 0. \qquad \blacksquare$$
+        <p class="small">Consequence: the maximum of $W_2^2(\mathbf{b}\cdot\mathbf{Z},\Gamma)$ over $\mathbf{b}\in\mathcal{O}$ is attained only when $\mathbf{b}$ aligns with a single source axis.</p>
+      </div>
+    </section>
+
+    <!-- A3: Amari Performance Index definition + heuristics -->
+    <section>
+      <div class="appendix-tag">Appendix A3</div>
+      <h3>The Amari Performance Index</h3>
+      <p class="small">Let $\mathbf{P} = \mathbf{B}_{\text{est}}\mathbf{A}$ be the global transfer matrix (estimated unmixing composed with the true mixing). Because ICA is identifiable only up to permutation and scaling, the target is a generalized permutation matrix, not the identity.</p>
+      <p style="text-align:center;">$$E(\mathbf{P}) = \frac{1}{2d}\sum_{i=1}^d\left(\sum_{j=1}^d \frac{|p_{ij}|}{\max_k|p_{ik}|} - 1\right) + \frac{1}{2d}\sum_{j=1}^d\left(\sum_{i=1}^d \frac{|p_{ij}|}{\max_k|p_{kj}|} - 1\right)$$</p>
+      <table class="amari" style="font-size:0.48em;">
+        <thead><tr><th>Amari error $E$</th><th>Interpretation</th></tr></thead>
+        <tbody>
+          <tr><td>$E<0.1$</td><td style="text-align:left; padding-left:1em;">Excellent to near-perfect separation</td></tr>
+          <tr><td>$0.1\le E<0.3$</td><td style="text-align:left; padding-left:1em;">Good separation; source structure highly recoverable</td></tr>
+          <tr><td>$0.3\le E<0.5$</td><td style="text-align:left; padding-left:1em;">Moderate separation; some structural detail lost</td></tr>
+          <tr><td>$E\ge 0.5$</td><td style="text-align:left; padding-left:1em;">Degradation; multiple sources remain significantly mixed</td></tr>
+          <tr><td>$E\ge 1.0$</td><td style="text-align:left; padding-left:1em;">No meaningful relation to the true sources</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- A4: Full Amari results table -->
+    <section>
+      <div class="appendix-tag">Appendix A4</div>
+      <h3>Full benchmark: mean Amari error</h3>
+      <p class="small">$N=10{,}000$, 10 trials per cell. Clip ceiling at 1.500 (total separation failure). <span class="tag-otica">Bold</span> = lowest error per row.</p>
+      <table class="amari">
+        <thead>
+          <tr><th>Regime</th><th>$d$</th><th>OT-ICA</th><th>FastICA</th><th>JADE</th><th>InfoMax</th><th>Picard</th></tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="3">Continuous Only</td><td>10</td><td class="best">0.051</td><td>0.092</td><td>0.146</td><td>0.100</td><td>0.093</td></tr>
+          <tr><td>20</td><td class="best">0.107</td><td>0.183</td><td>0.321</td><td>0.188</td><td>0.184</td></tr>
+          <tr><td>30</td><td class="best">0.160</td><td>0.271</td><td>0.489</td><td>0.277</td><td>0.271</td></tr>
+          <tr><td rowspan="3">Strictly Super-Gaussian</td><td>10</td><td class="best">0.058</td><td>0.089</td><td>0.146</td><td>0.103</td><td>0.090</td></tr>
+          <tr><td>20</td><td class="best">0.113</td><td>0.183</td><td>0.316</td><td>0.190</td><td>0.184</td></tr>
+          <tr><td>30</td><td class="best">0.176</td><td>0.280</td><td>0.482</td><td>0.286</td><td>0.280</td></tr>
+          <tr><td rowspan="3">Zero Gaussian</td><td>10</td><td class="best">0.042</td><td>0.118</td><td>0.152</td><td>0.105</td><td>0.121</td></tr>
+          <tr><td>20</td><td class="best">0.088</td><td>0.327</td><td>0.366</td><td>0.315</td><td>0.403</td></tr>
+          <tr><td>30</td><td class="best">0.233</td><td>0.510</td><td>0.686</td><td>0.549</td><td>0.628</td></tr>
+          <tr><td rowspan="3">Full Hybrid</td><td>10</td><td class="best">0.046</td><td>0.255</td><td>0.216</td><td>0.297</td><td>0.277</td></tr>
+          <tr><td>20</td><td class="best">0.211</td><td>0.451</td><td>0.571</td><td>0.558</td><td>0.555</td></tr>
+          <tr><td>30</td><td class="best">0.308</td><td>0.671</td><td>0.938</td><td>0.765</td><td>0.917</td></tr>
+          <tr><td rowspan="3">Discrete Only</td><td>10</td><td>0.643</td><td>0.613</td><td class="best">0.443</td><td>0.757</td><td>0.835</td></tr>
+          <tr><td>20</td><td class="best">1.231</td><td>1.402</td><td>1.267</td><td>1.495</td><td>1.440</td></tr>
+          <tr><td>30</td><td class="best">1.486</td><td>1.500</td><td>1.500</td><td>1.500</td><td>1.500</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- A4: References -->
+    <section>
+      <div class="appendix-tag">Appendix A5</div>
+      <h3>References</h3>
+      <div class="refs">
+        <p>Ablin, P., Cardoso, J.-F., &amp; Gramfort, A. (2018). Faster ICA by preconditioning with Hessian approximations. <em>IEEE Trans. Signal Processing</em>.</p>
+        <p>Absil, P.-A., Mahony, R., &amp; Sepulchre, R. (2008). <em>Optimization Algorithms on Matrix Manifolds</em>. Princeton.</p>
+        <p>Amari, S., Cichocki, A., &amp; Yang, H. (1996). A new learning algorithm for blind signal separation. <em>NeurIPS</em>.</p>
+        <p>Baillie, R., Booth, G., Tse, Y., &amp; Zabotina, T. (2002). Price discovery and common factor models. <em>J. Financial Markets</em>.</p>
+        <p>Bell, A., &amp; Sejnowski, T. (1995). An information-maximization approach to blind separation. <em>Neural Computation</em>.</p>
+        <p>Brenier, Y. (1991). Polar factorization and monotone rearrangement of vector-valued functions. <em>CPAM</em>.</p>
+        <p>Buchholz, S., Besserve, M., &amp; Sch&ouml;lkopf, B. (2022). Function classes for identifiable nonlinear ICA. <em>NeurIPS</em>.</p>
+        <p>Caffarelli, L. (1992). The regularity of mappings with a convex potential. <em>JAMS</em>.</p>
+        <p>Cardoso, J.-F., &amp; Souloumiac, A. (1993). Blind beamforming for non-Gaussian signals. <em>IEE Proc. F</em>.</p>
+        <p>Cardoso, J.-F. (2022). Independent component analysis in the light of information geometry. <em>Entropy</em>.</p>
+        <p>Comon, P. (1994). Independent component analysis, a new concept? <em>Signal Processing</em>.</p>
+        <p>Cuturi, M. (2013). Sinkhorn distances: lightspeed computation of optimal transport. <em>NeurIPS</em>.</p>
+        <p>del Barrio, E., Cuesta-Albertos, J., Matr&aacute;n, C., &amp; Rodr&iacute;guez-Rodr&iacute;guez, J. (1999). Tests of goodness of fit based on the $L_2$-Wasserstein distance. <em>Annals of Statistics</em>.</p>
+        <p>Engle, R., &amp; Granger, C. (1987). Co-integration and error correction. <em>Econometrica</em>.</p>
+        <p>Fournier, N., &amp; Guillin, A. (2015). On the rate of convergence in Wasserstein distance of the empirical measure. <em>PTRF</em>.</p>
+        <p>Hasbrouck, J. (1995). One measure of price discovery in fragmented markets. <em>J. Finance</em>.</p>
+        <p>Hyv&auml;rinen, A., Karhunen, J., &amp; Oja, E. (2001). <em>Independent Component Analysis</em>. Wiley.</p>
+        <p>Johansen, S. (1991). Estimation and hypothesis testing of cointegration vectors. <em>Econometrica</em>.</p>
+        <p>Jutten, C., &amp; Herault, J. (1985). Blind separation of sources, part I. <em>Signal Processing</em>.</p>
+        <p>Kantorovich, L. (1942). On the translocation of masses. <em>C.R. Acad. Sci. URSS</em>.</p>
+        <p>Kuhn, H. (1955). The Hungarian method for the assignment problem. <em>Naval Research Logistics</em>.</p>
+        <p>Lee, T.-W., Girolami, M., &amp; Sejnowski, T. (1999). ICA using an extended infomax algorithm. <em>Neural Computation</em>.</p>
+        <p>Liang, W., Keki&#263;, A., von K&uuml;gelgen, J., Buchholz, S., Besserve, M., Gresele, L., &amp; Sch&ouml;lkopf, B. (2023). Causal component analysis. <em>NeurIPS</em>.</p>
+        <p>Liu, D., &amp; Nocedal, J. (1989). On the limited memory BFGS method for large scale optimization. <em>Mathematical Programming</em>.</p>
+        <p>Monge, G. (1781). M&eacute;moire sur la th&eacute;orie des d&eacute;blais et des remblais. <em>Hist. Acad. Royale des Sciences de Paris</em>.</p>
+        <p>Peyr&eacute;, G., &amp; Cuturi, M. (2019). Computational optimal transport. <em>Foundations and Trends in ML</em>.</p>
+        <p>Schuchman, L. (1964). Dither signals and their effect on quantization noise. <em>IEEE Trans. Comm. Technology</em>.</p>
+        <p>Shimizu, S., Hoyer, P., Hyv&auml;rinen, A., &amp; Kerminen, A. (2006). A linear non-Gaussian acyclic model for causal discovery. <em>JMLR</em>.</p>
+        <p>Villani, C. (2003). <em>Topics in Optimal Transportation</em>. AMS.</p>
+        <p>Zema, S., &amp; Cordoni, F. (2025). A unifying non-Gaussian information share approach to price discovery. <em>SSRN</em>.</p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="reveal.js/dist/reveal.js"></script>
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/katex/contrib/auto-render.min.js"></script>
+<script>
+  // Render math immediately -- don't gate it behind Reveal's init promise,
+  // whose resolution timing is not guaranteed relative to first paint.
+  renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false},
+    ],
+  });
+  const deck = new Reveal({
+    hash: true,
+    width: 1280,
+    height: 800,
+    margin: 0.06,
+    transition: 'fade',
+  });
+  deck.initialize();
+
+  // Browsers pause <video> elements when their slide is hidden (display:none)
+  // and do NOT auto-resume them when the slide becomes visible again --
+  // autoplay only fires once, on initial load. Restart videos on the newly
+  // active slide every time the slide changes, and pause the rest so they
+  // don't keep decoding off-screen.
+  function syncVideos(currentSlide) {
+    document.querySelectorAll('.reveal .slides section video').forEach((v) => {
+      v.pause();
+    });
+    if (!currentSlide) return;
+    currentSlide.querySelectorAll('video').forEach((v) => {
+      v.currentTime = 0;
+      v.play().catch(() => {});
+    });
+  }
+  deck.on('slidechanged', (event) => syncVideos(event.currentSlide));
+  syncVideos(deck.getCurrentSlide());
+
+  // Fullscreen toggle button (reveal.js binds the 'f' key already; this adds
+  // a visible, clickable control for presenting without a keyboard handy).
+  const fsBtn = document.createElement('button');
+  fsBtn.textContent = '⛶';
+  fsBtn.title = 'Toggle fullscreen';
+  fsBtn.id = 'fullscreen-btn';
+  fsBtn.addEventListener('click', () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  });
+  document.body.appendChild(fsBtn);
+</script>
+</body>
+</html>

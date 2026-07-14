@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Master's thesis project — TPM UAI 2026 workshop paper**  
-**Author:** Anonymous Author  
+**Author:** Ashutosh Jha  
 **Program:** M.Sc. Quantitative Data Science Methods  
 **Affiliations:** Anonymous Institute 2 & Anonymous Group, Anonymous Institute 1
 
@@ -32,8 +32,8 @@ The core library is in `src/wasserstein_ica/`. Experimental notebooks are in `ex
 ## Installation
 
 ```bash
-git clone https://github.com/anonymous-author/OT_IN_LINEAR_ICA.git
-cd OT_IN_LINEAR_ICA
+git clone https://github.com/ashutoshjha3103/ot_in_linear_ica.git
+cd ot_in_linear_ica
 
 python3 -m venv .venv
 source .venv/bin/activate          # Linux / macOS
@@ -73,10 +73,28 @@ print("W2² objective:         ", float(w2_score))
 
 ---
 
+## Visualizing the Contrast
+
+### 1. Mixing Two Sources (CLT)
+Mixing two independent sources (e.g. Laplace and Uniform) results in a more Gaussian distribution due to the Central Limit Theorem. $W_2^2$ provides the contrast by dipping toward the mixture and peaking at the pure sources.
+
+<p align="center">
+  <video src="short_ppt/assets/media/mixing_clt.mp4" width="80%" autoplay loop muted playsinline></video>
+</p>
+
+### 2. What Each Contrast Function Actually Does
+Comparing how FastICA (logcosh), JADE, InfoMax, and OT-ICA ($W_2^2$) scan a 2D mixture. All four rotate the projection and scan for a non-Gaussianity peak, landing on the independent components with varying sharpness.
+
+<p align="center">
+  <video src="short_ppt/assets/media/contrast_race.mp4" width="80%" autoplay loop muted playsinline></video>
+</p>
+
+---
+
 ## Repository layout
 
 ```
-OT_IN_LINEAR_ICA/
+ot_in_linear_ica/
 ├── src/
 │   └── wasserstein_ica/       # WassersteinICA — core optimization and contrast functions
 ├── exp/                       # Experiments and figures (run from here)
@@ -94,8 +112,8 @@ OT_IN_LINEAR_ICA/
 │   ├── figs/                                       # Output PDFs
 │   └── other/                                      # Exploratory / development notebooks
 ├── uai_workshop/              # TPM UAI 2026 workshop paper (LaTeX + compiled PDF)
-├── hidden-folder-2/           # Master thesis (PDF + LaTeX)
-├── hidden-folder-1/           # Presentation slides
+├── master_thesis_report/      # Master thesis (PDF + LaTeX)
+├── short_ppt/                 # Interactive Web Presentation
 ├── pyproject.toml
 └── README.md
 ```
@@ -137,14 +155,14 @@ Thesis figures additionally use notebooks 3–8 and the exploratory notebooks un
 
 ## Key references
 
-- Anonymous Author et al. (2026). *Linear ICA via Optimal Transport Metric as Contrast*. TPM @ UAI 2026. [`uai_workshop/tpm2026-ot_in_linear_ica.pdf`](uai_workshop/tpm2026-template.pdf)
-- Anonymous Author (2025). *Optimal Transport for Linear ICA* (Master's Thesis, Anonymous Institute 2).
+- Ashutosh Jha et al. (2026). *Linear ICA via Optimal Transport Metric as Contrast*. TPM @ UAI 2026. [`uai_workshop/LinearICA_via_OT_UAI2026_TPM.pdf`](uai_workshop/LinearICA_via_OT_UAI2026_TPM.pdf)
+- Ashutosh Jha (2025). *Optimal Transport for Linear ICA* (Master's Thesis).
 
 ---
 
 ## Contact
 
-Anonymous Author — [anonymous@example.com](mailto:anonymous@example.com)
+Ashutosh Jha — [ashutoshjha3103@github.to](mailto:ashutoshjha3103@github.to)
 
 ---
 
