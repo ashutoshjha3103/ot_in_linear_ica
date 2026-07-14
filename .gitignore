@@ -229,4 +229,5 @@ uai_workshop/tpm2026_ot_in_linear_ica.pdf
 mne_data/
 
 # short talk deck (presentation artifact, not part of paper/thesis source)
-short_ppt/
+short_ppt/__pycache__/
+*.pyc
