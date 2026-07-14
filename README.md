@@ -79,14 +79,14 @@ print("W2² objective:         ", float(w2_score))
 Mixing two independent sources (e.g. Laplace and Uniform) results in a more Gaussian distribution due to the Central Limit Theorem. $W_2^2$ provides the contrast by dipping toward the mixture and peaking at the pure sources.
 
 <p align="center">
-  <video src="short_ppt/assets/media/mixing_clt.mp4" width="80%" autoplay loop muted playsinline></video>
+  <img src="short_ppt/assets/media/mixing_clt.gif" width="80%">
 </p>
 
 ### 2. What Each Contrast Function Actually Does
 Comparing how FastICA (logcosh), JADE, InfoMax, and OT-ICA ($W_2^2$) scan a 2D mixture. All four rotate the projection and scan for a non-Gaussianity peak, landing on the independent components with varying sharpness.
 
 <p align="center">
-  <video src="short_ppt/assets/media/contrast_race.mp4" width="80%" autoplay loop muted playsinline></video>
+  <img src="short_ppt/assets/media/contrast_race.gif" width="80%">
 </p>
 
 ---
