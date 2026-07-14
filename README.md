@@ -6,8 +6,12 @@
 
 **Master's thesis project — TPM UAI 2026 workshop paper**  
 **Author:** Ashutosh Jha  
+**Supervisors / Co-authors:** Prof. Dr. Joachim Grammig, Prof. Dr. Michel Besserve, Dr. Simon Buchholz  
 **Program:** M.Sc. Quantitative Data Science Methods  
-**Affiliations:** Anonymous Institute 2 & Anonymous Group, Anonymous Institute 1
+**Affiliations:** 
+- Methods Center, University of Tübingen
+- Max Planck Institute for Intelligent Systems, Tübingen
+- Institute of Artificial Intelligence, TU Braunschweig
 
 ---
 
