@@ -5,15 +5,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Master's thesis project — TPM UAI 2026 workshop paper**  
-**Author:** Ashutosh Jha  
-**Master Thesis Supervisors:** Prof. Dr. Joachim Grammig, Prof. Dr. Michel Besserve, Dr. Simon Buchholz  
-**UAI 2026 TPM Workshop Authors:** Ashutosh Jha, Prof. Dr. Michel Besserve, Dr. Simon Buchholz  
+**Author:** Ashutosh Jha<sup>3</sup>  
+**Master Thesis Supervisors:** Prof. Dr. Joachim Grammig<sup>4</sup>, Prof. Dr. Michel Besserve<sup>1,2</sup>, Dr. Simon Buchholz<sup>1</sup>  
+**UAI 2026 TPM Workshop Authors:** Ashutosh Jha<sup>3</sup>, Prof. Dr. Michel Besserve<sup>1,2</sup>, Dr. Simon Buchholz<sup>1</sup>  
 **Program:** M.Sc. Quantitative Data Science Methods  
 **Affiliations:** 
-- Chair of Statistics, Econometrics and Empirical Economics, University of Tübingen
-- Methods Center, University of Tübingen
-- Max Planck Institute for Intelligent Systems, Tübingen
-- Institute of Artificial Intelligence, TU Braunschweig
+1. Max Planck Institute for Intelligent Systems, Tübingen
+2. Institute of Artificial Intelligence, TU Braunschweig
+3. Methods Center, University of Tübingen
+4. Chair of Statistics, Econometrics and Empirical Economics, University of Tübingen
 
 ---
 
