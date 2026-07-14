@@ -237,11 +237,21 @@ def generate_mixture(n_dim, n_samples, config_type, seed=None):
         'Strictly Super-Gaussian': [gen_laplace, gen_student_t, gen_chisquare, gen_exponential],
         'Zero Gaussian':           [gen_laplace, gen_bernoulli, gen_uniform, gen_student_t,
                                     gen_poisson, gen_binomial, gen_chisquare, gen_exponential],
+        # Pure single-distribution configs (no Gaussian component)
+        'Pure Laplace':            [gen_laplace],
+        'Pure Uniform':            [gen_uniform],
+        'Pure Student-t':          [gen_student_t],
+        'Pure Bernoulli':          [gen_bernoulli],
+        'Pure Poisson':            [gen_poisson],
+        'Pure Binomial':           [gen_binomial],
+        'Pure Chi-square':         [gen_chisquare],
+        'Pure Exponential':        [gen_exponential],
     }
 
     active_pool = pools[config_type]
     sources = []
-    if config_type != 'Zero Gaussian':
+    is_pure = config_type == 'Zero Gaussian' or config_type.startswith('Pure ')
+    if not is_pure:
         sources.append(np.random.normal(0, 1, n_samples))
         n_to_gen = n_dim - 1
     else:
@@ -370,6 +380,50 @@ df_abl['Error'] = df_abl['Error'].clip(upper=1.5).fillna(1.5)
 
 print('\nMean Amari Error (dim × method × config):')
 print(df_abl.groupby(['Dim', 'Method', 'Config'])['Error'].mean().unstack().round(3))
+
+
+# =============================================================================
+# CELL 8b — Pure single-distribution benchmark (supplementary table only)
+#
+# 8 pure configs × 3 dims × 5 methods × 10 trials = 1200 trials.
+# Results go into the supplementary table; Figure 2 is unchanged.
+# =============================================================================
+PURE_POOLS = [
+    'Pure Laplace',
+    'Pure Uniform',
+    'Pure Student-t',
+    'Pure Chi-square',
+    'Pure Exponential',
+]
+
+tasks_pure = [
+    (dim, t, ABL_SAMPLES, pool, method)
+    for dim    in ABL_DIMS
+    for pool   in PURE_POOLS
+    for method in METHOD_ORDER
+    for t      in range(ABL_TRIALS)
+]
+
+print(f'\nRunning {len(tasks_pure)} pure-distribution trials  '
+      f'({len(ABL_DIMS)} dims × {len(PURE_POOLS)} configs × '
+      f'{len(METHOD_ORDER)} methods × {ABL_TRIALS} trials) …')
+results_pure = Parallel(n_jobs=8)(
+    delayed(run_ablation_trial)(*t) for t in tqdm(tasks_pure)
+)
+
+df_pure = pd.DataFrame(results_pure)
+df_pure['Error'] = df_pure['Error'].clip(upper=1.5).fillna(1.5)
+
+# Print in LaTeX-table order: config × dim, methods as columns
+summary_pure = (
+    df_pure
+    .groupby(['Config', 'Dim', 'Method'])['Error']
+    .mean()
+    .unstack('Method')[METHOD_ORDER]
+    .round(3)
+)
+print('\nPure-distribution mean Amari errors (paste into supplementary table):')
+print(summary_pure.to_string())
 
 
 # =============================================================================
