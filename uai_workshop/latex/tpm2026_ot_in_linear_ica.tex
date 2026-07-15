@@ -33,7 +33,6 @@
 % The standard author block has changed for TPM 2026 to provide
 % more space for long author lists and allow for complex affiliations
 \author[3]{\href{mailto:ashutoshjha3103@gmail.com?Subject=TPM 2026 Paper Inquiry}{Ashutosh~Jha}}
-%\author[2]{Joachim~Grammig}
 \author[1,2]{Michel~Besserve}
 \author[1]{Simon~Buchholz}
 
@@ -50,11 +49,6 @@
     Methods Center\\
     University of T\"ubingen
 }
-
-%\affil[4]{%
-%    Chair of Statistics, Econometrics and Empirical Economics\\
-%    University of T\"ubingen
-%}
 
 \begin{document}
 \maketitle
@@ -101,7 +95,7 @@ However, evaluating $G(Y_i)$ requires the marginal density. Classical algorithms
 FastICA \citep{hyvarinen2001, amari1996new} uses logcosh negentropy approximations, 
 JADE \citep{cardoso1993blind} fourth-order cumulants, 
 InfoMax \citep{bell1995information} a parametric log-likelihood, and 
-Picard \citep{ablin2018faster} an adaptive nonlinearity with a provably converging solver. These proxies have shortcomings such as evaluating to zero on   specific non-Gaussian source distributions (Appendix~\ref{app:proxy_limits}).
+Picard \citep{ablin2018faster} an adaptive nonlinearity with a provably converging solver. These proxies exhibit shortcomings such as evaluating to zero on specific non-Gaussian distributions or inducing singular Hessian matrices that stall the fixed-point solver shown in Appendix~\ref{app:proxy_limits}.
 
 In this paper we use Optimal Transport (OT) \citep{monge1781, kantorovich1942}
 to define a contrast.
@@ -127,6 +121,7 @@ defined as a minimum-cost coupling between probability distributions (see Append
     W_2^2(\mu, \nu) \!\triangleq\!W_2(\mu, \nu)^2\!=\!\!\!  \inf_{\pi \in \Pi(\mu, \nu)} \int\!\! \|x - y\|^2  d\pi(x, y) ,
 \end{equation}
 where $\Pi(\mu,\nu)$ denotes (for measures $\mu,\nu$ on $\mathbb{R}^d$) the set of all measures $\pi$ on $\mathbb{R}^{d+d}$ with first marginal $\mu$ and second marginal $\nu$.
+
 % The $L_2$ case ($p=2$) reduces in 1D via Brenier's theorem \citep{brenier1991} and Caffarelli's regularity \citep{caffarelli1992} to a quantile integral computable by sorting:
 % \begin{equation}
 %     W_2^2(\mu, \nu) = \int_0^1 |F_\mu^{-1}(t) - F_\nu^{-1}(t)|^2 \, dt
@@ -139,8 +134,8 @@ where $\Gamma \equiv \mathcal{N}(0,1)$ denotes the standard Gaussian.
 Since  $W_2$ induces a proper metric on probability distributions \citep{villani2003}, this contrast  is non-zero on all non-Gaussian distributions.
 
 %Centering and whitening $\mathbb{E}(\mathbf{X})=0$ to $\widetilde{\mathbf{X}}$ (i.e., $\mathbb{E}[\widetilde{\mathbf{X}}] = \mathbf{0}$, $\operatorname{Cov}[\widetilde{\mathbf{X}}] = \mathbf{I}$) constrains the unmixing matrix to the Orthogonal Group $\mathrm{O}(d)$ (the set of $d\times d$ real matrices satisfying $\mathbf{B}\mathbf{B}^\top = \mathbf{I}$); this preprocessing is lossless for identifiable ICA \citep{hyvarinen2001, cardoso2022} (Appendix~\ref{app:info_geometry}).
-OT-ICA %finds the projection $\mathbf{b}$ maximizing $W_2^2$ to the standard Gaussian $\Gamma \equiv \mathcal{N}(0,1)$:
-maximizes this contrast over the direction $\mathbf{b}$
+
+OT-ICA maximizes this contrast over the direction $\mathbf{b}$
 \begin{equation}
     \widehat{\mathbf{b}} = \arg\max_{\mathbf{b} \in \mathbb{R}^d, |\mathbf{b}|=1} W_2^2\big(\mathbb{P}_{\mathbf{b}^\top \widetilde{\mathbf{X}}}, \Gamma\big). \label{eq:otica_obj}
 \end{equation}
@@ -155,8 +150,8 @@ Let $\mathbf{Z} = (Z_1, \dots, Z_d)^\top$ be centered independent sources with u
 \end{equation}
 \end{theorem}
 The proof of this result is in Appendix~\ref{app:proofs}.
-We find the following immediate corollary.
-\begin{corollary}
+We find the following immediate corollary \ref{cor:max_contrast}.
+\begin{corollary}\label{cor:max_contrast}
     Under the assumptions of Theorem~\ref{th:main}
     we have
     \begin{align}
@@ -178,6 +173,7 @@ where $F_\mu$ denotes the CDF of $\mu$. In particular, the optimal coupling for 
 
 
 %Since equality holds trivially when $\mathbf{b} = \mathbf{e}_k$ (a pure source direction), the global maximum of \eqref{eq:otica_obj} is uniquely attained at source directions (Appendix~\ref{app:proofs}).
+
 \begin{figure}[!bp]
     \centering
     \includegraphics[width=0.92\columnwidth]{otica_baseline_recovery.pdf}
@@ -186,14 +182,19 @@ where $F_\mu$ denotes the CDF of $\mu$. In particular, the optimal coupling for 
     \label{fig:ot_ica_validation}
 \end{figure}
 \textbf{OT-ICA for all components.}
-%\subsection{Optimization on Orthogonal Group}
-After whitening the data, the projection directions associated to all independent components are mutually orthogonal, which restricts the search: each source direction must lie in the orthogonal complement of the already-found directions.
-One can therefore exploit OT-ICA for a single component iteratively, extracting one component at a time from the shrinking orthogonal complement.
-In practice we implement this as symmetric joint optimization \citep{hyvarinen2001}: all $d$ rows of $\mathbf{B}$ are optimized simultaneously and the $\mathrm{O}(d)$ constraint is restored via symmetric decorrelation retraction at every step. 
-The full details of the resulting algorithm can be found in Appendix~\ref{app:methodology} and pseudocode is given in Algorithm~\ref{alg:ot_ica}.
-Let us here just briefly mention
-three important algorithmic components: (i)~\textbf{Analytical Gaussian Targets} \citep{fournier2015rate}, replacing sampled quantile targets of the standard normal distribution with closed-form bin expectations to eliminate approximation noise; (ii)~\textbf{Riemannian Gradient Retraction} \citep{absil2008optimization}, projecting gradients onto the tangent space of Orthogonal Group $\mathrm{O}(d)$ and retracting via symmetric decorrelation;% (Newton updates are intractable for empirical OT; Appendix~\ref{app:intractability}); 
-and (iii)~\textbf{Gaussian Dithering} \citep{schuchman1964dither}, smoothing discrete CDFs via narrow Gaussian convolution.
+After whitening the data, the projection directions associated to all independent components are mutually orthogonal. While components can be extracted iteratively by searching the shrinking orthogonal complement one by one, Theorem \ref{th:main} extends to the following corollary \ref{cor:symmetric} which justifies the joint estimation of the entire unmixing matrix $\mathbf{B} \in \mathrm{O}(d)$.
+
+\begin{corollary}\label{cor:symmetric}
+    Under the assumptions of Theorem \ref{th:main}, for any orthogonal matrix $\mathbf{B} \in \mathrm{O}(d)$ with rows $\mathbf{b}_i^\top$, the total marginal contrast satisfies:
+    \begin{equation}
+        \sum_{i=1}^d W_2^2(\mathbf{b}_i^\top \mathbf{Z}, \Gamma) \le \sum_{j=1}^d W_2^2(Z_j, \Gamma),
+    \end{equation}
+    where equality holds if and only if $\mathbf{B}$ is a signed permutation matrix.
+\end{corollary}
+
+This corollary \ref{cor:symmetric} (proof in Appendix~\ref{app:proofs}) theoretically justifies \emph{symmetric joint optimization} \citep{hyvarinen2001}. Rather than iterative deflation, all $d$ rows of $\mathbf{B}$ are optimized simultaneously by ascending the total contrast sum, restoring the $\mathrm{O}(d)$ constraint via symmetric decorrelation retraction at every step. The full details of the resulting algorithm can be found in Appendix~\ref{app:methodology} and pseudocode is given in Algorithm~\ref{alg:ot_ica}. 
+
+Let us here briefly mention three important algorithmic components utilized in practice: (i)~\textbf{Analytical Gaussian Targets} \citep{fournier2015rate}, replacing sampled quantile targets of the standard normal distribution with closed-form bin expectations to eliminate approximation noise; (ii)~\textbf{Riemannian Gradient Retraction} \citep{absil2008optimization}, projecting gradients onto the tangent space of Orthogonal Group $\mathrm{O}(d)$ and retracting via symmetric decorrelation; and (iii)~\textbf{Gaussian Dithering} \citep{schuchman1964dither}, smoothing discrete CDFs via narrow Gaussian convolution.
 
 \section{Synthetic Experiments}\label{sec:validation}
 
@@ -201,7 +202,8 @@ and (iii)~\textbf{Gaussian Dithering} \citep{schuchman1964dither}, smoothing dis
 \vspace{-.4cm}
     \centering
     \includegraphics[width=0.88\textwidth]{general_hybrid_test.pdf}\vspace{-.2cm}
-    \caption{Mean Amari error ($\downarrow$ better, clipped at $1.5$) across five mixture regimes and $d \in \{10, 20, 30\}$ ($N=10{,}000$, 10 trials, 95\% CI). %OT-ICA achieves the lowest error on all continuous and heterogeneous regimes at every dimension. On \textit{Discrete Only}, step-function CDFs produce gradient plateaus that stall the solver despite a present $W_2^2$ signal (Appendix~\ref{app:discrete_contrast}); at $d=30$ all methods saturate the clip ceiling. 
+    \caption{Mean Amari error ($\downarrow$ better, clipped at $1.5$) across five mixture regimes and $d \in \{10, 20, 30\}$ ($N=10{,}000$, 10 trials, 95\% CI). 
+    %OT-ICA achieves the lowest error on all continuous and heterogeneous regimes at every dimension. On \textit{Discrete Only}, step-function CDFs produce gradient plateaus that stall the solver despite a present $W_2^2$ signal (Appendix~\ref{app:discrete_contrast}); at $d=30$ all methods saturate the clip ceiling. 
     Dotted line marks $E=0.3$, the good-separation threshold.}
     \label{fig:hybrid_mixture_results}
     \vspace{-.2cm}
@@ -291,7 +293,7 @@ a differentiable substitute for Gaussian dithering, and amortized optimal transp
 Beyond these, OT-ICA's distribution-free contrast opens new directions in causal discovery, including extensions to 
 LiNGAM \citep{shimizu2006linear}, Causal Component Analysis \citep{liang2023causal}, and identifiable nonlinear ICA \citep{buchholz2022function}.
 
-\newpage
+%\newpage
 \bibliography{references}
 
 \newpage
@@ -472,6 +474,28 @@ Applying a purely linear transformation to Gaussian noise $N_i$ produces another
 The identifiability assumption of ICA dictates that the original latent sources $Z_i$ are non-Gaussian. 
 Therefore, the linear map requirement contradicts the non-Gaussianity of the sources. 
 Because the condition for equality cannot be met, the relationship is a strict inequality. 
+
+\begin{equation}
+    W_2^2(\mathbf{\alpha} \cdot \mathbf{Z}, \Gamma) < \sum_{i=1}^d \alpha_i^2 W_2^2(Z_i, \Gamma).
+\end{equation}
+\end{proof}
+
+\subsection{Proof of Corollary 2: Symmetric Joint Maximization}
+
+\begin{proof}
+Let $\mathbf{B} \in \mathrm{O}(d)$ be an orthogonal matrix with rows $\mathbf{b}_i^\top$. Because $\mathbf{B}$ is orthogonal, its squared elements sum to $1$ across both rows ($\sum_{j=1}^d B_{ij}^2 = 1$) and columns ($\sum_{i=1}^d B_{ij}^2 = 1$).
+By the intermediate step of Theorem \ref{th:main}, the contrast for each row projection is bounded by:
+\begin{equation}
+    W_2^2(\mathbf{b}_i^\top \mathbf{Z}, \Gamma) \le \sum_{j=1}^d B_{ij}^2 W_2^2(Z_j, \Gamma).
+\end{equation}
+Summing this inequality over all $d$ rows yields an upper bound on the total marginal contrast:
+\begin{align}\begin{split}
+    \sum_{i=1}^d W_2^2(\mathbf{b}_i^\top \mathbf{Z}, \Gamma) &\le \sum_{i=1}^d \sum_{j=1}^d B_{ij}^2 W_2^2(Z_j, \Gamma) \\
+    &= \sum_{j=1}^d \left( \sum_{i=1}^d B_{ij}^2 \right) W_2^2(Z_j, \Gamma) \\
+    &= \sum_{j=1}^d W_2^2(Z_j, \Gamma).
+    \end{split}
+\end{align}
+The maximum possible sum equals the unweighted sum of the pure sources' contrasts. Because Theorem \ref{th:main} establishes that the inequality is strict whenever a row mixes multiple sources, the global equality holds if and only if every row $\mathbf{b}_i$ contains exactly one non-zero entry (which must be $\pm 1$ due to the unit norm constraint). Thus, the sum is maximized if and only if $\mathbf{B}$ is a signed permutation matrix.
 \end{proof}
 
 % \subsection{Proof of Intractability of Newton Updates for Empirical OT-ICA}
@@ -779,9 +803,42 @@ an insufficient $W_2^2$ contrast; the issue is in the optimization landscape.}
 \label{app:proxy_limits}
 This appendix collects a brief overview of the baselines used in the paper.
 \subsection{FastICA: Negentropy Approximation Failures}
-FastICA \citep{hyvarinen2001} approximates non-Gaussianity via $\mathbb{E}[G(x)] - \mathbb{E}[G(\nu)]$ for a non-quadratic $G(\cdot)$ (e.g., logcosh), and uses a Newton fixed-point solver whose Hessian diagonal scales with $\mathbb{E}[sg(s) - g'(s)]$.
-Two structural failure modes follow \citep{hyvarinen2001}: (i)~\textit{Zero Negentropy}: if a source's distribution causes the expectation to equal that of a Gaussian, the gradient vanishes and the source cannot be extracted; (ii)~\textit{Vanishing Curvature}: if $\mathbb{E}[sg(s)-g'(s)] \to 0$, the Newton Hessian becomes singular and the update is undefined.
-Both failures are intrinsic to the logcosh proxy and cannot be resolved by tuning the solver.
+FastICA \citep{hyvarinen2001} approximates negentropy using a non-quadratic contrast function $G(\cdot)$, such as the \textit{logcosh} function ($\mathbb{E}[G(x)] - \mathbb{E}[G(\nu)]$, where $\nu \sim \mathcal{N}(0,1)$). We demonstrate two limitations of this proxy approach.
+
+\subsubsection{The Zero Negentropy Condition}
+If a latent independent source possesses a non-Gaussian distribution such that its expected value under the contrast function equals that of a Gaussian ($\mathbb{E}[G(s_i)] = \mathbb{E}[G(\nu)]$), the approximated negentropy evaluates to zero. In this scenario, the objective function provides no gradient signal, and the algorithm fails to extract the source. As shown in Figure~\ref{fig:zero_negentropy}, this failure leads to increasing Amari error with increasing dimensions.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{zero_negentropy_amari_compute.pdf} 
+    \caption{Amari error comparison for an engineered zero-negentropy distribution across Low and High compute regimes. FastICA's error scales with dimension as the proxy gradient vanishes, crossing the good separation threshold ($E=0.3$). OT-ICA maintains good separation till higher dimensions depending on compute regime.}
+    \label{fig:zero_negentropy}
+\end{figure}
+
+\subsubsection{The Vanishing Curvature Condition}
+FastICA utilizes a Newton fixed-point iteration. Defining $g(x) = G'(x)$ and $g'(x) = G''(x)$, the algorithm approximates the Hessian matrix. For a given component $i$, the diagonal entry scales according to the expectation $\mathbf{H}_{ii} \approx \mathbb{E}\big[s_i g(s_i) - g'(s_i)\big]$.
+
+The Newton update requires applying the inverse of this Hessian ($\mathbf{H}^{-1}$). If a non-Gaussian source distribution causes the expectation in the denominator to evaluate to zero ($\mathbb{E}[s_i g(s_i) - g'(s_i)] \to 0$), the inverse becomes undefined \cite[Chapter 8]{hyvarinen2001}. This analytical divide-by-zero error makes the fixed-point update step intractable. Figure~\ref{fig:vanishing_curvature_combined} illustrates this failure mode, displaying the specific trimodal distribution that induces zero curvature and the resulting divergence in separation performance compared to our OT-ICA framework.
+
+\begin{figure}[htbp]
+    \centering
+    % Top Figure
+    \begin{minipage}{0.85\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{vanishing_curvature_trimodal_pdf.pdf}
+    \end{minipage}
+    
+    \vspace{0.5cm} % Vertical space between the two figures
+    
+    % Bottom Figure
+    \begin{minipage}{0.85\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{vanishing_curvature_amari_compute.pdf}
+    \end{minipage}
+    
+    \caption{The Vanishing Curvature failure mode. \textbf{Top:} A trimodal distribution engineered such that negative central curvature and positive outer curvature (side peaks at $b=\pm 1.44$) cancel ($\mathbb{E}[sg(s)-g'(s)] = 0$) while maintaining unit variance. \textbf{Bottom:} Amari error comparison on mixtures containing this distribution. FastICA's Newton solver diverges rapidly as dimension increases across both compute regimes. OT-ICA maintains good separation.}
+    \label{fig:vanishing_curvature_combined}
+\end{figure}
 
 \subsection{JADE: Sample Complexity of Fourth-Order Cumulants}
 JADE \citep{cardoso1993blind} identifies sources by jointly diagonalizing a set of fourth-order cumulant matrices via Jacobi sweeps. 
