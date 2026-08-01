@@ -231,3 +231,6 @@ mne_data/
 # short talk deck (presentation artifact, not part of paper/thesis source)
 short_ppt/__pycache__/
 *.pyc
+
+# AAAI'27 anonymous code supplement (zipped and submitted separately, not hosted)
+linearICA_via_OT_AAAI27_code_supplement/
