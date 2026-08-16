@@ -681,7 +681,7 @@ for i in range(dim_eeg):
 axes_eeg[2].set_yticks([-OFFSET * i for i in range(dim_eeg)])
 axes_eeg[2].set_yticklabels(frontal_channels)
 axes_eeg[2].set_title(
-    f'(c) Cleaned EEG  [{pct_reduction:.0f}\\% RMS reduction in $\\pm$250\\,ms blink window]',
+    f'(c) Cleaned EEG  [{pct_reduction:.0f}% RMS reduction in $\\pm$250 ms blink window]',
     fontsize=9 * SCALE,
 )
 axes_eeg[2].set_xlabel('Time (s)')

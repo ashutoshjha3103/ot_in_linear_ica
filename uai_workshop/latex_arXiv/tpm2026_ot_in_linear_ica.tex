@@ -20,6 +20,10 @@
 
 \renewcommand{\dbltopfraction}{0.92}
 \renewcommand{\textfraction}{0.05}
+\setlength{\textfloatsep}{10pt plus 2pt minus 4pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dblfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{10pt plus 2pt minus 4pt}
 \newcommand{\Xb}{\mathbf{X}}
 \newcommand{\Ab}{\mathbf{A}}
 \newcommand{\Sb}{\mathbf{S}}
@@ -94,7 +98,7 @@ In this paper we use Optimal Transport (OT) \citep{monge1781, kantorovich1942}
 to define a contrast.
 This allows us to apply OT to linear ICA and extends the long list of applications of optimal transport techniques in machine learning such as generative modelling \citep{pmlr-v70-arjovsky17a}, normality testing \citep{delbarrio1999}, and
 distribution comparison \citep{peyre2019computational}.
-Here we propose to quantify non-Gaussianity as the cost of transporting the (empirical) projection of the observations to a fixed standard Gaussian reference.
+Here we propose to quantify non-Gaussianity as the cost of transporting the (empirical) projection of the observations to a fixed standard Gaussian reference.\footnote{Concurrent work \citep{laplante2026contrastfreeicacausalinference} published on arXiv on 14.07.2026, after this paper was accepted at TPM, UAI 2026, also proposes $W_2^2$-to-Gaussian as an ICA contrast.}
 We justify this choice in 
 Theorem~\ref{th:main} below which implies that (in the population setting) this  contrast is maximized when an independent component is recovered. This then motivates our OT-ICA algorithm, which relies on  gradient ascent on the optimal transport cost.
 
@@ -127,9 +131,9 @@ OT-ICA maximizes this contrast over the direction $\mathbf{b}$
     \widehat{\mathbf{b}} = \arg\max_{\mathbf{b} \in \mathbb{R}^d, |\mathbf{b}|=1} W_2^2\big(\mathbb{P}_{\mathbf{b}^\top \widetilde{\mathbf{X}}}, \Gamma\big). \label{eq:otica_obj}
 \end{equation}
 
-The following theorem establishes that the projection $\widehat{\mathbf{b}}^\top \Xb$ from \eqref{eq:otica_obj} indeed recovers an independent component.
+The following bound, due to \citet{johnson2005central}, establishes that the projection $\widehat{\mathbf{b}}^\top \Xb$ from \eqref{eq:otica_obj} indeed recovers an independent component; our contribution is identifying it as an admissible ICA contrast.
 
-\begin{theorem}[$W_2^2$ ICA Contrast]\label{th:main}
+\begin{theorem}[$W_2^2$ ICA Contrast; \citealt{johnson2005central}]\label{th:main}
 Let $\mathbf{Z} = (Z_1, \dots, Z_d)^\top$ be centered independent sources with unit variance and at most one $Z_i$ Gaussian. Assume they all have a smooth and strictly positive density. Then the following bound holds for  any normalized weight vector $\mathbf{\alpha}$ with at least two nonzero components
 \begin{equation}
     W_2^2(\mathbf{\alpha} \cdot \mathbf{Z}, \Gamma) < \sum_{i=1}^d \alpha_i^2 W_2^2(Z_i, \Gamma).
@@ -159,13 +163,6 @@ where $F_\mu$ denotes the CDF of $\mu$. In particular, the optimal coupling for 
 
 
 
-\begin{figure}[!bp]
-    \centering
-    \includegraphics[width=0.92\columnwidth]{otica_baseline_recovery.pdf}
-    \caption{OT-ICA convergence on four standard continuous source types. Estimated latent components are smoothed with kernel density estimation.}
-    \vspace{-.4cm}
-    \label{fig:ot_ica_validation}
-\end{figure}
 \textbf{OT-ICA for all components.}
 After whitening the data, the projection directions associated to all independent components are mutually orthogonal. While components can be extracted iteratively by searching the shrinking orthogonal complement one by one, Theorem \ref{th:main} extends to the following corollary \ref{cor:symmetric} which justifies the joint estimation of the entire unmixing matrix $\mathbf{B} \in \mathrm{O}(d)$.
 
@@ -186,7 +183,7 @@ Let us here briefly mention three important algorithmic components utilized in p
 \begin{figure*}[!tb]
 \vspace{-.4cm}
     \centering
-    \includegraphics[width=0.88\textwidth]{general_hybrid_test.pdf}\vspace{-.2cm}
+    \includegraphics[width=0.9\textwidth]{general_hybrid_test.pdf}\vspace{-.2cm}
     \caption{Mean Amari error ($\downarrow$ better, clipped at $1.5$) across five mixture regimes and $d \in \{10, 20, 30\}$ ($N=10{,}000$, 10 trials, 95\% CI). 
     Dotted line marks $E=0.3$, the good-separation threshold.}
     \label{fig:hybrid_mixture_results}
@@ -198,9 +195,23 @@ Separation quality is measured by the Amari Performance Index ($E$) \citep{amari
 which measures the deviation of the global transfer matrix $\mathbf{P} = \mathbf{B}_{\text{est}}\mathbf{A}$ from a 
 generalized permutation matrix ($E < 0.1$: near-perfect; $E < 0.3$: good separation; $E \ge 0.5$: failure).
 As a sanity check we first consider separation of four different sources with $N=10,000$ samples
-where OT-ICA achieves $E = 0.016$ against FastICA's $0.019$ on this  mixture (Table~\ref{tab:baseline_matrices}, Appendix~\ref{app:experimental_setup}). 
-Figure~\ref{fig:ot_ica_validation}
-illustrates that the latent distributions are accurately recovered.
+where OT-ICA achieves $E = 0.016$ against FastICA's $0.019$ on this mixture (Table~\ref{tab:baseline_sanity});
+full transfer matrices and recovered densities are in Appendix~\ref{app:validation_table}.
+
+\begin{table}[!tb]
+\centering
+\small
+\begin{tabular}{lc}
+\toprule
+\textbf{Method} & \textbf{Amari Error} \\
+\midrule
+OT-ICA & 0.016 \\
+FastICA & 0.019 \\
+\bottomrule
+\end{tabular}
+\caption{Baseline validation on a 4D mixture of Laplace, Uniform, Student-$t(3)$, and Beta$(0.5,0.5)$ sources ($N=10{,}000$).}
+\label{tab:baseline_sanity}
+\end{table}
 
 
 
@@ -228,10 +239,8 @@ In fragmented financial markets, the Information Share (IS) \citep{hasbrouck1995
 We validate on a simulated three-market VECM \citep{zema2025}: $\mathbf{B}_\text{true} = \mathrm{diag}(\sqrt{0.12}, \sqrt{0.24}, \sqrt{0.64})$ encodes true IS values $[0.12, 0.24, 0.64]$ by construction, with Student-$t$ innovations enabling ICA identification.
 IS estimates match true values to within $0.002$ across 500 Monte Carlo runs (see Table~\ref{tab:simulated_is_results}).
 
-\begin{table}[tbp]
+\begin{table}[htbp]
     \centering
-    \caption{IS recovery across 500 Monte Carlo runs without imposing Cholesky ordering.}
-    \label{tab:simulated_is_results}
     \resizebox{\columnwidth}{!}{
     \begin{tabular}{@{}lccc@{}}
         \toprule
@@ -243,15 +252,17 @@ IS estimates match true values to within $0.002$ across 500 Monte Carlo runs (se
         \bottomrule
     \end{tabular}
     }
+    \caption{IS recovery across 500 Monte Carlo runs without imposing Cholesky ordering.}
+    \label{tab:simulated_is_results}
 \end{table}
 
 \textbf{EEG Artifact Removal.}
 The skull acts as a linear volume conductor \citep{hyvarinen2001}: ocular blink artifacts mix with neural signals before reaching scalp electrodes. 
 Blink artifacts are impulsive and super-Gaussian; their high $W_2^2$ to Gaussian separates them from neural components without specifying a density model (dataset, preprocessing, and configuration in Appendix~\ref{app:eeg}).
 
-\begin{figure}[tbp]
+\begin{figure}[!tb]
     \centering
-    \includegraphics[width=0.95\columnwidth]{eeg_artifact_removal.pdf}
+    \includegraphics[width=0.9\columnwidth]{eeg_artifact_removal.pdf}
     \caption{OT-ICA on five frontal EEG channels (MNE sample dataset). Panel (b): isolated blink component (orange) with 
     excess kurtosis $\kappa$ in the panel title; remaining components have mean $\kappa$ near zero. Panel (c): 
     signal reconstructed by zeroing the artifact component, with RMS reduction in the $\pm$250\,ms blink window in the panel title.}
@@ -263,16 +274,14 @@ substantially above the remaining four. Zeroing that component and inverting the
 the RMS reduction quantified in the panel title, without tuning a density model.
 
 \section{Conclusion}\label{sec:conclusion}
-OT-ICA replaces proxy contrast functions with the $W_2^2$ metric computed by quantile sorting; Theorem~\ref{th:main} guarantees the 
-contrast is maximized at independent components, and empirical results confirm OT-ICA outperforms proxy-based algorithms on all 
-continuous and heterogeneous distributions, with the margin widening on heterogeneous mixtures where proxy contrasts fail 
-to extract independent components. Price discovery in simulated VECM and EEG artifact removal demonstrate successful application to ICA tasks without distributional assumptions. 
-On purely discrete sources, all ICA methods fail as $d$ increases ($E > 0.5$); for OT-ICA the $W_2^2$ contrast retains signal 
-throughout but step-function CDFs stall the solver, and per-iteration cost grows with $d$ (Appendix~\ref{app:scaling}). 
-These limitations point to concrete improvements: Sinkhorn distances \citep{cuturi2013sinkhorn, peyre2019computational} as 
-a differentiable substitute for Gaussian dithering, and amortized optimal transport to reduce per-inference sorting cost. 
-Beyond these, OT-ICA's distribution-free contrast opens new directions in causal discovery, including extensions to 
-LiNGAM \citep{shimizu2006linear}, Causal Component Analysis \citep{liang2023causal}, and identifiable nonlinear ICA \citep{buchholz2022function}.
+OT-ICA replaces proxy contrast functions with the $W_2^2$ metric computed by quantile sorting; Theorem~\ref{th:main} guarantees the
+contrast is maximized at independent components, and OT-ICA outperforms proxy-based algorithms on all continuous and heterogeneous
+distributions, with the margin widening where proxy contrasts fail to extract independent components. Price discovery and EEG
+artifact removal confirm application to ICA tasks without distributional assumptions. On purely discrete sources, all methods fail
+as $d$ increases ($E > 0.5$); for OT-ICA the $W_2^2$ contrast retains signal throughout but step-function CDFs stall the solver, and
+per-iteration cost grows with $d$ (Appendix~\ref{app:scaling}), motivating Sinkhorn distances \citep{cuturi2013sinkhorn, peyre2019computational}
+and amortized transport as future directions, alongside extending the distribution-free contrast to causal discovery
+\citep{shimizu2006linear, liang2023causal, buchholz2022function}.
 
 \bibliography{references}
 
@@ -352,7 +361,7 @@ OT-ICA maximizes this over $\mathbf{b}$ in Orthogonal Group $\mathrm{O}(d)$; The
 \subsection{Proof of Theorem 3: $W_2^2$ ICA Contrast}
 
 \setcounter{theorem}{2}
-\begin{theorem}[$W_2^2$ ICA Contrast]
+\begin{theorem}[$W_2^2$ ICA Contrast; \citealt{johnson2005central}]
 Let $\mathbf{Z} = (Z_1, \dots, Z_d)^\top$ be  centered independent sources with unit variance and at most one $Z_i$ Gaussian. Assume they all have a smooth and strictly positive density. Then the following bound holds for  any normalized weight vector $\mathbf{\alpha}$ with at least two nonzero components
 \begin{equation}
     W_2^2(\mathbf{\alpha} \cdot \mathbf{Z}, \Gamma) < \sum_{i=1}^d \alpha_i^2 W_2^2(Z_i, \Gamma).
@@ -461,12 +470,6 @@ Summing this inequality over all $d$ rows yields an upper bound on the total mar
 The maximum possible sum equals the unweighted sum of the pure sources' contrasts. Because Theorem \ref{th:main} establishes that the inequality is strict whenever a row mixes multiple sources, the global equality holds if and only if every row $\mathbf{b}_i$ contains exactly one non-zero entry (which must be $\pm 1$ due to the unit norm constraint). Thus, the sum is maximized if and only if $\mathbf{B}$ is a signed permutation matrix.
 \end{proof}
 
-
-
-
-
-
-
 \section{Algorithmic Enhancements and Methodology}
 \label{app:methodology}
 This appendix explains the additional ingredients used in the OT-ICA algorithm.
@@ -486,7 +489,7 @@ with corresponding Gaussian domain boundaries $z_i = \Phi^{-1}(p_i)$, where $\Ph
 Because the input data is whitened, the unmixing matrix $\mathbf{B}$ must remain in Orthogonal Group $\mathrm{O}(d)$, satisfying $\mathbf{B}\mathbf{B}^\top = \mathbf{I}$. 
 Computing the standard Euclidean gradient $\mathbf{G} = \nabla_{\mathbf{B}} W_2^2$ points into the unconstrained ambient space.
 
-\begin{figure}[htbp]
+\begin{figure}[!tb]
     \centering
     \includegraphics[width=0.65\textwidth]{stiefel_manifold_projection.pdf}
     \caption{Geometric sketch of optimization on Orthogonal Group $\mathrm{O}(d)$. The Euclidean gradient $\mathbf{G}$ is projected onto
@@ -513,7 +516,7 @@ Applying continuous optimal transport directly to discrete mixtures introduces n
 Adapted from signal processing \citep{schuchman1964dither}, we inject continuous, zero-mean Gaussian noise with variance $\sigma_\text{dither}^2 = 0.01$ into the 1D projected components prior to sorting. 
 This decorrelates deterministic quantization errors and convolves the discrete empirical distribution with a Gaussian kernel.
 
-\begin{figure}[htbp]
+\begin{figure}[!tb]
     \centering
     \includegraphics[width=0.65\textwidth]{gaussian_dithering_cdf.pdf}
     \caption{The non-differentiable staircase of a discrete empirical CDF (gray) is convolved with a narrow Gaussian kernel via dithering, yielding a continuous, differentiable curve (black).}
@@ -627,6 +630,13 @@ $\begin{bmatrix}
 \label{tab:baseline_matrices}
 \end{table}
 
+\begin{figure}[!tb]
+    \centering
+    \includegraphics[width=0.75\columnwidth]{otica_baseline_recovery.pdf}
+    \caption{OT-ICA convergence on four standard continuous source types from the same validation mixture. Estimated latent components are smoothed with kernel density estimation.}
+    \label{fig:ot_ica_validation}
+\end{figure}
+
 \subsection{Full Benchmark Results}
 \label{app:full_results}
 
@@ -718,13 +728,10 @@ an insufficient $W_2^2$ contrast; the issue is in the optimization landscape.}
 \label{tab:w2_sensitivity}
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[!tb]
     \centering
-    \includegraphics[width=0.9\textwidth]{all_optimization_surfaces.pdf}
-    \caption{$W_2^2$ and logcosh optimization landscapes for two-source Poisson and Binomial mixtures across parameterizations.
-    The $W_2^2$ landscape retains a non-zero signal throughout (confirming the contrast is present), but the step-function geometry of discrete CDFs
-    creates flat plateaus where the gradient evaluates to near-zero, stalling gradient-based solvers. The logcosh landscape degenerates to near-zero
-    for standard count-based parameterizations, indicating a fundamental contrast failure.}
+    \includegraphics[width=0.9\textwidth]{landscape_twodisc.pdf}
+    \caption{$W_2^2$ and logcosh contrast against projection angle for two-source discrete mixtures ($d=2$, $N=10{,}000$), evaluated on the whitened data; the true source directions fall at $\pi/4$ and $3\pi/4$ (vertical lines), and both contrasts are $\pi$-periodic so the half-period shown is the complete landscape. In every configuration $W_2^2$ peaks sharply at the true directions, confirming the contrast correctly identifies the sources, while the logcosh proxy's maximum is displaced from them in all but configuration (III) -- the one case where FastICA attains its lowest Amari error. Both curves also show fine-grained, jagged local structure away from the peaks, a symptom of the underlying step-function CDFs: these small local plateaus and kinks make the landscape hard for a local gradient-based solver to navigate even where the global maximum is correctly located.}
     \label{fig:optim_surfaces}
 \end{figure}
 
@@ -737,7 +744,7 @@ FastICA \citep{hyvarinen2001} approximates negentropy using a non-quadratic cont
 \subsubsection{The Zero Negentropy Condition}
 If a latent independent source possesses a non-Gaussian distribution such that its expected value under the contrast function equals that of a Gaussian ($\mathbb{E}[G(s_i)] = \mathbb{E}[G(\nu)]$), the approximated negentropy evaluates to zero. In this scenario, the objective function provides no gradient signal, and the algorithm fails to extract the source. As shown in Figure~\ref{fig:zero_negentropy}, this failure leads to increasing Amari error with increasing dimensions.
 
-\begin{figure}[htbp]
+\begin{figure}[!tb]
     \centering
     \includegraphics[width=0.85\textwidth]{zero_negentropy_amari_compute.pdf} 
     \caption{Amari error comparison for an engineered zero-negentropy distribution across Low and High compute regimes. FastICA's error scales with dimension as the proxy gradient vanishes, crossing the good separation threshold ($E=0.3$). OT-ICA maintains good separation till higher dimensions depending on compute regime.}
@@ -749,7 +756,7 @@ FastICA utilizes a Newton fixed-point iteration. Defining $g(x) = G'(x)$ and $g'
 
 The Newton update requires applying the inverse of this Hessian ($\mathbf{H}^{-1}$). If a non-Gaussian source distribution causes the expectation in the denominator to evaluate to zero ($\mathbb{E}[s_i g(s_i) - g'(s_i)] \to 0$), the inverse becomes undefined \cite[Chapter 8]{hyvarinen2001}. This analytical divide-by-zero error makes the fixed-point update step intractable. Figure~\ref{fig:vanishing_curvature_combined} illustrates this failure mode, displaying the specific trimodal distribution that induces zero curvature and the resulting divergence in separation performance compared to our OT-ICA framework.
 
-\begin{figure}[htbp]
+\begin{figure}[!tb]
     \centering
     \begin{minipage}{0.85\textwidth}
         \centering
@@ -793,7 +800,7 @@ The shared tanh nonlinearity, and not the optimizer, determines the error floor.
 
 We benchmarked OT-ICA against FastICA using a linear mixture of continuous Laplace sources across increasing dimensions with a fixed sample size of $N=10,000$.
 
-\begin{figure}[htbp]
+\begin{figure}[!tb]
     \centering
     \includegraphics[width=0.83\textwidth]{laplace_amari_ot_ica_scaling.pdf}
     \caption{Amari error across dimensions for Laplacian sources at fixed $N=10{,}000$ samples. Both OT-ICA and FastICA hit 
@@ -804,7 +811,7 @@ While OT-ICA maintains error rates comparable to FastICA ($E < 0.3$) in lower di
 This limit is a manifestation of the curse of dimensionality. The expected error of the empirical Wasserstein distance scales as $\mathcal{O}(N^{-1/d})$. 
 As $d$ grows, a fixed finite sample fails to densely populate the state space, creating massive empty regions that swallow the gradient signal.
 
-\begin{figure}[htbp]
+\begin{figure}[!tb]
     \centering
     \includegraphics[width=0.83\textwidth]{laplace_time_ot_ica_scaling.pdf}
     \caption{Total execution time (in seconds) for FastICA and OT-ICA across dimensions.}

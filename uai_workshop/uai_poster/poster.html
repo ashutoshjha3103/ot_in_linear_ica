@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Linear ICA via Optimal Transport: Poster</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css" />
+<link rel="stylesheet" href="poster.css" />
+</head>
+<body>
+<div class="page">
+
+  <div class="logos-row">
+    <div class="logo-slot"><img src="MPI-IS-logo_cropped.png" alt="MPI-IS logo" /></div>
+    <div class="logo-slot"><img src="TUB_logo.jpg" alt="TU Braunschweig logo" /></div>
+    <div class="logo-slot"><img src="UniTue_logo_cropped.png" alt="University of Tübingen logo" /></div>
+    <span class="logo-dot" style="left:33.333%;">&middot;</span>
+    <span class="logo-dot" style="left:66.667%;">&middot;</span>
+  </div>
+
+  <div class="header">
+    <div>
+      <div class="title">Linear Independent Component Analysis via Optimal Transport</div>
+      <div class="authors">Ashutosh&nbsp;Jha<sup>3</sup> &nbsp;&middot;&nbsp; Michel&nbsp;Besserve<sup>1,2</sup> &nbsp;&middot;&nbsp; Simon&nbsp;Buchholz<sup>1</sup></div>
+      <div class="affiliations">
+        <sup>1</sup>Max Planck Institute for Intelligent Systems, Tübingen &nbsp;&nbsp;
+        <sup>2</sup>Institute of Artificial Intelligence, TU Braunschweig &nbsp;&nbsp;
+        <sup>3</sup>Methods Center, University of Tübingen
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="badge">9th Tractable Probabilistic Modeling Workshop &middot; UAI 2026</div>
+      <div class="qr-block">
+        <img src="assets/qr_code.png" alt="QR code to code repository" />
+        <div class="qr-caption"><span class="label">Code &amp; experiments</span>github.com/ashutoshjha3103/ot_in_linear_ica</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body body-two-col">
+
+    <!-- ===================== COLUMN 1: MOTIVATION + METHOD ===================== -->
+    <div class="col">
+      <div class="col-heading">Motivation</div>
+
+      <p class="body-text">
+        Blind recovery of independent source signals from their mixtures is a recurring problem across
+        fields: separating CDMA signals in <b>telecommunications</b>, isolating neural activity from ocular
+        and muscular artifacts in <b>EEG/MEG</b>, identifying information shares across markets in
+        <b>econometric price discovery</b>, and comparable source-separation tasks in imaging and sensor
+        arrays. Independent Component Analysis (ICA) is the classical tool for this problem.
+      </p>
+      <p class="body-text">
+        ICA recovers mutually independent source signals <span class="mq">\(\mathbf{Z}\)</span> from a linear
+        mixture <span class="mq">\(\mathbf{X} = \mathbf{A}\mathbf{Z}\)</span>. If at most one source is Gaussian,
+        <span class="mq">\(\mathbf{A}\)</span> is identifiable up to permutation and scaling (Comon, 1994).
+      </p>
+      <p class="body-text">
+        By the Central Limit Theorem, a mixture of samples from independent non-Gaussian sources is <i>more</i>
+        Gaussian than the sources themselves. Recovering a source therefore means finding the projection that
+        is <i>least</i> Gaussian; maximizing non-Gaussianity is the classical ICA objective.
+      </p>
+      <p class="body-text">
+        Traditionally this is solved by maximizing non-Gaussianity, which information theory links directly
+        to independence once the data is whitened:
+      </p>
+
+      <div class="theorem-box theorem-box-grey">
+        <div class="theorem-title theorem-title-grey">Theorem: Independence &amp; Non-Gaussianity (Cardoso, 2022)</div>
+        <p>
+          Let <span class="mq">\(Y\in\mathbb{R}^d\)</span> be whitened (<span class="mq">\(\operatorname{Cov}(Y)=\mathbf{I}\)</span>).
+          The mutual information <span class="mq">\(\mathscr{I}(Y)\)</span> satisfies:
+        </p>
+        <div class="mq">\[ \mathscr{I}(Y) = G(Y) - \sum_i G(Y_i) \]</div>
+        <p>
+          where <span class="mq">\(G(\cdot)\)</span> is non-Gaussianity (minimal KL divergence to a Gaussian).
+          Two Pythagorean identities give this: a <i>product-manifold</i> identity
+          <span class="mq">\(D_{\mathrm{KL}}(P_Y\|Q)=\mathscr{I}(Y)+\sum_i D_{\mathrm{KL}}(P_{Y_i}\|q_i)\)</span>
+          and a <i>Gaussian-manifold</i> identity
+          <span class="mq">\(D_{\mathrm{KL}}(P_Y\|\mathcal{N}(\Sigma))=G(Y)+D_{\mathrm{KL}}(\mathcal{N}(\operatorname{Cov}Y)\|\mathcal{N}(\Sigma))\)</span>.
+        </p>
+        <p>
+          Since <span class="mq">\(G(Y)\)</span> is rotation-invariant, minimizing dependence is equivalent to
+          <b>maximizing total marginal non-Gaussianity</b>.
+        </p>
+        <p style="margin-bottom:0;">
+          After whitening, every candidate unmixing direction lies on the orthogonal group
+          <span class="mq">\(\mathrm{O}(d) = \{\mathbf{B}\in\mathbb{R}^{d\times d} : \mathbf{B}\mathbf{B}^\top = \mathbf{I}\}\)</span>,
+          the rotations of the whitened data.
+        </p>
+      </div>
+
+      <div class="col-subheading">Classical proxy contrasts</div>
+      <p class="body-text">
+        Because the marginal density needed for exact non-Gaussianity is unknown, classical algorithms
+        substitute a proxy contrast, each with a specific, documented limitation:
+      </p>
+
+      <div class="proxy-card" style="--card-color: var(--c-fastica);">
+        <div class="name"><span class="proxy">FastICA</span> &middot; logcosh negentropy approximation</div>
+        <p>Can hit zero gradient or a singular Hessian on specific non-Gaussian distributions engineered to satisfy the zero-negentropy / vanishing-curvature conditions, stalling the fixed-point solver.</p>
+      </div>
+      <div class="proxy-card" style="--card-color: var(--c-jade);">
+        <div class="name"><span class="proxy">JADE</span> &middot; fourth-order cumulants</div>
+        <p>Reliable cumulant-tensor estimation needs <span class="mq">\(\mathcal{O}(d^4)\)</span> samples: at <span class="mq">\(d{=}30\)</span> that is approximately 810k samples, against the 10k used in our benchmark.</p>
+      </div>
+      <div class="proxy-card" style="--card-color: var(--c-infomax);">
+        <div class="name"><span class="proxy">InfoMax</span> &middot; parametric log-likelihood</div>
+        <p>The fixed logistic nonlinearity implicitly assumes sub-Gaussian sources; the score is misspecified on super-Gaussian components (e.g. Laplace, Student-t).</p>
+      </div>
+      <div class="proxy-card" style="--card-color: var(--c-picard);">
+        <div class="name"><span class="proxy">Picard</span> &middot; L-BFGS on the InfoMax objective</div>
+        <p>Converges faster per iteration but shares InfoMax's tanh nonlinearity. Near-identical error to FastICA shows that solver speed isn't the binding constraint; the contrast is.</p>
+      </div>
+
+      <div class="col-heading" style="margin-top:2mm;">OT-ICA: Method</div>
+      <p class="body-text">
+        We measure non-Gaussianity as the squared Wasserstein-2 distance to a standard Gaussian
+        <span class="mq">\(\Gamma\)</span>, the minimum-cost coupling between two distributions:
+      </p>
+      <div class="eqn-box">
+        <span class="mq">\(\displaystyle W_2^2(\mu,\nu) = \inf_{\pi\in\Pi(\mu,\nu)} \int \|x-y\|^2\, d\pi(x,y)\)</span>
+      </div>
+      <p class="body-text">
+        Unlike proxy contrasts, <span class="mq">\(W_2^2\)</span> is a true metric, non-zero on every
+        non-Gaussian distribution. This is OT-ICA's main optimization objective: maximize the contrast over a
+        whitened projection <span class="mq">\(\mathbf{b}^\top\widetilde{\mathbf{X}}\)</span> to find the best
+        unmixing direction:
+      </p>
+      <div class="eqn-box">
+        <span class="mq">\(\displaystyle \widehat{\mathbf{b}} = \arg\max_{\|\mathbf{b}\|=1} W_2^2\big(\mathbb{P}_{\mathbf{b}^\top\widetilde{\mathbf{X}}},\, \Gamma\big)\)</span>
+      </div>
+
+      <div class="theorem-box">
+        <div class="theorem-title">Theorem: W&#8322;&sup2; ICA Contrast</div>
+        <p>
+          Let <span class="mq">\(\mathbf{Z}=(Z_1,\dots,Z_d)\)</span> be centered, unit-variance,
+          independent sources with at most one Gaussian and smooth positive densities. For any unit vector
+          <span class="mq">\(\alpha\)</span> with &ge;2 nonzero entries:
+        </p>
+        <div class="eqn-box">
+          <span class="mq">\(\displaystyle W_2^2(\alpha \!\cdot\! \mathbf{Z}, \Gamma) \;<\; \sum_{i=1}^d \alpha_i^2\, W_2^2(Z_i, \Gamma)\)</span>
+        </div>
+        <p style="margin-bottom:0;">
+          &rArr; the contrast is <b>maximized only at pure independent components</b>. This extends to joint
+          optimization: for <span class="mq">\(\mathbf{B}\in \mathrm{O}(d)\)</span>, the total contrast
+          <span class="mq">\(\sum_i W_2^2(\mathbf{b}_i^\top\mathbf{Z},\Gamma)\)</span> is maximal iff
+          <span class="mq">\(\mathbf{B}\)</span> is a signed permutation.
+        </p>
+      </div>
+
+      <div class="algo-box">
+        <div class="algo-title">OT-ICA Algorithm</div>
+        <ol>
+          <li>Center &amp; whiten: <span class="mq">\(\widetilde{\mathbf{X}} = (\mathbf{X}\mathbf{X}^\top)^{-1/2}\mathbf{X}\)</span>; initialize <span class="mq">\(\mathbf{B}\in\mathrm{O}(d)\)</span> randomly, orthogonalize.</li>
+          <li>Project a mini-batch: <span class="mq">\(\mathbf{Y}=\mathbf{B}\widetilde{\mathbf{X}}_{\text{batch}}\)</span>.</li>
+          <li><b>Gaussian dithering</b> (introduced here to smooth the empirical CDF before sorting): <span class="mq">\(\mathbf{Y}_{\text{dither}} = \mathbf{Y} + \mathcal{N}(0,\sigma_{\text{dither}}^2)\)</span>.</li>
+          <li>Sort each row of <span class="mq">\(\mathbf{Y}_{\text{dither}}\)</span> to get empirical quantiles; in 1D the optimal coupling is just the sorted match (Brenier's theorem), so no density estimation is needed.</li>
+          <li>Loss against analytical Gaussian targets <span class="mq">\(\mathbf{T}\)</span> (closed-form per-bin expectations, avoiding sampling noise): <span class="mq">\(\mathcal{L} = \frac{1}{N}\sum_{i=1}^d \|\mathbf{Y}_{\text{sorted}}^{(i)} - \mathbf{T}\|_2^2\)</span>.</li>
+          <li>Riemannian gradient on <span class="mq">\(\mathrm{O}(d)\)</span>: <span class="mq">\(\nabla_{\mathrm{O}(d)}\mathbf{B} = \mathbf{G} - \tfrac{1}{2}(\mathbf{G}\mathbf{B}^\top+\mathbf{B}\mathbf{G}^\top)\mathbf{B}\)</span>, with <span class="mq">\(\mathbf{G}=\nabla_{\mathbf{B}}\mathcal{L}\)</span>; step <span class="mq">\(\mathbf{B}_{\text{step}} = \mathbf{B} + \eta\,\nabla_{\mathrm{O}(d)}\mathbf{B}\)</span>.</li>
+          <li>Retract to <span class="mq">\(\mathrm{O}(d)\)</span> by symmetric decorrelation: <span class="mq">\(\mathbf{B} \leftarrow (\mathbf{B}_{\text{step}}\mathbf{B}_{\text{step}}^\top)^{-1/2}\mathbf{B}_{\text{step}}\)</span>.</li>
+          <li>Repeat until convergence.</li>
+        </ol>
+        <div class="tricks">
+          <b>Per-iteration cost:</b> <span class="mq">\(\mathcal{O}(K(dN\log N + d^3))\)</span> for
+          <span class="mq">\(K\)</span> restarts, <span class="mq">\(N\)</span> samples,
+          <span class="mq">\(d\)</span> dimensions; sorting dominates, and symmetric decorrelation costs
+          <span class="mq">\(\mathcal{O}(d^3)\)</span>.
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== COLUMN 2: RESULTS + APPLICATION ===================== -->
+    <div class="col">
+      <div class="col-heading">Results</div>
+
+      <figure class="figure-medium">
+        <img src="assets/general_hybrid_test.svg" alt="Hybrid mixture experiment results" />
+        <figcaption>
+          Mean Amari error (&darr; better, clipped at 1.5) across five mixture regimes and
+          <span class="mq">\(d\in\{10,20,30\}\)</span> (<span class="mq">\(N{=}10{,}000\)</span>, 10 trials, 95% CI).
+          <b>OT-ICA attains the lowest error on every continuous and heterogeneous regime</b>, by
+          <b>2&ndash;4&times;</b> on Full Hybrid mixtures.
+        </figcaption>
+      </figure>
+
+      <div class="col-subheading">Discrete Sources: Contrast vs. Optimization</div>
+      <figure class="figure-optim">
+        <img src="assets/landscape_twodisc.svg" alt="Discrete optimization landscape" />
+        <figcaption>
+          <span class="mq">\(W_2^2\)</span> vs. logcosh contrast against projection angle for 2D discrete
+          mixtures. <span class="mq">\(W_2^2\)</span> <b>peaks sharply at the true source directions in every
+          configuration</b>; logcosh is displaced except in the one case where FastICA wins. The contrast
+          signal is intact: it retains &gt;10&times; the resolution of logcosh on count data
+          (e.g. Poisson(&lambda;=3): 0.051 vs. &asymp;0). The <i>Discrete Only</i> failure at higher
+          <span class="mq">\(d\)</span> is an <b>optimization-landscape</b> problem: step-function CDFs
+          create gradient plateaus that stall the Riemannian solver; it is not a contrast deficiency.
+        </figcaption>
+      </figure>
+      <p class="body-text">
+        While <span class="mq">\(W_2^2\)</span> peaks at the correct locations even in this hard discrete
+        case, the landscape also shows local maxima away from the peak. We are investigating if this is what
+        makes optimization harder in high dimensions, consistent with OT-ICA's weaker performance on high
+        dimensional <i>Discrete Only</i> mixtures in the Results above, even though <span class="mq">\(W_2^2\)</span>
+        retains a clear contrast signal, unlike the logcosh proxy behind FastICA, which fails to separate
+        sources even in this simple two-source case. If so, the discrete-case bottleneck is the optimization
+        landscape (local maxima and basin collapse), not the contrast itself.
+      </p>
+
+      <div class="col-heading" style="margin-top:2mm;">Application</div>
+      <div class="col-subheading">EEG Artifact Removal</div>
+      <p class="body-text" style="margin-bottom:0;">
+        OT-ICA on five frontal EEG channels (MNE sample dataset). Blink artifacts are impulsive and
+        super-Gaussian, letting artifact removal proceed without a density model:
+      </p>
+      <div class="eeg-app-row">
+        <figure class="figure-small">
+          <img src="assets/eeg_artifact_removal.svg" alt="EEG artifact removal results" />
+        </figure>
+        <ul class="eeg-bullets">
+          <li><b>(a) Raw:</b> five frontal channels with a large blink artifact around <span class="mq">\(t\approx4\)</span>&ndash;5s.</li>
+          <li><b>(b) OT-ICA components:</b> Comp 1 isolates the blink (excess kurtosis <span class="mq">\(\kappa=59.5\)</span>); the remaining four components have near-zero kurtosis (mean <span class="mq">\(\kappa\approx-0.0\)</span>).</li>
+          <li><b>(c) Cleaned:</b> signal after zeroing Comp 1 and inverting the unmixing matrix, giving a 92% RMS reduction in the &plusmn;250ms blink window.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== TAKEAWAYS ===================== -->
+  <div class="takeaways">
+    <div class="takeaway">
+      <div class="takeaway-num">1</div>
+      <div class="takeaway-text"><span class="lead">A Distribution-Free Contrast <span class="mq">\(W_2^2\)</span>:</span> replaces proxy negentropy approximations and provably peaks only at independent components.</div>
+    </div>
+    <div class="takeaway">
+      <div class="takeaway-num">2</div>
+      <div class="takeaway-text"><span class="lead">Better Performance:</span> OT-ICA beats FastICA, JADE, InfoMax, and Picard in high dimensions and on more varied, heterogeneous mixtures, as shown in the main results figure, by 2&ndash;4&times; on the hardest cases.</div>
+    </div>
+    <div class="takeaway">
+      <div class="takeaway-num">3</div>
+      <div class="takeaway-text"><span class="lead">Works on Real Data:</span> validated on EEG artifact removal and econometric price discovery without imposing a distributional model.</div>
+    </div>
+  </div>
+
+  <!-- ===================== FOOTER ===================== -->
+  <div class="footer">
+    <div>
+      <div class="col-heading">Future Work</div>
+      <ul>
+        <li>On discrete sources, the contrast retains signal but the optimization landscape stalls the solver as <span class="mq">\(d\)</span> grows.</li>
+        <li>Motivates Sinkhorn distances and amortized transport for the discrete case.</li>
+        <li>Extending the distribution-free contrast to causal discovery.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="col-heading">References</div>
+      <div class="refs">
+        <ol>
+          <li>Comon. Independent component analysis, a new concept? <i>Signal Processing</i>, 1994.</li>
+          <li>Hyvärinen &amp; Oja. Independent Component Analysis. <i>Wiley</i>, 2001.</li>
+          <li>Cardoso &amp; Souloumiac. Blind beamforming for non-Gaussian signals (JADE). <i>IEE Proc. F</i>, 1993.</li>
+          <li>Bell &amp; Sejnowski. An information-maximization approach to blind separation (InfoMax). <i>Neural Comp.</i>, 1995.</li>
+          <li>Ablin, Cardoso &amp; Gramfort. Faster ICA under orthogonal constraint (Picard). <i>ICASSP</i>, 2018.</li>
+          <li>Cardoso. Information geometry of ICA. 2022.</li>
+          <li>Johnson &amp; Samworth. Central limit theorem and convolution for the Wasserstein metric. 2005.</li>
+          <li>Zema. Non-Gaussian information shares. 2025.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="contact">
+      <div class="col-heading">Contact</div>
+      <p><span class="label">Ashutosh Jha</span><br/>Methods Center, University of Tübingen<br/>ashutoshjha3103@gmail.com</p>
+    </div>
+  </div>
+
+</div>
+
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/katex/contrib/auto-render.min.js"></script>
+<script>
+  renderMathInElement(document.body, {
+    delimiters: [
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ],
+    throwOnError: false
+  });
+</script>
+</body>
+</html>

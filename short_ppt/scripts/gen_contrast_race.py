@@ -102,7 +102,9 @@ curves = {
 
 # ---- figure ---------------------------------------------------------------
 fig, (ax_scatter, ax_curve) = plt.subplots(1, 2, figsize=(11.5, 5.0))
-fig.subplots_adjust(wspace=0.3, bottom=0.14, top=0.86, left=0.07, right=0.97)
+fig.subplots_adjust(wspace=0.3, bottom=0.14, top=0.74, left=0.07, right=0.97)
+fig.suptitle('ICA contrast on simple mixture of continuous Laplace and Uniform sources',
+             fontsize=14, fontweight='bold', y=0.97)
 
 R = 3.6
 ax_scatter.scatter(s1, s2, s=5, color='#888888', alpha=0.35, zorder=1)

@@ -232,5 +232,9 @@ mne_data/
 short_ppt/__pycache__/
 *.pyc
 
+# workshop video/poster working folders (large binaries, not paper/thesis source)
+uai_workshop/uai_video/
+#uai_workshop/uai_poster/
+
 # AAAI'27 anonymous code supplement (zipped and submitted separately, not hosted)
 linearICA_via_OT_AAAI27_code_supplement/

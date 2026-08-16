@@ -41,7 +41,9 @@ x_grid = np.linspace(-4, 4, 400)
 gauss_pdf = scipy.stats.norm.pdf(x_grid)
 
 fig, (ax_hist, ax_curve) = plt.subplots(1, 2, figsize=(10.5, 4.6))
-fig.subplots_adjust(wspace=0.32, bottom=0.16, top=0.86, left=0.08, right=0.97)
+fig.subplots_adjust(wspace=0.32, bottom=0.16, top=0.80, left=0.08, right=0.97)
+fig.suptitle(r'$W_2^2$ as contrast for ICA mixture of one Laplace and one Uniform',
+             fontsize=14, fontweight='bold', y=0.97)
 
 bars = None
 title = ax_hist.set_title('')

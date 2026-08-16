@@ -30,7 +30,9 @@ P_PROD = (radius * np.cos(np.radians(160)), center[1] + radius * np.sin(np.radia
 P_GAUSS = (radius * np.cos(np.radians(20)), center[1] + radius * np.sin(np.radians(20)))
 
 fig, ax = plt.subplots(figsize=(10.5, 7.5))
-fig.subplots_adjust(left=0.02, right=0.98, top=0.97, bottom=0.03)
+fig.subplots_adjust(left=0.02, right=0.98, top=0.90, bottom=0.03)
+fig.suptitle('Information Geometry: Independence measured via Non-Gaussianity',
+             fontsize=15, fontweight='bold', y=0.98)
 ax.set_xlim(-6.8, 6.8)
 ax.set_ylim(-4.7, 5.0)
 ax.set_aspect('equal')
@@ -59,7 +61,7 @@ ax.text(*mid(P_GAUSS, P_DIAG), '  $C(Y)$', fontsize=22.5, color=PALETTE['OT-ICA'
 pt_specs = [
     (P_Y, '$P_Y$', '(joint distribution)', (0, 0.4), 'bottom', 'center', '#222222'),
     (P_DIAG, '$\\mathcal{N}(\\mathrm{diag\\,Cov}\\,Y)$', '', (0, -0.55), 'top', 'center', '#222222'),
-    (P_PROD, '$P_Y^P = \\prod_i P_{Y_i}$', 'closest independent,\nProduct manifold $\\mathcal{P}$',
+    (P_PROD, '$P_Y^P = \\prod_i \\quad P_{Y_i}$', 'closest independent,\nProduct manifold $\\mathcal{P}$',
      (-0.4, 0.3), 'bottom', 'right', PALETTE['FastICA']),
     (P_GAUSS, '$\\mathcal{N}(\\mathrm{Cov}\\,Y)$', 'closest Gaussian,\nGaussian manifold $\\mathcal{G}$',
      (0.4, 0.3), 'bottom', 'left', PALETTE['OT-ICA']),

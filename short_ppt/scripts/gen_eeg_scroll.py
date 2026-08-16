@@ -6,6 +6,14 @@ artifact identification, cleaned reconstruction. The expensive OT-ICA
 optimization runs ONCE; the animation only sweeps a playhead + live RMS
 readout across the precomputed raw/components/cleaned traces, so re-running
 OT-ICA per frame is avoided.
+
+v2: the result callouts are now PERSISTENT annotations pointing at the
+blink window in panels (a) and (c), not text that only appears while the
+playhead happens to be crossing that ~0.5s window during a 10s sweep --
+that first version was on screen too briefly to actually read. The
+playhead also slows way down specifically while crossing the blink
+window (three-phase pacing: normal / slow / normal) so there's real time
+to look at it, instead of a single uniform-speed sweep.
 """
 import os
 import sys
@@ -96,7 +104,9 @@ comp_colors = [PALETTE['OT-ICA'] if i == artifact_idx else '#444444' for i in ra
 comp_labels = [f'Comp {i + 1}' for i in range(dim_eeg)]
 
 fig, axes = plt.subplots(3, 1, figsize=(8.5, 8.6), sharex=True)
-fig.subplots_adjust(left=0.12, right=0.96, top=0.93, bottom=0.08, hspace=0.45)
+fig.subplots_adjust(left=0.12, right=0.96, top=0.85, bottom=0.08, hspace=0.5)
+fig.suptitle('EEG Artifact Removal: Isolating Ocular Blinks via Non-Gaussianity',
+             fontsize=13.5, fontweight='bold', y=0.975)
 
 for i in range(dim_eeg):
     axes[0].plot(time, X_eeg[i] - i * OFFSET, color='#444444', linewidth=0.9)
@@ -115,18 +125,31 @@ for i in range(dim_eeg):
     axes[2].plot(time, X_cleaned[i] - i * OFFSET, color='#444444', linewidth=0.9)
 axes[2].set_yticks([-OFFSET * i for i in range(dim_eeg)])
 axes[2].set_yticklabels(frontal_channels)
-title_clean = axes[2].set_title('(c) Cleaned EEG', fontsize=12)
+axes[2].set_title(f'(c) Cleaned EEG  [{pct_reduction:.0f}% RMS reduction in '
+                   f'$\\pm$250ms blink window]', fontsize=12)
 axes[2].set_xlabel('Time (s)')
 
 blink_t0, blink_t1 = time[win.start], time[min(win.stop, len(time) - 1)]
+blink_mid = (blink_t0 + blink_t1) / 2
 for ax in axes:
-    ax.axvspan(blink_t0, blink_t1, color=PALETTE['OT-ICA'], alpha=0.08, zorder=0)
+    ax.axvspan(blink_t0, blink_t1, color=PALETTE['OT-ICA'], alpha=0.10, zorder=0)
+
+# No on-screen callout text here by design -- the kurtosis and RMS-reduction
+# numbers are already covered by the narration and by the panel titles
+# above (b) and (c); a redundant annotation was found unnecessary.
 
 playheads = [ax.axvline(time[0], color=PALETTE['FastICA'], lw=2, zorder=5) for ax in axes]
-readout = fig.text(0.5, 0.965, '', ha='center', fontsize=12.5, color=PALETTE['OT-ICA'], fontweight='bold')
+clock = fig.text(0.5, 0.895, '', ha='center', fontsize=11, color='#555555')
 
-N_FRAMES = 200
-sweep_idx = np.linspace(0, len(time) - 1, N_FRAMES).astype(int)
+# Three-phase pacing: normal speed up to the blink window, a deliberate slow
+# crawl THROUGH the window (most of the screen time despite being the
+# shortest real-time span), then normal speed to the end -- instead of one
+# uniform-speed sweep that blows past the blink in a fraction of a second.
+idx_before = np.linspace(0, win.start, 90).astype(int)
+idx_window = np.linspace(win.start, win.stop, 110).astype(int)
+idx_after = np.linspace(win.stop, len(time) - 1, 60).astype(int)
+sweep_idx = np.concatenate([idx_before, idx_window, idx_after])
+N_FRAMES = len(sweep_idx)
 
 
 def update(frame):
@@ -134,14 +157,8 @@ def update(frame):
     t = time[idx]
     for ph in playheads:
         ph.set_xdata([t, t])
-    if win.start <= idx <= win.stop:
-        readout.set_text(f't = {t:5.2f}s   -- inside blink window: '
-                          f'{pct_reduction:.0f}% RMS reduction after cleaning')
-    else:
-        readout.set_text(f't = {t:5.2f}s')
-    title_clean.set_text(f'(c) Cleaned EEG  [{pct_reduction:.0f}% RMS reduction in '
-                          f'$\\pm$250ms blink window]')
-    return playheads + [readout, title_clean]
+    clock.set_text(f't = {t:5.2f}s')
+    return playheads + [clock]
 
 
 anim = FuncAnimation(fig, update, frames=N_FRAMES, blit=False)

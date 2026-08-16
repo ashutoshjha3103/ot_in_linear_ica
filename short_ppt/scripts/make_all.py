@@ -8,6 +8,7 @@ SCRIPTS = [
     'gen_mixing_clt.py',
     'gen_centering_whitening.py',
     'gen_contrast_race.py',
+    'gen_contrast_race_discrete.py',
     'gen_cardoso_pythagoras.py',
     'gen_eeg_scroll.py',
 ]
