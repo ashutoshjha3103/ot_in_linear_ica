@@ -368,7 +368,7 @@ table.poster-table th { background: var(--panel); font-weight: 700; }
   column-gap: 14mm;
 }
 
-.footer .col-heading { font-size: 24pt; }
+.footer .col-heading { font-size: 24pt; line-height: 1.15; }
 .footer .body-text { font-size: 16pt; }
 .footer .small-text { font-size: 13pt; }
 

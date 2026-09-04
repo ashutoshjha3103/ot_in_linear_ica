@@ -43,11 +43,11 @@
       <div class="col-heading">Motivation</div>
 
       <p class="body-text">
-        Blind recovery of independent source signals from their mixtures is a recurring problem across
+        Independent Component Analysis (ICA) or blind source separation is a recurring problem across
         fields: separating CDMA signals in <b>telecommunications</b>, isolating neural activity from ocular
         and muscular artifacts in <b>EEG/MEG</b>, identifying information shares across markets in
-        <b>econometric price discovery</b>, and comparable source-separation tasks in imaging and sensor
-        arrays. Independent Component Analysis (ICA) is the classical tool for this problem.
+        <b>econometric price discovery</b>, and comparable source separation tasks in imaging and sensor
+        arrays. ICA is the classical tool for these tasks.
       </p>
       <p class="body-text">
         ICA recovers mutually independent source signals <span class="mq">\(\mathbf{Z}\)</span> from a linear
@@ -56,12 +56,9 @@
       </p>
       <p class="body-text">
         By the Central Limit Theorem, a mixture of samples from independent non-Gaussian sources is <i>more</i>
-        Gaussian than the sources themselves. Recovering a source therefore means finding the projection that
+        Gaussian than the sources themselves. Recovering an independent source therefore means finding the projection that
         is <i>least</i> Gaussian; maximizing non-Gaussianity is the classical ICA objective.
-      </p>
-      <p class="body-text">
-        Traditionally this is solved by maximizing non-Gaussianity, which information theory links directly
-        to independence once the data is whitened:
+        Information theory links non-Gaussianity directly to independence once the data is whitened:
       </p>
 
       <div class="theorem-box theorem-box-grey">
@@ -101,7 +98,7 @@
       </div>
       <div class="proxy-card" style="--card-color: var(--c-jade);">
         <div class="name"><span class="proxy">JADE</span> &middot; fourth-order cumulants</div>
-        <p>Reliable cumulant-tensor estimation needs <span class="mq">\(\mathcal{O}(d^4)\)</span> samples: at <span class="mq">\(d{=}30\)</span> that is approximately 810k samples, against the 10k used in our benchmark.</p>
+        <p>Reliable cumulant-tensor estimation needs <span class="mq">\(\mathcal{O}(d^4)\)</span> samples: at <span class="mq">\(d{=}30\)</span> that is approximately 810k samples, much more than other ICA methods.</p>
       </div>
       <div class="proxy-card" style="--card-color: var(--c-infomax);">
         <div class="name"><span class="proxy">InfoMax</span> &middot; parametric log-likelihood</div>
@@ -109,7 +106,7 @@
       </div>
       <div class="proxy-card" style="--card-color: var(--c-picard);">
         <div class="name"><span class="proxy">Picard</span> &middot; L-BFGS on the InfoMax objective</div>
-        <p>Converges faster per iteration but shares InfoMax's tanh nonlinearity. Near-identical error to FastICA shows that solver speed isn't the binding constraint; the contrast is.</p>
+        <p>Converges faster per iteration but shares InfoMax's tanh nonlinearity.</p>
       </div>
 
       <div class="col-heading" style="margin-top:2mm;">OT-ICA: Method</div>
@@ -122,12 +119,12 @@
       </div>
       <p class="body-text">
         Unlike proxy contrasts, <span class="mq">\(W_2^2\)</span> is a true metric, non-zero on every
-        non-Gaussian distribution. This is OT-ICA's main optimization objective: maximize the contrast over a
+        non-Gaussian distribution. Below is OT-ICA's main optimization objective: maximize the contrast over a
         whitened projection <span class="mq">\(\mathbf{b}^\top\widetilde{\mathbf{X}}\)</span> to find the best
         unmixing direction:
       </p>
       <div class="eqn-box">
-        <span class="mq">\(\displaystyle \widehat{\mathbf{b}} = \arg\max_{\|\mathbf{b}\|=1} W_2^2\big(\mathbb{P}_{\mathbf{b}^\top\widetilde{\mathbf{X}}},\, \Gamma\big)\)</span>
+        <span class="mq">\(\displaystyle \widehat{\mathbf{b}} = \arg\max_{\|\mathbf{b}\|=1} W_2^2\big(\mathbf{b}^\top\widetilde{\mathbf{X}},\, \Gamma\big)\)</span>
       </div>
 
       <div class="theorem-box">
@@ -178,8 +175,8 @@
         <figcaption>
           Mean Amari error (&darr; better, clipped at 1.5) across five mixture regimes and
           <span class="mq">\(d\in\{10,20,30\}\)</span> (<span class="mq">\(N{=}10{,}000\)</span>, 10 trials, 95% CI).
-          <b>OT-ICA attains the lowest error on every continuous and heterogeneous regime</b>, by
-          <b>2&ndash;4&times;</b> on Full Hybrid mixtures.
+          <b>OT-ICA attains the lowest errors on every continuous and heterogeneous regime</b>, by
+          <b>2&ndash;4&times;</b> on Full Hybrid (Continuous, Discrete sources and one Gaussian) mixtures.
         </figcaption>
       </figure>
 
@@ -189,7 +186,7 @@
         <figcaption>
           <span class="mq">\(W_2^2\)</span> vs. logcosh contrast against projection angle for 2D discrete
           mixtures. <span class="mq">\(W_2^2\)</span> <b>peaks sharply at the true source directions in every
-          configuration</b>; logcosh is displaced except in the one case where FastICA wins. The contrast
+          configuration</b>; logcosh is displaced except in the one case on the bottom left. The contrast
           signal is intact: it retains &gt;10&times; the resolution of logcosh on count data
           (e.g. Poisson(&lambda;=3): 0.051 vs. &asymp;0). The <i>Discrete Only</i> failure at higher
           <span class="mq">\(d\)</span> is an <b>optimization-landscape</b> problem: step-function CDFs
@@ -198,7 +195,7 @@
       </figure>
       <p class="body-text">
         While <span class="mq">\(W_2^2\)</span> peaks at the correct locations even in this hard discrete
-        case, the landscape also shows local maxima away from the peak. We are investigating if this is what
+        case, the landscape also shows local maxima away from the peak. In future work, we plan to investigate if this is what
         makes optimization harder in high dimensions, consistent with OT-ICA's weaker performance on high
         dimensional <i>Discrete Only</i> mixtures in the Results above, even though <span class="mq">\(W_2^2\)</span>
         retains a clear contrast signal, unlike the logcosh proxy behind FastICA, which fails to separate
@@ -219,7 +216,7 @@
         <ul class="eeg-bullets">
           <li><b>(a) Raw:</b> five frontal channels with a large blink artifact around <span class="mq">\(t\approx4\)</span>&ndash;5s.</li>
           <li><b>(b) OT-ICA components:</b> Comp 1 isolates the blink (excess kurtosis <span class="mq">\(\kappa=59.5\)</span>); the remaining four components have near-zero kurtosis (mean <span class="mq">\(\kappa\approx-0.0\)</span>).</li>
-          <li><b>(c) Cleaned:</b> signal after zeroing Comp 1 and inverting the unmixing matrix, giving a 92% RMS reduction in the &plusmn;250ms blink window.</li>
+          <li><b>(c) Cleaned:</b> signal after zeroing Comp 1 and inverting the unmixing matrix, giving a 92% Root Mean Square (RMS) reduction in the &plusmn;250ms blink window, leaving the signal suitable for further analysis.</li>
         </ul>
       </div>
     </div>
@@ -238,7 +235,7 @@
     </div>
     <div class="takeaway">
       <div class="takeaway-num">3</div>
-      <div class="takeaway-text"><span class="lead">Works on Real Data:</span> validated on EEG artifact removal and econometric price discovery without imposing a distributional model.</div>
+      <div class="takeaway-text"><span class="lead">Works on Real Data:</span> validated on EEG artifact removal without imposing a distributional model.</div>
     </div>
   </div>
 
@@ -248,6 +245,7 @@
       <div class="col-heading">Future Work</div>
       <ul>
         <li>On discrete sources, the contrast retains signal but the optimization landscape stalls the solver as <span class="mq">\(d\)</span> grows.</li>
+        <li>Investigating whether basin collapse in the optimization landscape drives this discrete-case failure at higher dimensions.</li>
         <li>Motivates Sinkhorn distances and amortized transport for the discrete case.</li>
         <li>Extending the distribution-free contrast to causal discovery.</li>
       </ul>
@@ -263,7 +261,6 @@
           <li>Ablin, Cardoso &amp; Gramfort. Faster ICA under orthogonal constraint (Picard). <i>ICASSP</i>, 2018.</li>
           <li>Cardoso. Information geometry of ICA. 2022.</li>
           <li>Johnson &amp; Samworth. Central limit theorem and convolution for the Wasserstein metric. 2005.</li>
-          <li>Zema. Non-Gaussian information shares. 2025.</li>
         </ol>
       </div>
     </div>
