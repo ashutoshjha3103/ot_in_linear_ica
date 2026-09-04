@@ -7,6 +7,7 @@
 **Master's thesis project — TPM UAI 2026 workshop paper**  
 **Author:** Ashutosh Jha<sup>3</sup>  
 **Master Thesis Supervisors:** Prof. Dr. Joachim Grammig<sup>4</sup>, Prof. Dr. Michel Besserve<sup>1,2</sup>, Dr. Simon Buchholz<sup>1</sup>, Prof. Dr. Augustin Kelava<sup>3</sup>  
+**UAI 2026 TPM Workshop Paper Author List** Ashutosh Jha<sup>3</sup>, Prof. Dr. Michel Besserve<sup>1,2</sup>, Dr. Simon Buchholz<sup>1</sup>  
 **ArXiv** https://arxiv.org/abs/2607.14081  
 **UAI 2026 TPM Accepted Papers List** https://tractable-probabilistic-modeling.github.io/tpm2026/papers/  
 **UAI 2026 TPM Workshop Poster** [LinearICA_via_OT_poster_TPM_UAI2026.pdf](uai_workshop/uai_poster/LinearICA_via_OT_poster_TPM_UAI26.pdf)  
