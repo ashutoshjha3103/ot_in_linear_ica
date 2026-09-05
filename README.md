@@ -164,8 +164,8 @@ Thesis figures additionally use notebooks 3–8 and the exploratory notebooks un
 
 ## Key references
 
-- Ashutosh Jha et al. (2026). *Linear ICA via Optimal Transport Metric as Contrast*. TPM @ UAI 2026. [`uai_workshop/LinearICA_via_OT_UAI2026_TPM.pdf`](uai_workshop/LinearICA_via_OT_UAI2026_TPM.pdf)
-- Ashutosh Jha (2025). *Optimal Transport for Linear ICA* (Master's Thesis).
+- Ashutosh Jha et al. (2026). *Linear ICA via Optimal Transport Metric as Contrast*. TPM @ UAI 2026. [`UAI Accepted Papers List`](https://tractable-probabilistic-modeling.github.io/tpm2026/papers/), [`Arxiv`](https://arxiv.org/abs/2607.14081 )
+- Ashutosh Jha (2025). [`Optimal Transport for Linear ICA`](master_thesis_report/Optimal_Transport_ICA_Master_Thesis_Ashutosh_Jha_6639615.pdf) (Master's Thesis).
 
 ---
 
