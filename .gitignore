@@ -242,3 +242,6 @@ linearICA_via_OT_AAAI27_code_supplement/
 # personal signature: never commit (purged from history 2026-09-11)
 signature_thesis-nobg.png
 *_signed.pdf
+
+# AAAI-27 rebuttal working files (drafts, derivations; not part of paper source)
+rebuttal/
