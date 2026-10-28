@@ -245,3 +245,5 @@ signature_thesis-nobg.png
 
 # AAAI-27 rebuttal working files (drafts, derivations; not part of paper source)
 rebuttal/
+
+exp/scratch_notebook_cluster.ipynb
